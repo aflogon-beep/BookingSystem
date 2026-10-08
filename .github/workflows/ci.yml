@@ -11,6 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Buscar secretos en el código
+        run: |
+          if grep -rEn "sk_live_|sk_test_[A-Za-z0-9]{10,}|whsec_[A-Za-z0-9]{10,}|service_role\"?\s*[:=]\s*\"ey" --include=*.{ts,tsx,js,json,sql,md} . --exclude-dir=node_modules --exclude-dir=.git; then
+            echo "Posible secreto en el código"; exit 1; fi
+
       - name: Comprobar si la app ya existe
         id: app
         run: |
@@ -63,8 +68,3 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
-
-      - name: Buscar secretos en el código
-        run: |
-          if grep -rEn "sk_live_|sk_test_[A-Za-z0-9]{10,}|whsec_[A-Za-z0-9]{10,}|service_role\"?\s*[:=]\s*\"ey" --include=*.{ts,tsx,js,json,sql,md} . --exclude-dir=node_modules --exclude-dir=.git; then
-            echo "Posible secreto en el código"; exit 1; fi
