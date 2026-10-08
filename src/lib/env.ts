@@ -3,15 +3,16 @@ import { z } from "zod";
 type RawEnv = Record<string, string | undefined>;
 
 // Una variable vacía cuenta como ausente.
-const required = z.preprocess((value) => (value === "" ? undefined : value), z.string());
+const emptyAsUndefined = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((value) => (value === "" ? undefined : value), schema);
 
 const publicSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url()),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: required,
+  NEXT_PUBLIC_SUPABASE_URL: emptyAsUndefined(z.url({ protocol: /^https?$/ })),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: emptyAsUndefined(z.string()),
 });
 
 const serverSchema = publicSchema.extend({
-  SUPABASE_SERVICE_ROLE_KEY: required,
+  SUPABASE_SERVICE_ROLE_KEY: emptyAsUndefined(z.string()),
 });
 
 function parse<T extends z.ZodType>(schema: T, raw: RawEnv): z.infer<T> {

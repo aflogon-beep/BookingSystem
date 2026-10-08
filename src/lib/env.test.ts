@@ -27,6 +27,18 @@ describe("parsePublicEnv", () => {
     );
   });
 
+  it("no expone la clave de service role aunque venga en la entrada", () => {
+    expect(parsePublicEnv({ ...validPublic, SUPABASE_SERVICE_ROLE_KEY: "service-key" })).not.toHaveProperty(
+      "supabaseServiceRoleKey",
+    );
+  });
+
+  it("rechaza una URL que no es http o https", () => {
+    expect(() => parsePublicEnv({ ...validPublic, NEXT_PUBLIC_SUPABASE_URL: "ftp://127.0.0.1" })).toThrow(
+      /NEXT_PUBLIC_SUPABASE_URL/,
+    );
+  });
+
   it("rechaza una URL no válida", () => {
     expect(() => parsePublicEnv({ ...validPublic, NEXT_PUBLIC_SUPABASE_URL: "no-es-una-url" })).toThrow(
       /NEXT_PUBLIC_SUPABASE_URL/,
