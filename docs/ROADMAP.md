@@ -4,7 +4,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 
 ## Fase 0 — Cimientos
 - [x] 0.1 Crear app Next.js + TypeScript + Tailwind + shadcn/ui + ESLint, scripts `lint`, `typecheck`, `test`, `test:e2e` y `build`.
-- [ ] 0.2 Vitest y Playwright configurados con un test de ejemplo cada uno. CI en verde.
+- [x] 0.2 Vitest y Playwright configurados con un test de ejemplo cada uno. CI en verde.
 - [ ] 0.3 Supabase local (`supabase init`), clientes `server.ts` y `admin.ts` (`server-only`), tipos generados.
 - [ ] 0.4 Tokens de diseño (skill `diseno-ui`) en Tailwind y shadcn. Layout del panel con barra superior, navegación y barra de pestañas móvil.
 - [ ] 0.5 Login del equipo (Supabase Auth, email + contraseña), middleware que protege `(panel)` y tabla `staff` con roles.
