@@ -27,6 +27,10 @@ export default defineConfig({
       use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 },
     },
     {
+      name: "tablet",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 820, height: 1180 } },
+    },
+    {
       name: "escritorio",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
     },
