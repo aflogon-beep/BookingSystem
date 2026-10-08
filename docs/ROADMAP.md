@@ -10,7 +10,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [ ] 0.5 Login del equipo (Supabase Auth, email + contraseña), middleware que protege `(panel)` y tabla `staff` con roles. Decidir política de contraseñas (`supabase/config.toml`: hoy mínimo 6 sin requisitos).
 
 ## Fase 1 — Núcleo de reservas
-- [ ] 1.1 Migración: settings, ticket_types, products, product_prices, schedule_rules y RLS. Seed de la empresa de ejemplo.
+- [ ] 1.1 Migración: settings, ticket_types, products, product_prices, schedule_rules y RLS. Seed de la empresa de ejemplo. Tipos reales con `npm run db:types`. CI con Supabase: `supabase start`, `db reset` (migraciones y seed aplican desde cero) y comprobación de que `src/lib/database.types.ts` coincide con los tipos generados.
 - [ ] 1.2 Ajustes: empresa, idiomas, tipos de entrada y políticas.
 - [ ] 1.3 Productos: editor con pestañas, subida de foto a Storage y vista previa de salidas.
 - [ ] 1.4 `generate_sessions` + cron diario + tests de zona horaria.
