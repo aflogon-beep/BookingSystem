@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar si la app ya existe
+        id: app
+        run: |
+          if [ -f package.json ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "Aún no hay package.json: se omiten los pasos (tarea 0.1 del roadmap)."; fi
+
+      - uses: actions/setup-node@v4
+        if: steps.app.outputs.exists == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        if: steps.app.outputs.exists == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.app.outputs.exists == 'true'
+        run: npm run lint
+
+      - name: Tipos
+        if: steps.app.outputs.exists == 'true'
+        run: npm run typecheck
+
+      - name: Tests
+        if: steps.app.outputs.exists == 'true'
+        run: npm run test
+
+      - name: Build
+        if: steps.app.outputs.exists == 'true'
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+
+      - name: Buscar secretos en el código
+        run: |
+          if grep -rEn "sk_live_|sk_test_[A-Za-z0-9]{10,}|whsec_[A-Za-z0-9]{10,}|service_role\"?\s*[:=]\s*\"ey" --include=*.{ts,tsx,js,json,sql,md} . --exclude-dir=node_modules --exclude-dir=.git; then
+            echo "Posible secreto en el código"; exit 1; fi
