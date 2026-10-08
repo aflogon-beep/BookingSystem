@@ -16,3 +16,8 @@ supabase/.branches/
 .claude/settings.local.json
 .DS_Store
 *.log
+
+# typescript / next
+*.tsbuildinfo
+next-env.d.ts
+*.pem
