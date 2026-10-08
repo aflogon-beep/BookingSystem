@@ -1,33 +1,67 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Paleta neutra por defecto de shadcn/ui. Los tokens del prototipo llegan en la tarea 0.4. */
+/*
+ * Tokens del prototipo (skill diseno-ui). Solo modo claro.
+ * Nota: en shadcn «accent» es el fondo suave de hover; el azul del prototipo es «primary».
+ */
 :root {
   color-scheme: light;
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --radius: 0.65rem;
+
+  /* Prototipo */
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #fafafc;
+  --line: #e3e3e8;
+  --line-2: #efeff4;
+  --ink: #1d1d1f;
+  --ink-muted: #6e6e73;
+  --faint: #86868b;
+  --blue: #0071e3;
+  --blue-dark: #0058b9;
+  --blue-soft: #e8f2fd;
+  --ok: #248a3d;
+  --ok-soft: #e5f4e8;
+  --warn: #b25000;
+  --warn-soft: #fff1e0;
+  --danger: #d70015;
+  --danger-soft: #fde8ea;
+
+  /* shadcn/ui */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--blue);
+  --primary-foreground: #ffffff;
+  --secondary: var(--line-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--line-2);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--line-2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--blue);
+
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", var(--font-geist-sans), "Helvetica Neue", system-ui, sans-serif;
+  --font-code: "SF Mono", ui-monospace, var(--font-geist-mono), Menlo, Consolas, monospace;
+}
+
+/* Puntos de corte del prototipo: móvil < 600 px ≤ tablet < 1180 px ≤ escritorio. */
+@theme {
+  --breakpoint-tablet: 600px;
+  --breakpoint-desk: 1180px;
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-code);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -36,20 +70,37 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-dark: var(--blue-dark);
+  --color-primary-soft: var(--blue-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-input: 10px;
+
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.04), 0 4px 14px rgb(0 0 0 / 0.03);
 }
 
 @layer base {
@@ -57,6 +108,12 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-semibold tracking-[-0.022em] text-balance;
   }
 }
