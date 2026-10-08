@@ -1,0 +1,2 @@
+-- Datos de ejemplo para desarrollo local (se cargan con npm run db:reset).
+-- La empresa de ejemplo del prototipo llega en la tarea 1.1.
