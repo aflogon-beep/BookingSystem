@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { PANEL_NAV, isNavItemActive } from "@/lib/panel-nav";
+import { focusRing } from "@/components/panel/styles";
 import { cn } from "@/lib/utils";
 
 /** Navegación principal en la barra superior (escritorio). */
@@ -20,6 +21,7 @@ export function NavTop() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
+              focusRing,
               "rounded-full px-3 py-1.5 text-[0.85rem] font-medium whitespace-nowrap text-muted-foreground hover:text-foreground",
               active && "bg-black/[0.06] text-foreground",
             )}

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Ruta Reservas",
   description: "Reserva tours guiados en Tenerife.",
+};
+
+// viewport-fit=cover para que env(safe-area-inset-*) funcione en iPhone (barra de pestañas).
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  themeColor: "#f5f5f7",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -16,7 +16,7 @@
   --line: #e3e3e8;
   --line-2: #efeff4;
   --ink: #1d1d1f;
-  --muted: #6e6e73;
+  --ink-muted: #6e6e73;
   --faint: #86868b;
   --blue: #0071e3;
   --blue-dark: #0058b9;
@@ -39,7 +39,8 @@
   --primary-foreground: #ffffff;
   --secondary: var(--line-2);
   --secondary-foreground: var(--ink);
-  --muted-foreground: var(--muted);
+  --muted: var(--line-2);
+  --muted-foreground: var(--ink-muted);
   --accent: var(--line-2);
   --accent-foreground: var(--ink);
   --destructive: var(--danger);
@@ -73,7 +74,7 @@
   --color-primary-soft: var(--blue-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--line-2);
+  --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-faint: var(--faint);
   --color-accent: var(--accent);
@@ -105,9 +106,6 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-  }
-  html {
-    color-scheme: light;
   }
   body {
     @apply bg-background text-foreground antialiased;

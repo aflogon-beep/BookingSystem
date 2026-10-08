@@ -6,12 +6,16 @@ import { useState } from "react";
 import { ChevronRight, Menu, Plus, Store } from "lucide-react";
 
 import { NAV_ICONS } from "@/components/panel/nav-icons";
+import { focusRing } from "@/components/panel/styles";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { NEW_BOOKING_HREF, PANEL_NAV, TAB_BAR_IDS, isMoreActive, isNavItemActive, navItem } from "@/lib/panel-nav";
 import { cn } from "@/lib/utils";
 
-const tabClass =
-  "flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 rounded-lg px-2 text-[0.64rem] font-medium text-faint";
+// Inactivas en muted-foreground (no faint como el prototipo): faint no llega a 4,5:1 a este tamaño.
+const tabClass = cn(
+  focusRing,
+  "flex min-h-11 min-w-14 flex-col items-center justify-center gap-0.5 rounded-lg px-2 text-[0.64rem] font-medium text-muted-foreground",
+);
 
 /** Barra de pestañas inferior (móvil): Hoy, Calendario, +, Reservas, Más. */
 export function TabBar() {
@@ -42,13 +46,16 @@ export function TabBar() {
       <Link
         href={NEW_BOOKING_HREF}
         aria-label="Nueva reserva"
-        className="-mt-[18px] grid size-[46px] place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_16px_rgb(0_113_227/0.35)]"
+        className="-mt-[18px] grid size-[46px] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_16px_rgb(0_113_227/0.35)]"
       >
         <Plus className="size-6" aria-hidden="true" />
       </Link>
       {tab(reservas)}
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetTrigger className={cn(tabClass, isMoreActive(pathname) && "text-primary")}>
+        <SheetTrigger
+          aria-current={isMoreActive(pathname) ? "page" : undefined}
+          className={cn(tabClass, isMoreActive(pathname) && "text-primary")}
+        >
           <Menu className="size-5" aria-hidden="true" />
           Más
         </SheetTrigger>
@@ -57,14 +64,14 @@ export function TabBar() {
             <SheetTitle>Más secciones</SheetTitle>
             <SheetDescription className="sr-only">Resto de secciones del panel</SheetDescription>
           </SheetHeader>
-          <ul className="px-3 pb-4">
+          <ul className="min-h-0 overflow-y-auto px-3 pb-4">
             {[...moreItems.map((item) => ({ ...item, Icon: NAV_ICONS[item.id] })), { id: "web", label: "Web de reservas", href: "/", Icon: Store }].map(
               ({ id, label, href, Icon }) => (
                 <li key={id}>
                   <Link
                     href={href}
                     onClick={() => setMoreOpen(false)}
-                    className="flex min-h-12 items-center gap-3 rounded-xl px-2 text-[0.95rem] text-foreground hover:bg-line-2"
+                    className="flex min-h-12 items-center gap-3 rounded-xl px-2 outline-none focus-visible:ring-2 focus-visible:ring-ring text-[0.95rem] text-foreground hover:bg-line-2"
                   >
                     <Icon className="size-5 text-muted-foreground" aria-hidden="true" />
                     <span className="flex-1">{label}</span>

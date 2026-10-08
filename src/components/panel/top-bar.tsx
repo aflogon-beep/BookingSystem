@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus, Settings, Store } from "lucide-react";
 
 import { NavTop } from "@/components/panel/nav-top";
+import { focusRing } from "@/components/panel/styles";
 import { Button } from "@/components/ui/button";
 import { NEW_BOOKING_HREF } from "@/lib/panel-nav";
 
@@ -21,12 +22,12 @@ function Logo() {
 
 export function TopBar() {
   return (
-    <header className="sticky top-0 z-40 flex min-h-[54px] items-center gap-x-[18px] border-b border-black/[0.08] bg-white/78 px-3.5 backdrop-blur-xl backdrop-saturate-180 tablet:min-h-14 tablet:px-[18px]">
-      <Link href="/panel" className="flex min-w-0 flex-none items-center gap-2.5 rounded-lg">
+    <header className="sticky top-0 z-40 flex min-h-[calc(54px+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] items-center gap-x-[18px] border-b border-black/[0.08] bg-white/78 px-3.5 backdrop-blur-xl backdrop-saturate-180 tablet:min-h-[calc(56px+env(safe-area-inset-top,0px))] tablet:px-[18px]">
+      <Link href="/panel" className={`${focusRing} flex min-w-0 flex-none items-center gap-2.5 rounded-lg`}>
         <Logo />
         <span className="min-w-0 leading-tight">
           <b className="block text-[0.92rem] font-semibold text-foreground">Ruta Reservas</b>
-          <small className="hidden text-[0.7rem] text-muted-foreground tablet:block">Panel de operaciones</small>
+          <small className="hidden text-[0.7rem] text-muted-foreground min-[1320px]:block">Panel de operaciones</small>
         </span>
       </Link>
 
