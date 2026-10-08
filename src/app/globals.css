@@ -51,6 +51,12 @@
   --font-code: "SF Mono", ui-monospace, var(--font-geist-mono), Menlo, Consolas, monospace;
 }
 
+/* Puntos de corte del prototipo: móvil < 600 px ≤ tablet < 1180 px ≤ escritorio. */
+@theme {
+  --breakpoint-tablet: 600px;
+  --breakpoint-desk: 1180px;
+}
+
 @theme inline {
   --font-sans: var(--font-body);
   --font-mono: var(--font-code);
