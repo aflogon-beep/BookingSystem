@@ -5,9 +5,9 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 ## Fase 0 — Cimientos
 - [x] 0.1 Crear app Next.js + TypeScript + Tailwind + shadcn/ui + ESLint, scripts `lint`, `typecheck`, `test`, `test:e2e` y `build`.
 - [x] 0.2 Vitest y Playwright configurados con un test de ejemplo cada uno. CI en verde.
-- [ ] 0.3 Supabase local (`supabase init`), clientes `server.ts` y `admin.ts` (`server-only`), tipos generados.
+- [x] 0.3 Supabase local (`supabase init`), clientes `server.ts` y `admin.ts` (`server-only`), tipos generados. _(Tipos provisionales a mano: se generan con `npm run db:types` en la 1.1.)_
 - [ ] 0.4 Tokens de diseño (skill `diseno-ui`) en Tailwind y shadcn. Layout del panel con barra superior, navegación y barra de pestañas móvil.
-- [ ] 0.5 Login del equipo (Supabase Auth, email + contraseña), middleware que protege `(panel)` y tabla `staff` con roles.
+- [ ] 0.5 Login del equipo (Supabase Auth, email + contraseña), middleware que protege `(panel)` y tabla `staff` con roles. Decidir política de contraseñas (`supabase/config.toml`: hoy mínimo 6 sin requisitos).
 
 ## Fase 1 — Núcleo de reservas
 - [ ] 1.1 Migración: settings, ticket_types, products, product_prices, schedule_rules y RLS. Seed de la empresa de ejemplo.
