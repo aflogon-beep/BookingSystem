@@ -9,6 +9,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+    // Zona del proceso fija: el código debe usar Atlantic/Canary de forma explícita (@date-fns/tz).
+    env: { TZ: "UTC" },
   },
 });

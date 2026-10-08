@@ -24,7 +24,7 @@ export default defineConfig({
   projects: [
     {
       name: "movil",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+      use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 },
     },
     {
       name: "escritorio",
