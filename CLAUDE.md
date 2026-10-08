@@ -11,7 +11,7 @@ Documentación del proyecto:
 
 ## Stack
 
-- Next.js (App Router) + TypeScript estricto + React Server Components.
+- Next.js 16 (App Router) + TypeScript estricto + React Server Components. Esta versión cambia APIs respecto a versiones anteriores: consulta `AGENTS.md` y la documentación en `node_modules/next/dist/docs/` antes de escribir código de Next.
 - Tailwind CSS + shadcn/ui. Iconos: lucide-react.
 - Supabase: Postgres, Auth (equipo interno), Storage (fotos de productos).
 - Stripe Checkout + webhooks para pagos online.
