@@ -1,0 +1,187 @@
+import "server-only";
+
+import { cache } from "react";
+import { connection } from "next/server";
+import { addDays, format, parseISO } from "date-fns";
+
+import { createAdminClient } from "@/lib/db/admin";
+import { toBusinessDateTime } from "@/lib/domain/calendar";
+import { minPrice, productPhotoUrl } from "@/lib/domain/product";
+import { businessToday, GENERATION_DAYS, localToInstant } from "@/lib/domain/schedule";
+import { distinctLanguages, isWebBookable, type WebSession } from "@/lib/domain/storefront";
+import { getPublicEnv } from "@/lib/env";
+
+/*
+ * La web pública no tiene sesión: anon no ve nada en la BD (RLS). Lee el catálogo desde el
+ * servidor con service role y solo devuelve lo que puede ver cualquiera: productos a la venta,
+ * precios y plazas libres. Nunca datos de reservas o clientes.
+ */
+
+export type SiteInfo = { businessName: string; phone: string; email: string; cutoffHours: number; cancelHours: number };
+
+export const loadSite = cache(async (): Promise<SiteInfo> => {
+  // Plazas y precios cambian a cada momento: la web se genera en cada visita, nunca en el build.
+  await connection();
+  const { data, error } = await createAdminClient()
+    .from("settings")
+    .select("business_name, phone, email, cutoff_hours, cancel_hours")
+    .eq("id", 1)
+    .single();
+  if (error) throw new Error("No se pudieron cargar los ajustes.");
+  return {
+    businessName: data.business_name,
+    phone: data.phone,
+    email: data.email,
+    cutoffHours: data.cutoff_hours,
+    cancelHours: data.cancel_hours,
+  };
+});
+
+export type WebTicket = { id: string; name: string; note: string; takesSeat: boolean; priceCents: number };
+
+export type WebProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  meetingPoint: string;
+  place: string;
+  durationMin: number;
+  capacity: number;
+  pickup: boolean;
+  color: string;
+  photoUrl: string | null;
+  languages: string[];
+  fromCents: number;
+  tickets: WebTicket[];
+};
+
+const PRODUCT_FIELDS =
+  "id, slug, name, description, meeting_point, place, duration_min, capacity, pickup, color, photo_path, product_prices(ticket_type_id, price_cents), schedule_rules(language)";
+
+type ProductRow = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  meeting_point: string;
+  place: string;
+  duration_min: number;
+  capacity: number;
+  pickup: boolean;
+  color: string;
+  photo_path: string | null;
+  product_prices: { ticket_type_id: string; price_cents: number }[];
+  schedule_rules: { language: string }[];
+};
+
+async function loadTicketTypes() {
+  const { data, error } = await createAdminClient()
+    .from("ticket_types")
+    .select("id, name, note, takes_seat")
+    .order("sort")
+    .order("created_at");
+  if (error) throw new Error("No se pudieron cargar las entradas.");
+  return data;
+}
+
+function toWebProduct(row: ProductRow, ticketTypes: Awaited<ReturnType<typeof loadTicketTypes>>): WebProduct {
+  const { supabaseUrl } = getPublicEnv();
+  const tickets = ticketTypes.flatMap((ticketType): WebTicket[] => {
+    const price = row.product_prices.find((candidate) => candidate.ticket_type_id === ticketType.id);
+    return price
+      ? [{ id: ticketType.id, name: ticketType.name, note: ticketType.note, takesSeat: ticketType.takes_seat, priceCents: price.price_cents }]
+      : [];
+  });
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    meetingPoint: row.meeting_point,
+    place: row.place,
+    durationMin: row.duration_min,
+    capacity: row.capacity,
+    pickup: row.pickup,
+    color: row.color,
+    photoUrl: row.photo_path ? productPhotoUrl(supabaseUrl, row.photo_path) : null,
+    languages: distinctLanguages(row.schedule_rules.map((rule) => rule.language)),
+    fromCents: minPrice(tickets),
+    tickets,
+  };
+}
+
+/** Productos a la venta para el listado, en el orden del panel. */
+export async function loadWebProducts(): Promise<WebProduct[]> {
+  const [{ data, error }, ticketTypes] = await Promise.all([
+    createAdminClient()
+      .from("products")
+      .select(PRODUCT_FIELDS)
+      .eq("active", true)
+      .order("created_at")
+      .order("name"),
+    loadTicketTypes(),
+  ]);
+  if (error) throw new Error("No se pudieron cargar las experiencias.");
+  return data.map((row) => toWebProduct(row, ticketTypes)).filter((product) => product.tickets.length > 0);
+}
+
+/** Un producto a la venta por su slug, o null. */
+export async function loadWebProduct(slug: string): Promise<WebProduct | null> {
+  const [{ data, error }, ticketTypes] = await Promise.all([
+    createAdminClient()
+      .from("products")
+      .select(PRODUCT_FIELDS)
+      .eq("slug", slug)
+      .eq("active", true)
+      .maybeSingle(),
+    loadTicketTypes(),
+  ]);
+  if (error) throw new Error("No se pudo cargar la experiencia.");
+  if (!data) return null;
+  const product = toWebProduct(data, ticketTypes);
+  return product.tickets.length ? product : null;
+}
+
+/**
+ * Salidas que la web vende de un producto, desde ahora hasta el final de las generadas, con sus
+ * plazas libres (vista session_availability, la misma regla que create_booking_hold).
+ */
+export async function loadWebSessions(productId: string, cutoffHours: number, now = new Date()): Promise<WebSession[]> {
+  const from = new Date(Math.max(now.getTime(), now.getTime() + cutoffHours * 3_600_000)).toISOString();
+  const lastDay = format(addDays(parseISO(businessToday(now)), GENERATION_DAYS + 1), "yyyy-MM-dd");
+  const to = localToInstant(lastDay, "00:00").toISOString();
+  const supabase = createAdminClient();
+  const [{ data: sessions, error }, { data: availability, error: availabilityError }] = await Promise.all([
+    supabase
+      .from("sessions")
+      .select("id, starts_at, language, status")
+      .eq("product_id", productId)
+      .eq("status", "open")
+      .gte("starts_at", from)
+      .lt("starts_at", to)
+      .order("starts_at"),
+    supabase
+      .from("session_availability")
+      .select("session_id, free_seats")
+      .eq("product_id", productId)
+      .gte("starts_at", from)
+      .lt("starts_at", to),
+  ]);
+  if (error || availabilityError) throw new Error("No se pudieron cargar las salidas.");
+  const free = new Map(availability.map((row) => [row.session_id, row.free_seats ?? 0]));
+  return sessions
+    .map((session): WebSession => {
+      const { date, time } = toBusinessDateTime(session.starts_at);
+      return {
+        id: session.id,
+        date,
+        time,
+        language: session.language,
+        status: session.status as WebSession["status"],
+        startsAt: new Date(session.starts_at),
+        free: free.get(session.id) ?? 0,
+      };
+    })
+    .filter((session) => isWebBookable(session, now, cutoffHours));
+}
