@@ -197,3 +197,35 @@ export async function loadWebSessions(productId: string, cutoffHours: number, no
     })
     .filter((session) => isWebBookable(session, now, cutoffHours));
 }
+
+/** Una salida de un producto si la web la vende ahora mismo, o null. */
+export async function loadWebSession(
+  productId: string,
+  sessionId: string,
+  cutoffHours: number,
+  now = new Date(),
+): Promise<WebSession | null> {
+  const supabase = createAdminClient();
+  const [{ data: session, error }, { data: availability, error: availabilityError }] = await Promise.all([
+    supabase
+      .from("sessions")
+      .select("id, starts_at, language, status")
+      .eq("id", sessionId)
+      .eq("product_id", productId)
+      .maybeSingle(),
+    supabase.from("session_availability").select("free_seats").eq("session_id", sessionId).maybeSingle(),
+  ]);
+  if (error || availabilityError) throw new Error("No se pudo cargar la salida.");
+  if (!session) return null;
+  const { date, time } = toBusinessDateTime(session.starts_at);
+  const web: WebSession = {
+    id: session.id,
+    date,
+    time,
+    language: session.language,
+    status: session.status as WebSession["status"],
+    startsAt: new Date(session.starts_at),
+    free: availability?.free_seats ?? 0,
+  };
+  return isWebBookable(web, now, cutoffHours) ? web : null;
+}

@@ -22,7 +22,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 
 ## Fase 2 — Venta online
 - [x] 2.1 Web pública: listado y ficha de tour con calendario y horarios.
-- [ ] 2.2 Checkout con Stripe + webhook + página de confirmación.
+- [ ] 2.2 Checkout con Stripe + webhook + página de confirmación. Hecho (sin pasarela, decisión de 2026-10-09): formulario de reserva, reserva confirmada con pago en el lugar y página de confirmación. Falta: Stripe Checkout y webhook.
 - [ ] 2.3 Emails con Resend: confirmación, recordatorio 24 h y cancelación.
 - [ ] 2.4 Cancelación y reembolso, y cambio de fecha (ficha de reserva).
 - [ ] 2.5 i18n ES/EN de la web pública.

@@ -166,6 +166,30 @@ describe("create_booking_hold", () => {
     await bookOk(sessionId, adults(4));
   });
 
+  it("la web sin pasarela confirma al momento con el pago pendiente y sin bloqueo", async () => {
+    const { sessionId } = await createSession(4);
+    const created = await bookOk(sessionId, adults(3), { channel: "web", payment: "on_site", hotel: "Hotel Mencey" }, adminDb);
+    expect(created).toMatchObject({ status: "confirmed", payment_status: "pending", total_cents: 15000, hold_expires_at: null });
+    const { data: booking } = await adminDb
+      .from("bookings")
+      .select("channel, payment_method, paid_cents, hotel, booking_events(actor, text)")
+      .eq("id", created.id)
+      .single();
+    expect(booking).toMatchObject({ channel: "web", payment_method: null, paid_cents: 0, hotel: "Hotel Mencey" });
+    expect(booking?.booking_events).toEqual([{ actor: "Web", text: "Reserva creada · paga allí" }]);
+    expect((await seatsOf(sessionId)).booked_seats).toBe(3);
+    // Sigue comprobando plazas, y el equipo no puede usar el canal web.
+    expect((await book(sessionId, adults(2), { channel: "web", payment: "on_site" }, adminDb)).error?.code).toBe("RB001");
+    expect((await book(sessionId, adults(1), { channel: "web", payment: "on_site" })).error?.code).toBe("42501");
+    // Sin pago, como mucho 10 plazas por reserva web.
+    const { sessionId: big } = await createSession(20);
+    expect((await book(big, adults(11), { channel: "web", payment: "on_site" }, adminDb)).error?.code).toBe("RB008");
+    await bookOk(big, adults(10), { channel: "web", payment: "on_site" }, adminDb);
+    // «payment» no cambia nada en los canales del panel.
+    const phone = await bookOk(sessionId, adults(1), { channel: "phone", payment: "on_site", payment_method: "cash" });
+    expect(phone).toMatchObject({ status: "confirmed", payment_status: "paid" });
+  });
+
   it("la última plaza se vende y una más no, con las plazas libres en el aviso", async () => {
     const { sessionId } = await createSession(3);
     await bookOk(sessionId, adults(2));
