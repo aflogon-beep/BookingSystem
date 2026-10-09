@@ -69,6 +69,36 @@ export default async function Page({ params }: PageProps<"/panel/reservas/[codig
         </div>
       </div>
 
+      {!cancelled ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {booking.paymentStatus === "pending" && booking.status === "confirmed" ? (
+            <CollectButton
+              bookingId={booking.id}
+              code={booking.code}
+              totalCents={booking.totalCents}
+              customerName={booking.customer.name}
+              tickets={tickets}
+            />
+          ) : null}
+          {booking.status === "confirmed" ? (
+            <CheckInButton bookingId={booking.id} checked={booking.checkedIn} name={booking.customer.name} />
+          ) : null}
+          {booking.status === "confirmed" && booking.customer.email ? <ResendButton bookingId={booking.id} /> : null}
+          {editable ? (
+            <span className="ml-auto">
+              <CancelBookingButton
+                bookingId={booking.id}
+                code={booking.code}
+                name={booking.customer.name}
+                paidCents={booking.paymentStatus === "paid" ? booking.paidCents : 0}
+                freeCancellation={isFreeCancellation(booking.session.startsAt, now, booking.cancelHours)}
+                cancelHours={booking.cancelHours}
+              />
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       <Link
         href={`/panel/salidas/${booking.session.id}`}
         className="flex items-center gap-3 rounded-2xl border border-black/5 bg-surface p-4 shadow-card hover:bg-surface-2"
@@ -125,35 +155,6 @@ export default async function Page({ params }: PageProps<"/panel/reservas/[codig
         </div>
       </div>
 
-      {!cancelled ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {booking.paymentStatus === "pending" && booking.status === "confirmed" ? (
-            <CollectButton
-              bookingId={booking.id}
-              code={booking.code}
-              totalCents={booking.totalCents}
-              customerName={booking.customer.name}
-              tickets={tickets}
-            />
-          ) : null}
-          {booking.status === "confirmed" ? (
-            <CheckInButton bookingId={booking.id} checked={booking.checkedIn} name={booking.customer.name} />
-          ) : null}
-          {booking.status === "confirmed" && booking.customer.email ? <ResendButton bookingId={booking.id} /> : null}
-          {editable ? (
-            <span className="ml-auto">
-              <CancelBookingButton
-                bookingId={booking.id}
-                code={booking.code}
-                name={booking.customer.name}
-                paidCents={booking.paymentStatus === "paid" ? booking.paidCents : 0}
-                freeCancellation={isFreeCancellation(booking.session.startsAt, now, booking.cancelHours)}
-                cancelHours={booking.cancelHours}
-              />
-            </span>
-          ) : null}
-        </div>
-      ) : null}
     </section>
   );
 }
