@@ -76,6 +76,8 @@ Vista `session_availability`: aforo, plazas ocupadas (confirmadas + bloqueos vig
 
 **Asignación de recursos**: función `auto_assign(session_id)` al confirmar la primera reserva. La exclusión de solapes también está garantizada en BD.
 
+**Alta del equipo (Ajustes > Usuarios)**: el admin invita con nombre, email y rol. El servidor crea la cuenta pendiente con `auth.admin.generateLink({ type: 'invite' })` (service role, tras comprobar que es admin) y la fila de `staff` con la sesión del admin (RLS). No se envía email: el panel muestra un enlace `/invitacion?token=…` que el admin comparte. Al abrirlo, la persona escribe su contraseña dos veces y el servidor gasta el token (`verifyOtp`) y la guarda (`updateUser`). Dar de baja borra la fila de `staff` (el trigger protege al último admin) y luego la cuenta de Auth.
+
 **Zonas horarias**: las reglas guardan hora local. `generate_sessions` construye `(date + time) at time zone 'Atlantic/Canary'`.
 
 ## Decisiones
@@ -85,4 +87,6 @@ Vista `session_availability`: aforo, plazas ocupadas (confirmadas + bloqueos vig
 | Salidas materializadas (no virtuales) | Permite aforo y estado por salida, FK desde reservas e índices rápidos. |
 | Funciones SQL para operaciones atómicas | Garantía de no-overbooking bajo concurrencia. |
 | Stripe Checkout (no Elements) | Menos superficie PCI y 3DS resuelto. |
+| Invitaciones con enlace para compartir (sin email) | Funciona sin configurar SMTP en Supabase. Cuando llegue Resend (2.3) se podrá enviar además por email. |
+| Borrar un tipo de entrada borra sus precios | Como en el prototipo: deja de venderse en todos los productos. Las reservas (1.6) lo impedirán con `restrict`. |
 | Un solo negocio | Simplicidad. Multi-tenant posible más adelante añadiendo `org_id` y RLS. |
