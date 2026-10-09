@@ -16,55 +16,71 @@ jobs:
           if grep -rEn "sk_live_|sk_test_[A-Za-z0-9]{10,}|whsec_[A-Za-z0-9]{10,}|service_role\"?\s*[:=]\s*\"ey" --include=*.{ts,tsx,js,json,sql,md} . --exclude-dir=node_modules --exclude-dir=.git; then
             echo "Posible secreto en el código"; exit 1; fi
 
-      - name: Comprobar si la app ya existe
-        id: app
-        run: |
-          if [ -f package.json ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "Aún no hay package.json: se omiten los pasos (tarea 0.1 del roadmap)."; fi
-
       - uses: actions/setup-node@v4
-        if: steps.app.outputs.exists == 'true'
         with:
           node-version: 22
           cache: npm
 
       - name: Instalar dependencias
-        if: steps.app.outputs.exists == 'true'
         run: npm ci
 
       - name: Lint
-        if: steps.app.outputs.exists == 'true'
         run: npm run lint
 
       - name: Tipos
-        if: steps.app.outputs.exists == 'true'
         run: npm run typecheck
 
-      - name: Tests
-        if: steps.app.outputs.exists == 'true'
+      - name: Tests unitarios
         run: npm run test
 
+      # Supabase local en Docker: aplica migraciones y seed desde cero.
+      - name: Arrancar Supabase
+        run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,supavisor,mailpit
+
+      - name: Exportar las claves de Supabase local
+        run: |
+          npx supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          echo "Variables disponibles: $(cut -d= -f1 "$RUNNER_TEMP/supabase.env" | tr '\n' ' ')"
+          set -a; . "$RUNNER_TEMP/supabase.env"; set +a
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY:-$PUBLISHABLE_KEY}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-$SECRET_KEY}"
+          } >> "$GITHUB_ENV"
+
+      - name: Comprobar que los tipos de la BD están al día
+        run: |
+          npx supabase gen types typescript --local > "$RUNNER_TEMP/database.types.ts"
+          if ! diff -u src/lib/database.types.ts "$RUNNER_TEMP/database.types.ts"; then
+            echo "::error::src/lib/database.types.ts no coincide con el esquema. Ejecuta npm run db:types y súbelo."
+            exit 1
+          fi
+
+      - name: Tests de base de datos (RLS)
+        run: npm run test:db
+
       - name: Build
-        if: steps.app.outputs.exists == 'true'
         run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
 
       - name: Instalar Chromium para Playwright
-        if: steps.app.outputs.exists == 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Tests e2e
-        if: steps.app.outputs.exists == 'true'
         run: npm run test:e2e
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
 
       - name: Subir informe de Playwright
-        if: failure() && steps.app.outputs.exists == 'true'
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 7
+
+      - name: Subir los tipos generados
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-types
+          path: ${{ runner.temp }}/database.types.ts
+          if-no-files-found: ignore
           retention-days: 7
