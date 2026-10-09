@@ -78,6 +78,8 @@ Vista `session_availability`: aforo, plazas ocupadas (confirmadas + bloqueos vig
 
 **Alta del equipo (Ajustes > Usuarios)**: el admin invita con nombre, email y rol. El servidor crea la cuenta pendiente con `auth.admin.generateLink({ type: 'invite' })` (service role, tras comprobar que es admin) y la fila de `staff` con la sesión del admin (RLS). No se envía email: el panel muestra un enlace `/invitacion?token=…` que el admin comparte. Al abrirlo, la persona escribe su contraseña dos veces y el servidor gasta el token (`verifyOtp`) y la guarda (`updateUser`). Dar de baja borra la fila de `staff` (el trigger protege al último admin) y luego la cuenta de Auth.
 
+**Editor de productos**: el panel envía el producto entero (datos, precios y reglas) a una Server Action que lo valida con Zod contra los idiomas y tipos de entrada de la BD y llama a `save_product`, que lo crea o actualiza en una sola transacción (precios y reglas se sustituyen enteros; el slug se fija al crear y no cambia). La foto se sube desde el navegador al bucket público `product-photos` de Storage (solo el equipo puede subir o borrar, solo JPG/PNG/WebP de hasta 5 MB) con un nombre aleatorio; el producto guarda la ruta y, al sustituirla, el servidor borra la anterior. La vista previa de salidas usa la misma lógica de reglas (`previewSessions`) que tendrá `generate_sessions`.
+
 **Zonas horarias**: las reglas guardan hora local. `generate_sessions` construye `(date + time) at time zone 'Atlantic/Canary'`.
 
 ## Decisiones
@@ -89,4 +91,5 @@ Vista `session_availability`: aforo, plazas ocupadas (confirmadas + bloqueos vig
 | Stripe Checkout (no Elements) | Menos superficie PCI y 3DS resuelto. |
 | Invitaciones con enlace para compartir (sin email) | Funciona sin configurar SMTP en Supabase. Cuando llegue Resend (2.3) se podrá enviar además por email. |
 | Borrar un tipo de entrada borra sus precios | Como en el prototipo: deja de venderse en todos los productos. Las reservas (1.6) lo impedirán con `restrict`. |
+| Fotos subidas desde el navegador a Storage | No pasan por el servidor de Vercel (límite de tamaño de las Server Actions). Una foto subida y descartada sin guardar puede quedar huérfana en el bucket. |
 | Un solo negocio | Simplicidad. Multi-tenant posible más adelante añadiendo `org_id` y RLS. |
