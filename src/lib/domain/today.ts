@@ -1,6 +1,7 @@
 import { addDays, format, isValid, parseISO } from "date-fns";
 
 export type DayBooking = {
+  sessionId: string;
   status: string;
   paymentStatus: string;
   totalCents: number;
@@ -8,7 +9,7 @@ export type DayBooking = {
   checkedIn: boolean;
 };
 
-export type DaySessionSummary = { status: string; booked: number };
+export type DaySessionSummary = { id: string; status: string };
 
 export type DayKpis = {
   sessions: number;
@@ -21,10 +22,10 @@ export type DayKpis = {
   pendingPayments: number;
 };
 
-/** Fecha de `?fecha=` (YYYY-MM-DD válida) o hoy. */
+/** Fecha de `?fecha=` (YYYY-MM-DD válida, años 2000-2099) o hoy. */
 export function parseDayParam(raw: string | string[] | undefined, today: string): string {
   const value = Array.isArray(raw) ? raw[0] : raw;
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return today;
+  if (!value || !/^(20\d{2})-\d{2}-\d{2}$/.test(value)) return today;
   const parsed = parseISO(value);
   return isValid(parsed) && format(parsed, "yyyy-MM-dd") === value ? value : today;
 }
@@ -51,7 +52,7 @@ export function dayKpis(sessions: readonly DaySessionSummary[], bookings: readon
   const checkedIn = confirmed.reduce((sum, booking) => sum + (booking.checkedIn ? booking.pax : 0), 0);
   return {
     sessions: live.length,
-    sessionsWithBookings: live.filter((session) => session.booked > 0).length,
+    sessionsWithBookings: live.filter((session) => confirmed.some((booking) => booking.sessionId === session.id)).length,
     bookings: confirmed.length,
     pax,
     checkedIn,
@@ -75,6 +76,11 @@ export function sessionFlags(session: FlaggableSession): SessionFlag[] {
   }
   if (session.status === "open" && session.booked >= session.capacity) flags.push({ label: "Completa", tone: "blue" });
   return flags;
+}
+
+/** Se puede reservar desde el panel: abierta, sin haber salido aún (como create_booking_hold) y con plazas. */
+export function canBookSession(session: { status: string; started: boolean; booked: number; capacity: number }): boolean {
+  return session.status === "open" && !session.started && session.booked < session.capacity;
 }
 
 export type AttentionSession = FlaggableSession & { id: string; startsAt: string };

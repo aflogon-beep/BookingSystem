@@ -9,6 +9,7 @@ export type TodaySession = {
   capacity: number;
   booked: number;
   minPax: number;
+  started: boolean;
   past: boolean;
   product: { name: string; color: string };
 };

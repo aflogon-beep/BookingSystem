@@ -64,6 +64,7 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
       capacity: row.capacity,
       booked: booked.get(row.id) ?? 0,
       minPax: row.products.min_pax,
+      started: new Date(row.starts_at) <= now,
       past: new Date(row.ends_at) <= now,
       product: { name: row.products.name, color: row.products.color },
     };
@@ -78,12 +79,13 @@ async function loadDayBookings(supabase: Supabase, sessionIds: readonly string[]
   for (let start = 0; start < sessionIds.length; start += ID_CHUNK) {
     const { data, error } = await supabase
       .from("bookings")
-      .select("status, payment_status, total_cents, checked_in, booking_lines(qty)")
+      .select("session_id, status, payment_status, total_cents, checked_in, booking_lines(qty)")
       .in("session_id", sessionIds.slice(start, start + ID_CHUNK))
       .eq("status", "confirmed");
     if (error) throw new Error("No se pudieron cargar las reservas.");
     for (const row of data) {
       bookings.push({
+        sessionId: row.session_id,
         status: row.status,
         paymentStatus: row.payment_status,
         totalCents: row.total_cents,

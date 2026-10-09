@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { attentionItems, dayKpis, dayLabel, parseDayParam, sessionFlags, shiftDay, timeAgo } from "./today";
+import { attentionItems, canBookSession, dayKpis, dayLabel, parseDayParam, sessionFlags, shiftDay, timeAgo } from "./today";
 
 const booking = (overrides: Partial<Parameters<typeof dayKpis>[1][number]> = {}) => ({
+  sessionId: "s1",
   status: "confirmed",
   paymentStatus: "paid",
   totalCents: 6900,
@@ -18,6 +19,9 @@ describe("fecha del día", () => {
     expect(parseDayParam("2026-02-30", "2026-10-09")).toBe("2026-10-09");
     expect(parseDayParam("mañana", "2026-10-09")).toBe("2026-10-09");
     expect(parseDayParam(undefined, "2026-10-09")).toBe("2026-10-09");
+    // Al teclear en un input de fecha salen años intermedios: no se aceptan.
+    expect(parseDayParam("0002-10-14", "2026-10-09")).toBe("2026-10-09");
+    expect(parseDayParam("0202-10-14", "2026-10-09")).toBe("2026-10-09");
   });
 
   it("mueve días también al cruzar el cambio de hora", () => {
@@ -36,17 +40,17 @@ describe("KPIs del día", () => {
   it("cuenta solo reservas confirmadas y salidas no canceladas", () => {
     const kpis = dayKpis(
       [
-        { status: "open", booked: 4 },
-        { status: "open", booked: 0 },
-        { status: "closed", booked: 2 },
-        { status: "cancelled", booked: 0 },
+        { id: "s1", status: "open" },
+        { id: "s2", status: "open" },
+        { id: "s3", status: "closed" },
+        { id: "s4", status: "cancelled" },
       ],
       [
         booking({ pax: 3, checkedIn: true }),
         booking({ pax: 1, paymentStatus: "pending", totalCents: 1800 }),
-        booking({ paymentStatus: "invoice", totalCents: 4000 }),
-        booking({ status: "pending", paymentStatus: "pending", totalCents: 9999 }),
-        booking({ status: "cancelled", totalCents: 5000 }),
+        booking({ sessionId: "s3", paymentStatus: "invoice", totalCents: 4000 }),
+        booking({ sessionId: "s2", status: "pending", paymentStatus: "pending", totalCents: 9999 }),
+        booking({ sessionId: "s4", status: "cancelled", totalCents: 5000 }),
       ],
     );
     expect(kpis).toEqual({
@@ -76,8 +80,19 @@ describe("avisos de salida", () => {
 
   it("marca completa, cerrada y cancelada", () => {
     expect(sessionFlags({ ...base, booked: 16 }).map((flag) => flag.label)).toEqual(["Completa"]);
+    expect(sessionFlags({ ...base, booked: 18 }).map((flag) => flag.label)).toEqual(["Completa"]);
     expect(sessionFlags({ ...base, status: "closed", booked: 1 }).map((flag) => flag.label)).toEqual(["Cerrada", "Bajo mínimo"]);
     expect(sessionFlags({ ...base, status: "cancelled", booked: 1 }).map((flag) => flag.label)).toEqual(["Cancelada"]);
+  });
+});
+
+describe("reservar desde el panel", () => {
+  const base = { status: "open", started: false, booked: 3, capacity: 16 };
+  it("solo salidas abiertas, sin empezar y con plazas", () => {
+    expect(canBookSession(base)).toBe(true);
+    expect(canBookSession({ ...base, started: true })).toBe(false);
+    expect(canBookSession({ ...base, booked: 16 })).toBe(false);
+    expect(canBookSession({ ...base, status: "closed" })).toBe(false);
   });
 });
 
@@ -101,6 +116,8 @@ describe("requiere atención", () => {
         session("c", { booked: 4 }),
         session("d", { status: "closed" }),
         session("e", { startsAt: "2026-10-09T09:00:00Z" }),
+        // Ya salió aunque no haya terminado: no hay nada que hacer.
+        session("f", { startsAt: "2026-10-09T09:59:00Z" }),
       ],
       now,
     );

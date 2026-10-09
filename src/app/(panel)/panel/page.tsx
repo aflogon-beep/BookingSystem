@@ -47,8 +47,12 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
             </Button>
           </div>
           <div>
-            <p className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{dayLabel(day, today)}</p>
-            <h1 className="text-[1.15rem] first-letter:uppercase tablet:text-[1.45rem]">{longDayLabel(day)}</h1>
+            <p id="hoy-etiqueta" className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
+              {dayLabel(day, today)}
+            </p>
+            <h1 aria-describedby="hoy-etiqueta" className="text-[1.15rem] first-letter:uppercase tablet:text-[1.45rem]">
+              {longDayLabel(day)}
+            </h1>
           </div>
         </div>
         <div className="flex items-center gap-2">

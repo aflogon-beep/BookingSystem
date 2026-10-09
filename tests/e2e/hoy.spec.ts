@@ -17,7 +17,7 @@ test("muestra el día de hoy y navega entre días", async ({ page }) => {
   const today = businessToday();
   await page.goto("/panel");
   await expect(page.getByRole("heading", { level: 1, name: longDayLabel(today) })).toBeVisible();
-  await expect(page.getByRole("main").getByText("Hoy", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleDescription("Hoy");
   for (const label of ["Salidas", "Pasajeros", "Check-in", "Ingresos del día"]) {
     await expect(page.getByRole("term").filter({ hasText: label })).toBeVisible();
   }
@@ -28,7 +28,7 @@ test("muestra el día de hoy y navega entre días", async ({ page }) => {
   const tomorrow = format(addDays(parseISO(today), 1), "yyyy-MM-dd");
   await expect(page).toHaveURL(new RegExp(`fecha=${tomorrow}`));
   await expect(page.getByRole("heading", { level: 1, name: longDayLabel(tomorrow) })).toBeVisible();
-  await expect(page.getByText("Próximamente")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleDescription("Próximamente");
 });
 
 test("reserva desde una salida del día y lo refleja en salidas, KPIs y actividad", async ({ page }, testInfo) => {
@@ -38,6 +38,7 @@ test("reserva desde una salida del día y lo refleja en salidas, KPIs y activida
   await expect(page.getByRole("heading", { level: 1, name: longDayLabel(day) })).toBeVisible();
 
   const row = page.getByRole("listitem", { name: "16:30 Teide al atardecer y estrellas" });
+  // Cada ejecución suma 1 plaza: en local, si se llena, npx supabase db reset.
   await expect(row).toBeVisible();
   const booked = Number((await row.getByText(/\d+ \/ 16 plazas/).textContent())?.match(/(\d+) \//)?.[1]);
   const paxTile = page.locator("dl > div").filter({ has: page.getByRole("term").filter({ hasText: "Pasajeros" }) });
@@ -50,11 +51,11 @@ test("reserva desde una salida del día y lo refleja en salidas, KPIs y activida
   await dialog.getByLabel("Nombre").fill(name);
   await dialog.getByRole("button", { name: "Confirmar reserva" }).click();
   await expect(dialog).toBeHidden();
+  // La actividad muestra las 7 últimas: compruébala antes de que otros tests añadan más.
+  await expect(page.getByRole("region", { name: "Actividad reciente" }).getByText(name).first()).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`fecha=${day}`));
 
   await expect(row.getByText(`${booked + 1} / 16 plazas`)).toBeVisible();
   if (booked + 1 < 4) await expect(row.getByText("Bajo mínimo")).toBeVisible();
   await expect(paxTile.getByRole("definition").first()).toHaveText(String(paxBefore + 1));
-  const activity = page.getByRole("region", { name: "Actividad reciente" });
-  await expect(activity.getByText(name).first()).toBeVisible();
 });
