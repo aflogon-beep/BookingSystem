@@ -13,7 +13,7 @@ Cliente (móvil/web) ──▶ Next.js en Vercel ──▶ Supabase (Postgres + 
 
 - La web pública y el panel son la misma app Next.js, en grupos de rutas `(public)` y `(panel)`.
 - La lógica de negocio pura vive en `src/lib/domain/`. Las operaciones atómicas (bloquear plazas, confirmar pago, generar salidas) viven en funciones SQL.
-- Un cron diario (Vercel Cron) ejecuta `generate_sessions(today, today + 120)` y envía los recordatorios.
+- Un cron diario (Vercel Cron, `vercel.json`, 03:00 UTC) llama a `/api/cron/generar-salidas`, que ejecuta `generate_sessions(hoy, hoy + 120)` con service role. Solo entra con `Authorization: Bearer $CRON_SECRET` (variable de entorno de Vercel, al menos 16 caracteres). Más adelante enviará también los recordatorios (2.3).
 
 ## Modelo de datos (borrador para la primera migración)
 
@@ -80,7 +80,9 @@ Vista `session_availability`: aforo, plazas ocupadas (confirmadas + bloqueos vig
 
 **Editor de productos**: el panel envía el producto entero (datos, precios y reglas) a una Server Action que lo valida con Zod contra los idiomas y tipos de entrada de la BD y llama a `save_product`, que lo crea o actualiza en una sola transacción (precios y reglas se sustituyen enteros; el slug se fija al crear y no cambia). La foto se sube desde el navegador al bucket público `product-photos` de Storage (solo el equipo puede subir o borrar, solo JPG/PNG/WebP de hasta 5 MB) con un nombre aleatorio; el producto guarda la ruta y, al sustituirla, el servidor borra la anterior. La vista previa de salidas usa la misma lógica de reglas (`previewSessions`) que tendrá `generate_sessions`.
 
-**Zonas horarias**: las reglas guardan hora local. `generate_sessions` construye `(date + time) at time zone 'Atlantic/Canary'`.
+**Generar salidas** (`generate_sessions(p_from, p_to, p_product_id?)`, idempotente): crea las salidas futuras de los productos activos que piden las reglas, con el aforo del producto. En las abiertas que siguen en las reglas actualiza idioma y hora de fin, y borra las abiertas futuras que ya no piden (regla cambiada o producto desactivado). Las cerradas o canceladas no se tocan, y el aforo propio de una salida se conserva. Si dos reglas piden la misma hora, gana la primera del editor (`save_product` guarda el orden en `created_at`). Además del cron, el panel la llama para un producto al guardarlo o al cambiar «A la venta». `sessions` no tiene FK a `schedule_rules`: guardar un producto sustituye sus reglas sin tocar las salidas. Pendiente (1.6): no borrar ni cambiar salidas con reservas.
+
+**Zonas horarias**: las reglas guardan hora local. `generate_sessions` construye `(date + time) at time zone` con la zona de Ajustes (`Atlantic/Canary`); en TypeScript lo mismo es `localToInstant` (`@date-fns/tz`). Tests en marzo y octubre.
 
 ## Decisiones
 

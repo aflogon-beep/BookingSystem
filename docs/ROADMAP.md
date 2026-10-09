@@ -13,7 +13,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [x] 1.1 Migración: settings, ticket_types, products, product_prices, schedule_rules y RLS. Seed de la empresa de ejemplo. Tipos regenerados con `npm run db:types`. RLS: el staff gestiona productos, precios y horarios; ajustes y tipos de entrada solo admin; anon sin acceso.
 - [x] 1.2 Ajustes: empresa, idiomas, tipos de entrada y políticas. Equipo: invitar miembros, cambiar rol y dar de baja (con doble campo de contraseña al aceptar la invitación).
 - [x] 1.3 Productos: editor con pestañas, subida de foto a Storage y vista previa de salidas.
-- [ ] 1.4 `generate_sessions` + cron diario + tests de zona horaria.
+- [x] 1.4 `generate_sessions` + cron diario + tests de zona horaria.
 - [ ] 1.5 Calendario (semana por defecto y mes) con ocupación.
 - [ ] 1.6 Migración de reservas (bookings, booking_lines, booking_events, customers) + `create_booking_hold` + test de concurrencia.
 - [ ] 1.7 Nueva reserva interna (modal) con canales y métodos de pago.
