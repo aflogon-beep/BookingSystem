@@ -5,15 +5,19 @@
 -- Crea (p_id null) o actualiza un producto con sus precios y reglas de horario en una sola
 -- transacción. security invoker: se ejecuta con los permisos de quien llama, así que RLS
 -- decide (staff y admin pueden). Precios y reglas se sustituyen enteros: las reservas guardan
--- su precio congelado y las salidas ya generadas no dependen de las reglas.
+-- su precio congelado y las salidas ya generadas no dependen de las reglas (sessions no debe
+-- tener FK en cascada a schedule_rules). Al editar no cambia `active`: eso lo lleva el
+-- interruptor «A la venta» de la lista. Devuelve {id, previous_photo_path} para que el
+-- servidor borre la foto sustituida (leída con la fila bloqueada, sin carreras).
 create function public.save_product(p_product jsonb, p_prices jsonb, p_rules jsonb, p_id uuid default null)
-returns uuid
+returns jsonb
 language plpgsql
 security invoker
 set search_path = ''
 as $$
 declare
   v_id uuid;
+  v_previous_photo text;
 begin
   if p_id is null then
     insert into public.products (slug, name, description, meeting_point, place, duration_min, capacity,
@@ -24,6 +28,14 @@ begin
       p_product->>'photo_path', (p_product->>'active')::boolean)
     returning id into v_id;
   else
+    select id, photo_path into v_id, v_previous_photo
+    from public.products
+    where id = p_id
+    for update;
+    if v_id is null then
+      raise exception 'Producto no encontrado' using errcode = 'no_data_found';
+    end if;
+
     -- El slug no cambia al editar: es la URL pública del tour.
     update public.products
     set name = p_product->>'name',
@@ -35,13 +47,8 @@ begin
         min_pax = (p_product->>'min_pax')::integer,
         pickup = (p_product->>'pickup')::boolean,
         color = p_product->>'color',
-        photo_path = p_product->>'photo_path',
-        active = (p_product->>'active')::boolean
-    where id = p_id
-    returning id into v_id;
-    if v_id is null then
-      raise exception 'Producto no encontrado' using errcode = 'no_data_found';
-    end if;
+        photo_path = p_product->>'photo_path'
+    where id = v_id;
   end if;
 
   delete from public.product_prices where product_id = v_id;
@@ -59,7 +66,7 @@ begin
     (rule->>'valid_to')::date
   from jsonb_array_elements(p_rules) as rule;
 
-  return v_id;
+  return jsonb_build_object('id', v_id, 'previous_photo_path', v_previous_photo);
 end;
 $$;
 

@@ -19,6 +19,8 @@ export type SaveProductResult = { ok: true; id: string } | { ok: false; error: s
 
 const SAVE_FAILED = "No se pudo guardar. Inténtalo de nuevo.";
 const idSchema = z.uuid();
+// Respuesta de save_product.
+const savedSchema = z.object({ id: z.uuid(), previous_photo_path: z.string().nullable() });
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -89,12 +91,13 @@ export async function saveProduct(id: string | null, input: unknown): Promise<Sa
   const args = rpcArgs(product);
 
   if (id !== null) {
-    const { data: current } = await supabase.from("products").select("photo_path").eq("id", id).maybeSingle();
-    if (!current) return { ok: false, error: "Este producto ya no existe.", tab: "general" };
-
-    const { error } = await supabase.rpc("save_product", { ...args, p_id: id });
-    if (error) return { ok: false, error: SAVE_FAILED, tab: "general" };
-    if (current.photo_path !== product.photoPath) await removePhoto(supabase, current.photo_path);
+    const { data, error } = await supabase.rpc("save_product", { ...args, p_id: id });
+    if (error?.code === "P0002") return { ok: false, error: "Este producto ya no existe.", tab: "general" };
+    const saved = savedSchema.safeParse(data);
+    if (error || !saved.success) return { ok: false, error: SAVE_FAILED, tab: "general" };
+    // La foto anterior se lee en la misma transacción, con la fila bloqueada.
+    const previous = saved.data.previous_photo_path;
+    if (previous !== product.photoPath) await removePhoto(supabase, previous);
     refresh();
     return { ok: true, id };
   }
@@ -104,11 +107,12 @@ export async function saveProduct(id: string | null, input: unknown): Promise<Sa
     const slug = await freeSlug(supabase, product.name);
     if (!slug) break;
     const { data, error } = await supabase.rpc("save_product", { ...args, p_product: { ...args.p_product, slug } });
-    if (!error) {
+    const saved = savedSchema.safeParse(data);
+    if (!error && saved.success) {
       refresh();
-      return { ok: true, id: data };
+      return { ok: true, id: saved.data.id };
     }
-    if (error.code !== "23505") break;
+    if (error?.code !== "23505") break;
   }
   return { ok: false, error: SAVE_FAILED, tab: "general" };
 }

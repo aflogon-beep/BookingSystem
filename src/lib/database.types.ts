@@ -138,7 +138,7 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
 "save_product":
-{ Args: { "p_id"?: string,"p_prices": Json,"p_product": Json,"p_rules": Json }; Returns: string
+{ Args: { "p_id"?: string,"p_prices": Json,"p_product": Json,"p_rules": Json }; Returns: Json
                            }
           }
           Enums: {

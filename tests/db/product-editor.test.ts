@@ -47,7 +47,7 @@ const RULES = [{ weekdays: [1, 3], times: ["09:00", "17:30"], language: "es", va
 
 describe("save_product", () => {
   it("el equipo crea un producto con precios y reglas en una sola llamada", async () => {
-    const { data: id, error } = await member.db.rpc("save_product", {
+    const { data: saved, error } = await member.db.rpc("save_product", {
       p_product: productJson(),
       p_prices: [
         { ticket_type_id: ADULT_ID, price_cents: 3900 },
@@ -56,12 +56,14 @@ describe("save_product", () => {
       p_rules: RULES,
     });
     expect(error).toBeNull();
-    createdProductIds.push(id!);
+    const { id } = saved as { id: string };
+    createdProductIds.push(id);
+    expect(saved).toEqual({ id, previous_photo_path: null });
 
     const { data } = await member.db
       .from("products")
       .select("min_pax, product_prices(ticket_type_id, price_cents), schedule_rules(weekdays, times, language, valid_from, valid_to)")
-      .eq("id", id!)
+      .eq("id", id)
       .single();
     expect(data?.min_pax).toBe(2);
     expect(data?.product_prices).toHaveLength(2);
@@ -70,32 +72,35 @@ describe("save_product", () => {
     ]);
   });
 
-  it("al editar sustituye precios y reglas, y no cambia el slug", async () => {
-    const product = productJson();
-    const { data: id } = await member.db.rpc("save_product", {
+  it("al editar sustituye precios y reglas, y no cambia el slug ni «a la venta»", async () => {
+    const product = productJson({ photo_path: `${randomUUID()}.jpg` });
+    const { data: created } = await member.db.rpc("save_product", {
       p_product: product,
       p_prices: [{ ticket_type_id: ADULT_ID, price_cents: 3900 }],
       p_rules: RULES,
     });
-    createdProductIds.push(id!);
+    const { id } = created as { id: string };
+    createdProductIds.push(id);
 
-    const { data: same, error } = await member.db.rpc("save_product", {
-      p_id: id!,
-      p_product: productJson({ name: "Tour renombrado", slug: "otro-slug" }),
+    const { data: saved, error } = await member.db.rpc("save_product", {
+      p_id: id,
+      p_product: productJson({ name: "Tour renombrado", slug: "otro-slug", active: false, photo_path: null }),
       p_prices: [{ ticket_type_id: CHILD_ID, price_cents: 1500 }],
       p_rules: [],
     });
     expect(error).toBeNull();
-    expect(same).toBe(id);
+    expect(saved).toEqual({ id, previous_photo_path: product.photo_path });
 
     const { data } = await member.db
       .from("products")
-      .select("slug, name, product_prices(ticket_type_id, price_cents), schedule_rules(id)")
-      .eq("id", id!)
+      .select("slug, name, active, photo_path, product_prices(ticket_type_id, price_cents), schedule_rules(id)")
+      .eq("id", id)
       .single();
     expect(data).toEqual({
       slug: product.slug,
       name: "Tour renombrado",
+      active: true,
+      photo_path: null,
       product_prices: [{ ticket_type_id: CHILD_ID, price_cents: 1500 }],
       schedule_rules: [],
     });
@@ -131,6 +136,26 @@ describe("save_product", () => {
     const outside = await outsider.db.rpc("save_product", args);
     expect(outside.error?.code).toBe("42501");
   });
+
+  it("quien no es del equipo no puede editar (RLS le oculta el producto)", async () => {
+    const { data: created } = await member.db.rpc("save_product", {
+      p_product: productJson(),
+      p_prices: [{ ticket_type_id: ADULT_ID, price_cents: 3900 }],
+      p_rules: [],
+    });
+    const { id } = created as { id: string };
+    createdProductIds.push(id);
+
+    const { error } = await outsider.db.rpc("save_product", {
+      p_id: id,
+      p_product: productJson({ name: "Hackeado" }),
+      p_prices: [],
+      p_rules: [],
+    });
+    expect(error?.code).toBe("P0002");
+    const { data } = await adminDb.from("products").select("name").eq("id", id).single();
+    expect(data?.name).toBe("Tour de prueba");
+  });
 });
 
 describe("fotos de producto en Storage", () => {
@@ -162,6 +187,18 @@ describe("fotos de producto en Storage", () => {
       .from(BUCKET)
       .upload(path, new Blob(["<script>"], { type: "text/html" }), { contentType: "text/html" });
     expect(error).not.toBeNull();
+  });
+
+  it("anon y quien no es del equipo no pueden borrar fotos", async () => {
+    const path = `${randomUUID()}.png`;
+    uploadedPaths.push(path);
+    await member.db.storage.from(BUCKET).upload(path, png, { contentType: "image/png" });
+    for (const db of [anonDb(), outsider.db]) {
+      const { data } = await db.storage.from(BUCKET).remove([path]);
+      expect(data ?? []).toEqual([]);
+    }
+    const { data: still } = await adminDb.storage.from(BUCKET).list("", { search: path });
+    expect(still?.map((file) => file.name)).toEqual([path]);
   });
 
   it("anon y quien no es del equipo no pueden subir", async () => {

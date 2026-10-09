@@ -61,6 +61,11 @@ test("valida antes de guardar y lleva a la pestaña con el error", async ({ page
   await expect(tab(page, "Entradas y precios")).toHaveAttribute("aria-selected", "true");
 
   await page.getByRole("switch", { name: "Vende Adulto" }).click();
+  await page.getByLabel("Precio de Adulto").fill("12,555");
+  await page.getByRole("button", { name: "Guardar producto" }).click();
+  await expect(page.getByText("Pon un precio válido a «Adulto», por ejemplo 45 o 12,50")).toBeVisible();
+
+  await page.getByLabel("Precio de Adulto").fill("12");
   await tab(page, "General").click();
   await page.getByLabel("Mínimo para salir").fill("99");
   await page.getByRole("button", { name: "Guardar producto" }).click();

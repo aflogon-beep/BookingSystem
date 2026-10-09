@@ -179,6 +179,10 @@ export function ProductEditor({ product, ticketTypes, languages, currency, today
   const [draft, setDraft] = useState(() => toDraft(product, ticketTypes));
   const [tab, setTab] = useState<ProductTab>("general");
   const [saving, startSaving] = useTransition();
+  const [uploading, setUploading] = useState(false);
+  // Fotos subidas en esta edición y aún sin guardar: si se cambian otra vez, se borran. Vive aquí
+  // y no en la pestaña General porque esta se desmonta al cambiar de pestaña.
+  const [unsavedPhotos] = useState(() => new Set<string>());
   const baseId = useId();
 
   const update = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -230,7 +234,13 @@ export function ProductEditor({ product, ticketTypes, languages, currency, today
             aria-labelledby={`${baseId}-tab-${tab}`}
             className="p-4 tablet:p-5"
           >
-            {tab === "general" ? <GeneralTab draft={draft} update={update} /> : null}
+            {tab === "general" ? (
+              <GeneralTab
+                draft={draft}
+                update={update}
+                photo={{ uploading, setUploading, unsaved: unsavedPhotos }}
+              />
+            ) : null}
             {tab === "precios" ? (
               <PricesTab draft={draft} update={update} ticketTypes={ticketTypes} currency={currency} />
             ) : null}
@@ -249,7 +259,7 @@ export function ProductEditor({ product, ticketTypes, languages, currency, today
           <Button asChild variant="outline">
             <Link href="/panel/productos">Descartar</Link>
           </Button>
-          <Button onClick={save} disabled={saving}>
+          <Button onClick={save} disabled={saving || uploading}>
             {saving ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
             Guardar producto
           </Button>
@@ -332,7 +342,9 @@ function Field({
 
 type TabProps = { draft: Draft; update: (patch: Partial<Draft>) => void };
 
-function GeneralTab({ draft, update }: TabProps) {
+type PhotoState = { uploading: boolean; setUploading: (uploading: boolean) => void; unsaved: Set<string> };
+
+function GeneralTab({ draft, update, photo }: TabProps & { photo: PhotoState }) {
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3.5">
       <Field id="pf-name" label="Nombre del tour" className="col-span-full">
@@ -414,7 +426,7 @@ function GeneralTab({ draft, update }: TabProps) {
           Ofrece recogida en hotel <span className="text-muted-foreground">(se pide el hotel al reservar)</span>
         </label>
       </div>
-      <PhotoField draft={draft} update={update} />
+      <PhotoField draft={draft} update={update} {...photo} />
       <div className="col-span-full flex flex-col gap-1.5">
         <span id="pf-color" className="text-[0.8rem] font-medium text-[#2a3644]">
           Color
@@ -448,15 +460,12 @@ function GeneralTab({ draft, update }: TabProps) {
  * Sube la foto directamente a Storage desde el navegador (las políticas solo dejan al equipo).
  * El producto guarda solo la ruta, y el servidor la valida al guardar.
  */
-function PhotoField({ draft, update }: TabProps) {
+function PhotoField({ draft, update, uploading, setUploading, unsaved }: TabProps & PhotoState) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  // Fotos subidas en esta edición y aún sin guardar: si se cambian otra vez, se borran.
-  const unsaved = useRef(new Set<string>());
 
   async function discardUnsaved(path: string | null) {
-    if (!path || !unsaved.current.has(path)) return;
-    unsaved.current.delete(path);
+    if (!path || !unsaved.has(path)) return;
+    unsaved.delete(path);
     await createClient().storage.from(PRODUCT_PHOTO_BUCKET).remove([path]);
   }
 
@@ -472,7 +481,7 @@ function PhotoField({ draft, update }: TabProps) {
     setUploading(false);
     if (error) return toast.error("No se pudo subir la foto. Inténtalo de nuevo.");
     const previous = draft.photoPath;
-    unsaved.current.add(path);
+    unsaved.add(path);
     update({ photoPath: path });
     await discardUnsaved(previous);
   }
@@ -845,7 +854,7 @@ function DeleteProduct({ id, name }: { id: string; name: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button type="button" variant="outline" className="text-danger" onClick={() => setOpen(true)}>
+      <Button type="button" variant="outline" className="text-danger max-tablet:hidden" onClick={() => setOpen(true)}>
         Eliminar
       </Button>
       <DialogContent>
