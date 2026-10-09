@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatCents } from "@/lib/domain/money";
+import { formatCents, formatWholeEuros } from "@/lib/domain/money";
 
 // Intl usa espacio duro (U+00A0) antes del símbolo y como separador de miles.
 const nbsp = " ";
@@ -32,5 +32,14 @@ describe("formatCents", () => {
   it("rechaza importes que no son enteros", () => {
     expect(() => formatCents(12.5)).toThrow(RangeError);
     expect(() => formatCents(Number.NaN)).toThrow(RangeError);
+  });
+});
+
+describe("formatWholeEuros", () => {
+  it("redondea a euros sin decimales", () => {
+    expect(formatWholeEuros(14950)).toBe(`150${nbsp}€`);
+    expect(formatWholeEuros(4549)).toBe(`45${nbsp}€`);
+    expect(formatWholeEuros(4500)).toBe(`45${nbsp}€`);
+    expect(() => formatWholeEuros(1.5)).toThrow(RangeError);
   });
 });

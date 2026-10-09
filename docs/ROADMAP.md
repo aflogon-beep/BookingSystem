@@ -21,7 +21,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [x] 1.9 Manifiesto: pasajeros, check-in, cobrar y estado y aforo de la salida.
 
 ## Fase 2 — Venta online
-- [ ] 2.1 Web pública: listado y ficha de tour con calendario y horarios.
+- [x] 2.1 Web pública: listado y ficha de tour con calendario y horarios.
 - [ ] 2.2 Checkout con Stripe + webhook + página de confirmación.
 - [ ] 2.3 Emails con Resend: confirmación, recordatorio 24 h y cancelación.
 - [ ] 2.4 Cancelación y reembolso, y cambio de fecha (ficha de reserva).
