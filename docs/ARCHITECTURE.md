@@ -18,8 +18,8 @@ Cliente (móvil/web) ──▶ Next.js en Vercel ──▶ Supabase (Postgres + 
 ## Modelo de datos (borrador para la primera migración)
 
 ```sql
-settings(id int pk default 1, business_name, currency, timezone default 'Atlantic/Canary',
-         languages text[], cutoff_hours int, cancel_hours int, email, phone)
+settings(id int pk default 1 check (id = 1), business_name, currency, timezone default 'Atlantic/Canary',
+         languages text[], cutoff_hours int, cancel_hours int, default_capacity int, email, phone)
 
 staff(user_id uuid pk references auth.users, name, role check in ('admin','staff'))
 
