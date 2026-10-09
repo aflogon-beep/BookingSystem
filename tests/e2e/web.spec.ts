@@ -79,6 +79,48 @@ test("del listado a la ficha y a la confirmación", async ({ page, browser }, te
   await other.close();
 });
 
+// Una reserva más de 1 plaza en el mismo martes.
+test("la web en inglés, de la portada a la confirmación", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "English version" }).click();
+  await expect(page).toHaveURL(/\/en$/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page).toHaveTitle("Experiences in Tenerife · Volcán Tours");
+  await expect(page.getByRole("link", { name: /Teide al atardecer y estrellas/ })).toContainText(/From\s€45/);
+
+  const day = tuesdayFor(testInfo.project.name);
+  await page.goto(`/en/experiencias/teide-atardecer-estrellas?fecha=${day}`);
+  const booking = page.getByRole("complementary", { name: "Book" });
+  await expect(booking.locator('[aria-current="date"]')).toHaveAttribute(
+    "aria-label",
+    new RegExp(`^${longDayLabel(day, "en")}, from €45$`),
+  );
+  await booking.getByRole("link", { name: /16:30/ }).click();
+  await booking.getByRole("button", { name: "Add Adulto" }).click();
+  await booking.getByRole("link", { name: "Continue" }).click();
+
+  await expect(page).toHaveURL(/\/en\/experiencias\/teide-atardecer-estrellas\/reservar\?/);
+  await expect(page.getByRole("heading", { level: 1, name: "Complete your booking" })).toBeVisible();
+  const stamp = `${testInfo.project.name}-${Date.now()}`;
+  await page.getByLabel("Full name").fill(`Web customer ${stamp}`);
+  await page.getByLabel("Email").fill(`web-en-${stamp}@example.test`);
+  await page.getByRole("button", { name: /^Confirm booking · €/ }).click();
+
+  await expect(page.getByRole("heading", { level: 1, name: "Booking confirmed!" })).toBeVisible();
+  await expect(page).toHaveURL(/\/en\/reserva\/VT[0-9A-Z]{6}$/);
+  await expect(page.getByRole("region", { name: "Your booking" })).toContainText("Pay there");
+
+  // Misma reserva en español con el selector de idioma.
+  await page.getByRole("link", { name: "Versión en español" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "¡Reserva confirmada!" })).toBeVisible();
+  await expect(page).toHaveURL(/\/reserva\/VT[0-9A-Z]{6}$/);
+});
+
+test("el panel no tiene versión en inglés", async ({ page }) => {
+  expect((await page.goto("/en/panel"))?.status()).toBe(404);
+  expect((await page.goto("/en/experiencias/no-existe"))?.status()).toBe(404);
+});
+
 test("sin salida válida o con entradas raras, no deja reservar", async ({ page }) => {
   await page.goto("/experiencias/teide-atardecer-estrellas/reservar?salida=00000000-0000-4000-8000-000000000999&entradas=x");
   await expect(page.getByRole("heading", { level: 1, name: "Esta salida ya no está disponible" })).toBeVisible();

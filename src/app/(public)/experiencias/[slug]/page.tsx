@@ -9,7 +9,7 @@ import { longDayLabel } from "@/lib/domain/calendar";
 import { formatCents, formatWholeEuros } from "@/lib/domain/money";
 import { durationLabel } from "@/lib/domain/product";
 import { businessToday, WEEKDAY_INITIALS } from "@/lib/domain/schedule";
-import { isLanguageCode, LANGUAGES } from "@/lib/domain/settings";
+import { localizedPath } from "@/lib/domain/i18n";
 import {
   bookableDays,
   isSlug,
@@ -20,13 +20,13 @@ import {
   shiftMonth,
   storefrontHref,
 } from "@/lib/domain/storefront";
+import { languageName, webText } from "@/lib/domain/web-text";
+import { getLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 import { loadSite, loadWebProduct, loadWebSessions } from "../../data";
 
-function languageName(code: string): string {
-  return isLanguageCode(code) ? LANGUAGES[code] : code.toUpperCase();
-}
+const WEEKDAY_INITIALS_EN = ["M", "T", "W", "T", "F", "S", "S"] as const;
 
 export async function generateMetadata({ params }: PageProps<"/experiencias/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -38,8 +38,10 @@ export async function generateMetadata({ params }: PageProps<"/experiencias/[slu
 export default async function ProductPage({ params, searchParams }: PageProps<"/experiencias/[slug]">) {
   const { slug } = await params;
   if (!isSlug(slug)) notFound();
-  const [site, product] = await Promise.all([loadSite(), loadWebProduct(slug)]);
+  const [site, product, locale] = await Promise.all([loadSite(), loadWebProduct(slug), getLocale()]);
   if (!product) notFound();
+  const text = webText(locale);
+  const href = (path: string) => localizedPath(locale, path);
 
   const now = new Date();
   const today = businessToday(now);
@@ -51,7 +53,8 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const lastMonth = [...days.keys()].at(-1)?.slice(0, 7) ?? today.slice(0, 7);
   const canPrev = selection.month > today.slice(0, 7);
   const canNext = selection.month < lastMonth;
-  const monthHref = (month: string) => storefrontHref(product.slug, { month, date: selection.date, sessionId: selection.sessionId });
+  const monthHref = (month: string) =>
+    href(storefrontHref(product.slug, { month, date: selection.date, sessionId: selection.sessionId }));
 
   return (
     <article>
@@ -64,11 +67,11 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           />
           <div className="absolute inset-x-4 bottom-[18px] text-white [text-shadow:0_2px_12px_rgb(0_0_0/0.35)] tablet:inset-x-[22px]">
             <Link
-              href="/"
+              href={href("/")}
               className="mb-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-[0.8rem] font-medium text-foreground [text-shadow:none] hover:bg-white"
             >
               <ArrowLeft aria-hidden="true" className="size-4" />
-              Experiencias
+              {text.experiences}
             </Link>
             <h1 className="text-[1.6rem] font-bold">{product.name}</h1>
           </div>
@@ -78,7 +81,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
       <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-start gap-[26px] px-4 py-[22px] tablet:px-[22px] desk:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex flex-col gap-4">
           {product.description ? <p className="text-[0.95rem] whitespace-pre-line">{product.description}</p> : null}
-          <ul className="flex flex-wrap gap-x-[22px] gap-y-2.5 text-[0.86rem] text-muted-foreground" aria-label="Detalles">
+          <ul className="flex flex-wrap gap-x-[22px] gap-y-2.5 text-[0.86rem] text-muted-foreground" aria-label={text.details}>
             <li className="inline-flex items-center gap-1.5">
               <Clock aria-hidden="true" className="size-4" />
               {durationLabel(product.durationMin)}
@@ -86,24 +89,24 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             {product.languages.length ? (
               <li className="inline-flex items-center gap-1.5">
                 <Languages aria-hidden="true" className="size-4" />
-                {product.languages.map(languageName).join(", ")}
+                {product.languages.map((code) => languageName(code, locale)).join(", ")}
               </li>
             ) : null}
             <li className="inline-flex items-center gap-1.5">
               <Users aria-hidden="true" className="size-4" />
-              Máx. {product.capacity} personas
+              {text.maxPeople(product.capacity)}
             </li>
             {product.pickup ? (
               <li className="inline-flex items-center gap-1.5">
                 <Bus aria-hidden="true" className="size-4" />
-                Recogida en hotel
+                {text.hotelPickup}
               </li>
             ) : null}
           </ul>
           {product.meetingPoint ? (
             <section className="rounded-2xl border border-black/5 bg-surface-2 p-4">
               <h2 className="mb-2 text-[0.68rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                Punto de encuentro
+                {text.meetingPoint}
               </h2>
               <p className="flex items-start gap-1.5">
                 <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
@@ -114,40 +117,40 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           <p className="flex items-start gap-2 text-ok">
             <CalendarCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             <span>
-              {site.cancelHours > 0 ? `Cancelación gratuita hasta ${site.cancelHours} h antes. ` : ""}Reserva ahora y asegura tu
-              plaza.
+              {site.cancelHours > 0 ? `${text.freeCancellation(site.cancelHours)} ` : ""}
+              {text.bookNow}
             </span>
           </p>
         </div>
 
         <aside
-          aria-label="Reservar"
+          aria-label={text.book}
           className="flex flex-col gap-3 rounded-xl border border-line p-4 shadow-[0_8px_24px_rgb(16_24_40/0.08)]"
         >
           {product.fromCents > 0 ? (
             <p className="flex items-baseline justify-between">
-              <span className="text-muted-foreground">Desde</span>
-              <b className="text-[1.4rem] font-semibold">{formatCents(product.fromCents)}</b>
+              <span className="text-muted-foreground">{text.from}</span>
+              <b className="text-[1.4rem] font-semibold">{formatCents(product.fromCents, locale)}</b>
             </p>
           ) : null}
 
           <section aria-labelledby="calendario-mes">
             <div className="mb-2 flex items-center justify-between">
               <h2 id="calendario-mes" className="text-[0.95rem] first-letter:uppercase">
-                {monthTitle(selection.month)}
+                {monthTitle(selection.month, locale)}
               </h2>
               <div className="flex gap-1">
-                <MonthLink href={canPrev ? monthHref(shiftMonth(selection.month, -1)) : null} label="Mes anterior">
+                <MonthLink href={canPrev ? monthHref(shiftMonth(selection.month, -1)) : null} label={text.previousMonth}>
                   <ChevronLeft aria-hidden="true" className="size-4" />
                 </MonthLink>
-                <MonthLink href={canNext ? monthHref(shiftMonth(selection.month, 1)) : null} label="Mes siguiente">
+                <MonthLink href={canNext ? monthHref(shiftMonth(selection.month, 1)) : null} label={text.nextMonth}>
                   <ChevronRight aria-hidden="true" className="size-4" />
                 </MonthLink>
               </div>
             </div>
             <div className="grid grid-cols-7 gap-[3px] text-center">
-              {WEEKDAY_INITIALS.map((initial) => (
-                <span key={initial} aria-hidden="true" className="py-1 text-[0.66rem] font-semibold text-faint">
+              {(locale === "en" ? WEEKDAY_INITIALS_EN : WEEKDAY_INITIALS).map((initial, index) => (
+                <span key={index} aria-hidden="true" className="py-1 text-[0.66rem] font-semibold text-faint">
                   {initial}
                 </span>
               ))}
@@ -167,11 +170,11 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                   return (
                     <Link
                       key={day}
-                      href={storefrontHref(product.slug, { month: selection.month, date: day })}
+                      href={href(storefrontHref(product.slug, { month: selection.month, date: day }))}
                       scroll={false}
                       prefetch={false}
                       aria-current={selected ? "date" : undefined}
-                      aria-label={`${longDayLabel(day)}${product.fromCents > 0 ? `, desde ${formatCents(product.fromCents)}` : ""}`}
+                      aria-label={`${longDayLabel(day, locale)}${product.fromCents > 0 ? text.dayFrom(formatCents(product.fromCents, locale)) : ""}`}
                       className={cn(
                         "flex min-h-[42px] flex-col items-center rounded-lg py-[5px] text-[0.82rem] font-semibold",
                         selected ? "bg-primary text-white" : "bg-primary-soft text-foreground hover:bg-[#d6e8fb]",
@@ -180,7 +183,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                       {label}
                       {product.fromCents > 0 ? (
                         <small className={cn("text-[0.58rem] font-medium", selected ? "text-white" : "text-primary-dark")}>
-                          {formatWholeEuros(product.fromCents)}
+                          {formatWholeEuros(product.fromCents, locale)}
                         </small>
                       ) : null}
                     </Link>
@@ -188,27 +191,29 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                 })}
             </div>
             {days.size === 0 ? (
-              <p className="mt-2 text-[0.84rem] text-muted-foreground">No hay fechas disponibles ahora mismo.</p>
+              <p className="mt-2 text-[0.84rem] text-muted-foreground">{text.noDates}</p>
             ) : null}
           </section>
 
           {selection.date ? (
             <section aria-labelledby="horarios">
               <h2 id="horarios" className="mb-2 text-[0.68rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                Horarios del {longDayLabel(selection.date)}
+                {text.timesOn(longDayLabel(selection.date, locale))}
               </h2>
               <ul className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">
                 {times.map((candidate) => {
-                  const seats = seatsLeftLabel(candidate.free);
+                  const seats = seatsLeftLabel(candidate.free, locale);
                   const selected = candidate.id === session?.id;
                   return (
                     <li key={candidate.id}>
                       <Link
-                        href={storefrontHref(product.slug, {
-                          month: selection.month,
-                          date: selection.date,
-                          sessionId: candidate.id,
-                        })}
+                        href={href(
+                          storefrontHref(product.slug, {
+                            month: selection.month,
+                            date: selection.date,
+                            sessionId: candidate.id,
+                          }),
+                        )}
                         scroll={false}
                         prefetch={false}
                         aria-current={selected ? "true" : undefined}
@@ -219,7 +224,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                       >
                         <b className="font-mono font-medium">{candidate.time}</b>
                         <small className="text-[0.72rem] text-muted-foreground">
-                          {languageName(candidate.language)} ·{" "}
+                          {languageName(candidate.language, locale)} ·{" "}
                           <span className={cn(seats.low && "text-warn")}>{seats.text}</span>
                         </small>
                       </Link>
@@ -229,12 +234,13 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
               </ul>
             </section>
           ) : days.size > 0 ? (
-            <p className="text-[0.84rem] text-muted-foreground">Elige un día disponible.</p>
+            <p className="text-[0.84rem] text-muted-foreground">{text.chooseDay}</p>
           ) : null}
 
           {session ? (
             <TicketPicker
               key={session.id}
+              locale={locale}
               slug={product.slug}
               sessionId={session.id}
               free={session.free}

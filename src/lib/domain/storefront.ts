@@ -1,5 +1,8 @@
 import { addDays, addMonths, format, isValid, parseISO, startOfISOWeek } from "date-fns";
-import { es } from "date-fns/locale";
+import { enGB, es } from "date-fns/locale";
+
+import type { Locale } from "./i18n";
+import { webText } from "./web-text";
 
 /** Web pública de reservas: qué salidas se venden y cómo se recorre el calendario de la ficha. */
 
@@ -107,10 +110,11 @@ export function shiftMonth(month: string, direction: -1 | 1): string {
   return format(addMonths(parseISO(`${month}-01`), direction), "yyyy-MM");
 }
 
-/** «noviembre de 2026». */
-export function monthTitle(month: string): string {
+/** «noviembre de 2026» / «November 2026». */
+export function monthTitle(month: string, locale: Locale = "es"): string {
   const date = parseISO(`${month}-01`);
-  return isValid(date) ? format(date, "LLLL 'de' yyyy", { locale: es }) : month;
+  if (!isValid(date)) return month;
+  return locale === "en" ? format(date, "LLLL yyyy", { locale: enGB }) : format(date, "LLLL 'de' yyyy", { locale: es });
 }
 
 /** ¿Puede ser el slug de un producto? (como los crea slugify) */
@@ -132,9 +136,10 @@ export function storefrontHref(
 }
 
 /** Plazas libres como en el prototipo: aviso cuando quedan 5 o menos. */
-export function seatsLeftLabel(free: number): { text: string; low: boolean } {
-  if (free <= 5) return { text: free === 1 ? "¡Queda 1!" : `¡Quedan ${free}!`, low: true };
-  return { text: `${free} plazas`, low: false };
+export function seatsLeftLabel(free: number, locale: Locale = "es"): { text: string; low: boolean } {
+  const text = webText(locale);
+  if (free <= 5) return { text: text.seatsLeft(free), low: true };
+  return { text: text.seats(free), low: false };
 }
 
 /** Idiomas distintos de las reglas de horario, en el orden en que aparecen. */

@@ -7,19 +7,22 @@ import { z } from "zod";
 
 import { createAdminClient } from "@/lib/db/admin";
 import { sendBookingConfirmation } from "@/lib/email/booking-emails";
+import { DEFAULT_LOCALE, isLocale, LOCALES, localizedPath } from "@/lib/domain/i18n";
 import { isSlug } from "@/lib/domain/storefront";
 import {
   addRecentBooking,
   RECENT_BOOKINGS_COOKIE,
   resolveCart,
   webBookingErrorMessage,
-  webCustomerSchema,
+  webCustomerSchemaFor,
   type WebCustomerInput,
 } from "@/lib/domain/web-checkout";
+import { webText } from "@/lib/domain/web-text";
 
 import { loadSite, loadWebProduct, loadWebSession } from "../../../data";
 
 const requestSchema = z.object({
+  locale: z.enum(LOCALES),
   slug: z.string().refine(isSlug),
   sessionId: z.uuid(),
   lines: z
@@ -41,13 +44,15 @@ const createdSchema = z.object({ id: z.uuid(), code: z.string().regex(/^VT[0-9A-
  * Si sale bien, lleva a la confirmación (solo la ve este navegador).
  */
 export async function createWebBooking(input: WebBookingInput): Promise<{ ok: false; error: string }> {
+  const locale = isLocale(input?.locale) ? input.locale : DEFAULT_LOCALE;
+  const text = webText(locale);
   const request = requestSchema.safeParse(input);
-  if (!request.success) return { ok: false, error: "Revisa las entradas elegidas." };
-  const customer = webCustomerSchema.safeParse(input.customer);
+  if (!request.success) return { ok: false, error: text.errors.badTickets };
+  const customer = webCustomerSchemaFor(locale).safeParse(input.customer);
   if (!customer.success) {
     const issue = customer.error.issues[0];
     // El campo trampa no explica nada: a un bot no hay que darle pistas.
-    if (!issue || issue.path[0] === "trap") return { ok: false, error: "No se pudo completar la reserva." };
+    if (!issue || issue.path[0] === "trap") return { ok: false, error: text.errors.genericShort };
     return { ok: false, error: issue.message };
   }
 
@@ -55,12 +60,10 @@ export async function createWebBooking(input: WebBookingInput): Promise<{ ok: fa
   const site = await loadSite();
   const product = await loadWebProduct(slug);
   const session = product ? await loadWebSession(product.id, sessionId, site.cutoffHours) : null;
-  if (!product || !session) return { ok: false, error: webBookingErrorMessage("RB002", undefined) };
-  const cart = resolveCart(product.tickets, lines, session.free);
+  if (!product || !session) return { ok: false, error: webBookingErrorMessage("RB002", undefined, locale) };
+  const cart = resolveCart(product.tickets, lines, session.free, locale);
   if (!cart.ok) return { ok: false, error: cart.error };
-  if (cart.totalCents !== expectedTotalCents) {
-    return { ok: false, error: "El precio ha cambiado. Vuelve a elegir las entradas para ver el total actualizado." };
-  }
+  if (cart.totalCents !== expectedTotalCents) return { ok: false, error: text.errors.priceChanged };
 
   const { name, email, phone, hotel } = customer.data;
   const { data, error } = await createAdminClient().rpc("create_booking_hold", {
@@ -69,9 +72,9 @@ export async function createWebBooking(input: WebBookingInput): Promise<{ ok: fa
     p_customer: { name, email, phone },
     p_booking: { channel: "web", payment: "on_site", hotel: product.pickup ? hotel : "" },
   });
-  if (error) return { ok: false, error: webBookingErrorMessage(error.code, error.hint) };
+  if (error) return { ok: false, error: webBookingErrorMessage(error.code, error.hint, locale) };
   const created = createdSchema.safeParse(data);
-  if (!created.success) return { ok: false, error: webBookingErrorMessage(undefined, undefined) };
+  if (!created.success) return { ok: false, error: webBookingErrorMessage(undefined, undefined, locale) };
 
   const jar = await cookies();
   jar.set(RECENT_BOOKINGS_COOKIE, addRecentBooking(jar.get(RECENT_BOOKINGS_COOKIE)?.value, created.data.id), {
@@ -83,5 +86,5 @@ export async function createWebBooking(input: WebBookingInput): Promise<{ ok: fa
   });
   // El email sale después de responder: no retrasa la confirmación ni la rompe si falla.
   after(() => sendBookingConfirmation(created.data.id));
-  redirect(`/reserva/${created.data.code}`);
+  redirect(localizedPath(locale, `/reserva/${created.data.code}`));
 }

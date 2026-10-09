@@ -6,10 +6,12 @@ import { Minus, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { canAddTicket, selectedSeats } from "@/lib/domain/booking-form";
+import { localizedPath, type Locale } from "@/lib/domain/i18n";
 import { formatCents } from "@/lib/domain/money";
 import { bookingTotal } from "@/lib/domain/pricing";
 import { ticketsParam } from "@/lib/domain/storefront";
 import { WEB_MAX_SEATS } from "@/lib/domain/web-checkout";
+import { webText } from "@/lib/domain/web-text";
 
 type Ticket = { id: string; name: string; note: string; takesSeat: boolean; priceCents: number };
 
@@ -18,11 +20,13 @@ type Ticket = { id: string; name: string; note: string; takesSeat: boolean; pric
  * el servidor vuelve a calcular precios y plazas al crear la reserva.
  */
 export function TicketPicker({
+  locale,
   slug,
   sessionId,
   free,
   tickets,
 }: {
+  locale: Locale;
   slug: string;
   sessionId: string;
   free: number;
@@ -35,7 +39,11 @@ export function TicketPicker({
   const ready = seats > 0;
   const limit = Math.min(free, WEB_MAX_SEATS);
   const full = seats >= limit;
-  const href = `/experiencias/${slug}/reservar?${new URLSearchParams({ salida: sessionId, entradas: ticketsParam(quantities) })}`;
+  const text = webText(locale);
+  const href = localizedPath(
+    locale,
+    `/experiencias/${slug}/reservar?${new URLSearchParams({ salida: sessionId, entradas: ticketsParam(quantities) })}`,
+  );
 
   function change(ticketId: string, delta: 1 | -1) {
     setQuantities((current) => ({ ...current, [ticketId]: Math.max(0, (current[ticketId] ?? 0) + delta) }));
@@ -44,7 +52,7 @@ export function TicketPicker({
   return (
     <section aria-labelledby="entradas" className="flex flex-col gap-3">
       <h2 id="entradas" className="sr-only">
-        Entradas
+        {text.tickets}
       </h2>
       <ul className="flex flex-col">
         {tickets.map((ticket) => {
@@ -56,16 +64,16 @@ export function TicketPicker({
                 {ticket.note ? <div className="text-[0.8rem] text-muted-foreground">{ticket.note}</div> : null}
               </div>
               <div className="flex items-center gap-3">
-                <span className="tabular-nums">{formatCents(ticket.priceCents)}</span>
+                <span className="tabular-nums">{formatCents(ticket.priceCents, locale)}</span>
                 <div className="inline-flex items-center overflow-hidden rounded-lg border border-line bg-surface">
-                  <StepButton label={`Quitar ${ticket.name}`} disabled={qty === 0} onClick={() => change(ticket.id, -1)}>
+                  <StepButton label={text.removeTicket(ticket.name)} disabled={qty === 0} onClick={() => change(ticket.id, -1)}>
                     <Minus aria-hidden="true" />
                   </StepButton>
-                  <output aria-label={`${ticket.name}: cantidad`} className="w-[30px] text-center text-[0.86rem] tabular-nums">
+                  <output aria-label={text.ticketQty(ticket.name)} className="w-[30px] text-center text-[0.86rem] tabular-nums">
                     {qty}
                   </output>
                   <StepButton
-                    label={`Añadir ${ticket.name}`}
+                    label={text.addTicket(ticket.name)}
                     disabled={!canAddTicket(ticket, tickets, quantities, limit)}
                     onClick={() => change(ticket.id, 1)}
                   >
@@ -79,22 +87,20 @@ export function TicketPicker({
       </ul>
       {full ? (
         <p role="status" className="text-[0.8rem] text-warn">
-          {free <= WEB_MAX_SEATS
-            ? `${free === 1 ? "Solo queda 1 plaza" : `Solo quedan ${free} plazas`} en esta salida.`
-            : `Por la web puedes reservar hasta ${WEB_MAX_SEATS} plazas. Para grupos, llámanos.`}
+          {free <= WEB_MAX_SEATS ? text.onlyLeft(free) : text.groupLimit(WEB_MAX_SEATS)}
         </p>
       ) : null}
       <p className="flex items-baseline justify-between border-t border-line pt-2.5">
-        <span>Total</span>
-        <b className="text-[1.4rem] font-semibold tabular-nums">{formatCents(total)}</b>
+        <span>{text.total}</span>
+        <b className="text-[1.4rem] font-semibold tabular-nums">{formatCents(total, locale)}</b>
       </p>
       {ready ? (
         <Button asChild size="lg">
-          <Link href={href}>Continuar</Link>
+          <Link href={href}>{text.continue}</Link>
         </Button>
       ) : (
         <Button size="lg" disabled>
-          Continuar
+          {text.continue}
         </Button>
       )}
     </section>
