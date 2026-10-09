@@ -63,6 +63,7 @@ test.describe("navegación del panel", () => {
   test("ninguna sección desborda en horizontal", async ({ page }) => {
     for (const path of [
       "/panel",
+      "/panel?fecha=2030-01-01",
       "/panel/calendario",
       "/panel/calendario?vista=mes",
       "/panel/ajustes/empresa",
