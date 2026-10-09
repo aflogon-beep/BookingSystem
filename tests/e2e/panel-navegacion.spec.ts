@@ -57,7 +57,7 @@ test.describe("navegación del panel", () => {
     await expect(pestanas.getByRole("button", { name: "Más" })).toHaveAttribute("aria-current", "page");
 
     await pestanas.getByRole("link", { name: "Nueva reserva" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "Nueva reserva" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Nueva reserva" })).toBeVisible();
   });
 
   test("ninguna sección desborda en horizontal", async ({ page }) => {
@@ -71,6 +71,7 @@ test.describe("navegación del panel", () => {
       "/panel/ajustes/usuarios",
       "/panel/productos",
       "/panel/productos/nuevo",
+      "/panel/reservas/nueva",
       "/panel/productos/00000000-0000-4000-8000-000000000201",
     ]) {
       await page.goto(path);

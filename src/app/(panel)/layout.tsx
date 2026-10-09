@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function PanelLayout({ children }: LayoutProps<"/">) {
+export default async function PanelLayout({ children, modal }: LayoutProps<"/">) {
   const staff = await requireStaff();
 
   return (
@@ -28,6 +28,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
       <main id="contenido" className="mx-auto w-full max-w-[1380px] flex-1 px-4 pt-4 pb-28 tablet:px-6 tablet:pt-[22px] tablet:pb-14">
         {children}
       </main>
+      {modal}
       <TabBar role={staff.role} name={staff.name} />
       <Toaster />
     </div>
