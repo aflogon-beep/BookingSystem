@@ -1,6 +1,6 @@
 import { TZDate } from "@date-fns/tz";
 import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, isValid, parseISO, startOfISOWeek, startOfMonth } from "date-fns";
-import { es } from "date-fns/locale";
+import { enGB, es } from "date-fns/locale";
 
 import { BUSINESS_TIMEZONE, localToInstant } from "@/lib/domain/schedule";
 
@@ -114,6 +114,8 @@ export function occupancyTotals(sessions: readonly { booked: number; capacity: n
 }
 
 /** «miércoles 14 de octubre». */
-export function longDayLabel(day: string): string {
-  return format(parseISO(day), "EEEE d 'de' MMMM", { locale: es });
+export function longDayLabel(day: string, locale: "es" | "en" = "es"): string {
+  return locale === "en"
+    ? format(parseISO(day), "EEEE d MMMM", { locale: enGB })
+    : format(parseISO(day), "EEEE d 'de' MMMM", { locale: es });
 }

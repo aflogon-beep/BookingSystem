@@ -25,7 +25,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [ ] 2.2 Checkout con Stripe + webhook + página de confirmación. Hecho (sin pasarela, decisión de 2026-10-09): formulario de reserva, reserva confirmada con pago en el lugar y página de confirmación. Falta: Stripe Checkout y webhook.
 - [x] 2.3 Emails con Resend: confirmación, recordatorio 24 h y cancelación. Se activan al poner `RESEND_API_KEY` y `EMAIL_FROM` en Vercel.
 - [x] 2.4 Cancelación y reembolso, y cambio de fecha (ficha de reserva). Sin pasarela, el reembolso registra la devolución en efectivo o TPV; el reembolso online llegará con Stripe.
-- [ ] 2.5 i18n ES/EN de la web pública.
+- [ ] 2.5 i18n ES/EN de la web pública. Hecho: interfaz en inglés bajo `/en` con selector ES/EN. Falta: textos del catálogo (productos y entradas) en inglés, y emails en el idioma de la reserva.
 
 ## Fase 3 — Operación avanzada
 - [ ] 3.1 Recursos: fichas, idiomas y asientos. Restricción de solapes en BD.

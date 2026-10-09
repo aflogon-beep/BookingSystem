@@ -1,16 +1,25 @@
 import Link from "next/link";
 import { Languages, Phone } from "lucide-react";
 
+import { LanguageSwitch } from "@/components/web/language-switch";
+import { LOCALES, localizedPath } from "@/lib/domain/i18n";
+import { webText } from "@/lib/domain/web-text";
+import { getLocale, getPublicPath } from "@/lib/i18n";
+
 import { loadSite } from "./data";
 
-/** Web de reservas para clientes: cabecera con el nombre del negocio y contacto, como el prototipo. */
+/**
+ * Web de reservas para clientes: cabecera con el nombre del negocio, contacto y el selector de
+ * idioma (ES/EN), como el prototipo.
+ */
 export default async function PublicLayout({ children }: LayoutProps<"/">) {
-  const site = await loadSite();
+  const [site, locale, path] = await Promise.all([loadSite(), getLocale(), getPublicPath()]);
+  const text = webText(locale);
   return (
     <div className="flex min-h-full flex-1 flex-col bg-surface">
       <header className="border-b border-line-2">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2.5 px-4 py-3.5 tablet:px-[22px]">
-          <Link href="/" className="text-[1.05rem] font-bold tracking-[-0.02em]">
+          <Link href={localizedPath(locale, "/")} className="text-[1.05rem] font-bold tracking-[-0.02em]">
             {site.businessName}
           </Link>
           <div className="flex items-center gap-3 text-[0.8rem] text-muted-foreground">
@@ -20,10 +29,18 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
                 {site.phone}
               </a>
             ) : null}
-            <span className="inline-flex items-center gap-1" title="Idioma">
+            <nav aria-label={text.languageLabel} className="inline-flex items-center gap-1">
               <Languages aria-hidden="true" className="size-4" />
-              ES
-            </span>
+              {LOCALES.map((option) =>
+                option === locale ? (
+                  <span key={option} aria-current="true" className="px-1 font-semibold text-foreground">
+                    {option.toUpperCase()}
+                  </span>
+                ) : (
+                  <LanguageSwitch key={option} locale={option} href={localizedPath(option, path)} label={text.switchTo} />
+                ),
+              )}
+            </nav>
           </div>
         </div>
       </header>
