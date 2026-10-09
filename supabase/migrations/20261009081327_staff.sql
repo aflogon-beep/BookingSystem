@@ -68,6 +68,11 @@ language plpgsql
 set search_path = ''
 as $$
 begin
+  -- pg_trigger_depth() > 1: borrado en cascada al eliminar el usuario de auth.users
+  -- (acción de la service role o del dashboard, no del panel). Ese caso se permite.
+  if pg_trigger_depth() > 1 then
+    return coalesce(new, old);
+  end if;
   if old.role = 'admin' and (tg_op = 'DELETE' or new.role <> 'admin') then
     -- Bloquea las filas de admin para que dos cambios simultáneos no dejen el equipo sin admin.
     perform 1 from public.staff where role = 'admin' for update;
