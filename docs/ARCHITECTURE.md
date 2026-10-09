@@ -13,6 +13,7 @@ Cliente (móvil/web) ──▶ Next.js en Vercel ──▶ Supabase (Postgres + 
 
 - La web pública y el panel son la misma app Next.js, en grupos de rutas `(public)` y `(panel)`.
 - La lógica de negocio pura vive en `src/lib/domain/`. Las operaciones atómicas (bloquear plazas, confirmar pago, generar salidas) viven en funciones SQL.
+- Las migraciones de `supabase/migrations` se aplican solas en Supabase cloud al fusionar en `main` (workflow `.github/workflows/migraciones.yml`, `supabase db push`; también se lanza a mano desde Actions). Usa los secretos de GitHub `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` y `SUPABASE_PROJECT_ID`. Las seis primeras (hasta `20261009160000_bookings`) se aplicaron a mano en el SQL Editor; `supabase/applied-by-hand.sql` las detecta y el workflow las marca como aplicadas para no repetirlas. Nadie pega SQL a mano.
 - Un cron diario (Vercel Cron, `vercel.json`, 03:00 UTC) llama a `/api/cron/generar-salidas`, que ejecuta `generate_sessions(hoy, hoy + 120)` con service role. Solo entra con `Authorization: Bearer $CRON_SECRET` (variable de entorno de Vercel, al menos 16 caracteres). Más adelante enviará también los recordatorios (2.3).
 
 ## Modelo de datos (borrador para la primera migración)

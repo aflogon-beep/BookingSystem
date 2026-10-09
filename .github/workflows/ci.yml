@@ -37,6 +37,19 @@ jobs:
       - name: Arrancar Supabase
         run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor,mailpit
 
+      # Con todas las migraciones aplicadas, la consulta del workflow Migraciones debe reconocer
+      # las seis que se aplicaron a mano en Supabase cloud.
+      - name: Comprobar la detección de migraciones aplicadas a mano
+        run: |
+          set -o pipefail
+          out=$(npx supabase db query --local --file supabase/applied-by-hand.sql)
+          echo "$out"
+          expected='APPLIED[20261009081327 20261009090000 20261009100000 20261009120000 20261009140000 20261009160000]'
+          if ! printf '%s' "$out" | grep -qF "$expected"; then
+            echo "::error::supabase/applied-by-hand.sql no detecta las seis migraciones aplicadas a mano."
+            exit 1
+          fi
+
       - name: Exportar las claves de Supabase local
         run: |
           npx supabase status -o env > "$RUNNER_TEMP/supabase.env"

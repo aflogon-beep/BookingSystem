@@ -1,0 +1,76 @@
+name: Migraciones
+
+# Aplica las migraciones nuevas de supabase/migrations en Supabase cloud cada vez que llegan a
+# main. También se puede lanzar a mano (Actions > Migraciones > Run workflow).
+#
+# Secretos del repositorio (Settings > Secrets and variables > Actions):
+#   SUPABASE_ACCESS_TOKEN  token personal de Supabase (Account > Access Tokens)
+#   SUPABASE_DB_PASSWORD   contraseña de la base de datos del proyecto
+#   SUPABASE_PROJECT_ID    referencia del proyecto (Project Settings > General > Project ID)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - supabase/migrations/**
+      - supabase/applied-by-hand.sql
+      - .github/workflows/migraciones.yml
+  workflow_dispatch:
+
+# Nunca dos despliegues a la vez, y nunca se cancela uno a medias.
+concurrency:
+  group: migraciones-produccion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar los secretos
+        run: |
+          missing=""
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_ID; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Faltan secretos del repositorio:$missing (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Conectar con el proyecto
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      # Las primeras migraciones se aplicaron a mano en el SQL Editor y no están en el historial
+      # remoto. Las que ya existen en la BD se marcan como aplicadas para que push no las repita.
+      - name: Marcar las migraciones aplicadas a mano
+        run: |
+          set -o pipefail
+          out=$(supabase db query --linked --file supabase/applied-by-hand.sql)
+          versions=$(printf '%s' "$out" | grep -o 'APPLIED\[[0-9 ]*\]' | head -1 | sed 's/^APPLIED\[//; s/\]$//')
+          echo "Ya aplicadas a mano: ${versions:-ninguna}"
+          if [ -n "$versions" ]; then
+            # shellcheck disable=SC2086
+            supabase migration repair --linked --status applied $versions
+          fi
+
+      - name: Migraciones pendientes
+        run: supabase db push --linked --dry-run
+
+      - name: Aplicar migraciones
+        run: supabase db push --linked
+
+      - name: Estado final
+        run: supabase migration list --linked

@@ -12,7 +12,8 @@ description: Cómo trabajar con la base de datos Supabase/Postgres del proyecto 
 3. `npx supabase db reset` en local para aplicar desde cero y comprobar que todo funciona.
 4. Regenera los tipos: `npx supabase gen types typescript --local > src/lib/database.types.ts`
 5. Nunca edites una migración ya mergeada en `main`: crea otra nueva.
-6. Producción se migra solo desde CI o a mano por una persona. Nunca lo hagas tú contra producción.
+6. Producción se migra sola: al fusionar en `main`, el workflow `.github/workflows/migraciones.yml` hace `supabase db push` contra Supabase cloud. No pidas a nadie que pegue SQL en el SQL Editor ni prepares copias en `/mnt/project-files/supabase/`. Nunca ejecutes tú comandos contra producción.
+7. No añadas versiones a `supabase/applied-by-hand.sql`: solo lista las migraciones que se aplicaron a mano antes de existir ese workflow.
 
 ## RLS (obligatorio)
 

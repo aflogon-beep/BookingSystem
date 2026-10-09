@@ -37,7 +37,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 
 ## Fase 4 — Producción
 - [ ] 4.1 `/revision-seguridad` completa + `npm audit` + revisión externa.
-- [ ] 4.2 Proyecto Supabase de producción, backups (PITR) y migraciones desde CI.
+- [ ] 4.2 Proyecto Supabase de producción, backups (PITR) y migraciones desde CI. Hecho: migraciones desde CI (workflow `Migraciones`, aplica `supabase/migrations` al fusionar en `main`). Falta: backups (PITR).
 - [ ] 4.3 Vercel producción, dominio, variables de entorno y Stripe en modo live con webhook.
 - [ ] 4.4 Monitorización (Sentry) y alertas de webhook fallido.
 - [ ] 4.5 Textos legales: privacidad, condiciones y cookies.
