@@ -175,6 +175,7 @@ export async function saveBookingNotes(bookingId: string, notes: string): Promis
 
 const RESEND_MESSAGES = {
   disabled: "Los emails aún no están configurados (falta la clave de Resend).",
+  not_confirmed: "La reserva ya no está confirmada. Recarga la página.",
   no_email: "Esta reserva no tiene email de cliente.",
   failed: "No se pudo enviar el email. Inténtalo de nuevo en unos minutos.",
 } as const;

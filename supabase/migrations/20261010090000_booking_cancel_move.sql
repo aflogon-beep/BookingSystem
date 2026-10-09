@@ -37,7 +37,8 @@ declare
   v_refund boolean;
 begin
   select * into strict v_booking from public.bookings where id = p_booking_id;
-  v_refund := p_refund and v_booking.payment_status = 'paid';
+  -- Lo pagado online necesita un reembolso en Stripe (pendiente): no se marca reembolsado aquí.
+  v_refund := p_refund and v_booking.payment_status = 'paid' and v_booking.payment_method is distinct from 'card_online';
   update public.bookings
   set status = 'cancelled',
     hold_expires_at = null,

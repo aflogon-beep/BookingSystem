@@ -94,7 +94,7 @@ async function deliver(admin: Admin, kind: BookingEmailKind, ids: readonly strin
   return sentIds;
 }
 
-export type ResendResult = "sent" | "disabled" | "no_email" | "failed";
+export type ResendResult = "sent" | "disabled" | "not_confirmed" | "no_email" | "failed";
 
 /**
  * Email de una reserva confirmada: la confirmación al crearla (web o panel), el aviso de cambio
@@ -116,7 +116,8 @@ export async function sendBookingEmail(
       .eq("status", "confirmed");
     if (error) throw new Error(error.code);
     const booking = data[0];
-    if (!booking?.customers?.email) return "no_email";
+    if (!booking) return "not_confirmed";
+    if (!booking.customers?.email) return "no_email";
     const sent = await deliver(admin, kind, [booking.id], again ? `/${Date.now()}` : "");
     return sent.size ? "sent" : "failed";
   } catch (error) {

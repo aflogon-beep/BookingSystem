@@ -116,6 +116,7 @@ export function bookingChangeError(code: string | undefined, hint: string | unde
     case "42501":
       return "No tienes permiso para hacer esto.";
     case "40001":
+    case "40P01":
       return "La reserva acaba de cambiar. Recarga la página e inténtalo de nuevo.";
     default:
       return "No se pudo guardar. Inténtalo de nuevo.";

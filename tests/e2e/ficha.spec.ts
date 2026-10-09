@@ -4,10 +4,11 @@ import { es } from "date-fns/locale";
 
 import { businessToday } from "@/lib/domain/schedule";
 
-const PROJECT_WEEKS: Record<string, number> = { movil: 1, tablet: 2, escritorio: 3 };
+const PROJECT_WEEKS: Record<string, number> = { movil: 1, tablet: 2, escritorio: 1 };
 
-// Un lunes de dentro de 1-3 semanas, distinto por proyecto: el cambio de fecha solo ofrece salidas
-// de los próximos 30 días. Ningún otro e2e usa los lunes ni los martes tan cercanos.
+// Un lunes de dentro de 1-2 semanas: el cambio de fecha solo ofrece salidas de los próximos 30 días
+// (40 como mucho). Ningún otro e2e reserva los lunes ni los martes tan cercanos. Dos proyectos
+// comparten lunes, pero cada uno solo mira su reserva.
 function mondayFor(project: string): string {
   return format(startOfISOWeek(addWeeks(parseISO(businessToday()), PROJECT_WEEKS[project] ?? 1)), "yyyy-MM-dd");
 }
@@ -54,7 +55,8 @@ test("ficha de reserva: notas, cambio de fecha y cancelación con reembolso", as
   // Cancelar con reembolso (dentro del plazo de cancelación gratuita).
   await page.getByRole("button", { name: "Cancelar", exact: true }).click();
   const cancel = page.getByRole("dialog", { name: "Cancelar reserva" });
-  await expect(cancel.getByRole("checkbox", { name: /^Reembolsar / })).toBeChecked();
+  // Se marca a mano: viene marcada dentro del plazo, pero ajustes.spec.ts cambia el plazo un momento.
+  await cancel.getByRole("checkbox", { name: /^Reembolsar / }).check();
   await cancel.getByRole("button", { name: "Cancelar reserva" }).click();
   await expect(cancel).toBeHidden();
   await expect(page.getByText("Cancelada", { exact: true })).toBeVisible();
