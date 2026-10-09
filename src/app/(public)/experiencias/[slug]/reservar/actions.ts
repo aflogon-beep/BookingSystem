@@ -2,9 +2,11 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { createAdminClient } from "@/lib/db/admin";
+import { sendBookingConfirmation } from "@/lib/email/booking-emails";
 import { isSlug } from "@/lib/domain/storefront";
 import {
   addRecentBooking,
@@ -79,5 +81,7 @@ export async function createWebBooking(input: WebBookingInput): Promise<{ ok: fa
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
+  // El email sale después de responder: no retrasa la confirmación ni la rompe si falla.
+  after(() => sendBookingConfirmation(created.data.id));
   redirect(`/reserva/${created.data.code}`);
 }

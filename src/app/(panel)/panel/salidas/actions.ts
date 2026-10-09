@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
+import { sendSessionCancellations } from "@/lib/email/booking-emails";
 
 export type ManifestActionResult = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -86,6 +88,7 @@ export async function setSessionStatus(sessionId: string, status: string): Promi
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("session_set_status", { p_session_id: sessionId, p_status: parsed.data });
   if (error) return fail(error.code);
+  if (parsed.data === "cancelled") after(() => sendSessionCancellations(sessionId));
   const cancelled = data ? ` y ${data === 1 ? "1 reserva cancelada" : `${data} reservas canceladas`}` : "";
   return done(STATUS_MESSAGES[parsed.data] + cancelled);
 }
