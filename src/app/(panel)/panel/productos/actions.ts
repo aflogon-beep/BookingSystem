@@ -149,6 +149,8 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
 
   const supabase = await createClient();
   const { data, error } = await supabase.from("products").delete().eq("id", id).select("photo_path");
+  // 23503: sus salidas tienen reservas (bookings.session_id es «restrict»).
+  if (error?.code === "23503") return { ok: false, error: "Tiene reservas: desactívalo en lugar de eliminarlo." };
   if (error || data.length !== 1) return { ok: false, error: "No se pudo eliminar. Inténtalo de nuevo." };
   await removePhoto(supabase, data[0]?.photo_path ?? null);
   refresh();
