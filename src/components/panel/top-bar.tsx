@@ -1,9 +1,13 @@
 import Link from "next/link";
-import { Plus, Settings, Store } from "lucide-react";
+import { LogOut, Plus, Settings, Store } from "lucide-react";
+
+import { logout } from "@/app/(auth)/actions";
 
 import { NavTop } from "@/components/panel/nav-top";
 import { focusRing } from "@/components/panel/styles";
 import { Button } from "@/components/ui/button";
+import type { StaffMember } from "@/lib/auth";
+import { canAccess } from "@/lib/domain/auth";
 import { NEW_BOOKING_HREF } from "@/lib/panel-nav";
 
 function Logo() {
@@ -20,7 +24,7 @@ function Logo() {
   );
 }
 
-export function TopBar() {
+export function TopBar({ staff }: { staff: StaffMember }) {
   return (
     <header className="sticky top-0 z-40 flex min-h-[calc(54px+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] items-center gap-x-[18px] border-b border-black/[0.08] bg-white/78 px-3.5 backdrop-blur-xl backdrop-saturate-180 tablet:min-h-[calc(56px+env(safe-area-inset-top,0px))] tablet:px-[18px]">
       <Link href="/panel" className={`${focusRing} flex min-w-0 flex-none items-center gap-2.5 rounded-lg`}>
@@ -31,7 +35,7 @@ export function TopBar() {
         </span>
       </Link>
 
-      <NavTop />
+      <NavTop role={staff.role} />
 
       <div className="ml-auto flex flex-none items-center gap-1">
         <Button asChild size="sm" className="hidden tablet:inline-flex">
@@ -45,11 +49,19 @@ export function TopBar() {
             <Store aria-hidden="true" />
           </Link>
         </Button>
-        <Button asChild variant="ghost" size="icon" className="hidden text-foreground tablet:inline-flex">
-          <Link href="/panel/ajustes" aria-label="Ajustes" title="Ajustes">
-            <Settings aria-hidden="true" />
-          </Link>
-        </Button>
+        {canAccess(staff.role, "ajustes") ? (
+          <Button asChild variant="ghost" size="icon" className="hidden text-foreground tablet:inline-flex">
+            <Link href="/panel/ajustes" aria-label="Ajustes" title="Ajustes">
+              <Settings aria-hidden="true" />
+            </Link>
+          </Button>
+        ) : null}
+        <form action={logout} className="hidden tablet:block">
+          <Button type="submit" variant="ghost" size="sm" title={`Salir (${staff.name})`}>
+            <LogOut aria-hidden="true" />
+            Salir
+          </Button>
+        </form>
       </div>
     </header>
   );

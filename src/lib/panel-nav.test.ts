@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PANEL_NAV, TAB_BAR_IDS, isNavItemActive, isMoreActive, navItem } from "@/lib/panel-nav";
+import { PANEL_NAV, TAB_BAR_IDS, isMoreActive, isNavItemActive, navItem, visibleNav } from "@/lib/panel-nav";
 
 describe("isNavItemActive", () => {
   it("marca Hoy solo en la raíz del panel", () => {
@@ -49,5 +49,13 @@ describe("PANEL_NAV", () => {
     for (const id of TAB_BAR_IDS) {
       expect(() => navItem(id)).not.toThrow();
     }
+  });
+});
+
+describe("visibleNav", () => {
+  it("filtra las secciones según el predicado de acceso", () => {
+    const ids = visibleNav((id) => id !== "ajustes").map((item) => item.id);
+    expect(ids).not.toContain("ajustes");
+    expect(ids).toContain("hoy");
   });
 });

@@ -7,11 +7,12 @@ import { Store } from "lucide-react";
 
 import { NAV_ICONS } from "@/components/panel/nav-icons";
 import { focusRing } from "@/components/panel/styles";
-import { PANEL_NAV, isNavItemActive } from "@/lib/panel-nav";
+import { canAccess, type StaffRole } from "@/lib/domain/auth";
+import { isNavItemActive, visibleNav } from "@/lib/panel-nav";
 import { cn } from "@/lib/utils";
 
 /** Navegación en segunda fila con scroll horizontal (tablet). */
-export function NavSub() {
+export function NavSub({ role }: { role: StaffRole }) {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
 
@@ -29,7 +30,7 @@ export function NavSub() {
       aria-label="Secciones"
       className="sticky top-14 z-30 hidden overflow-x-auto border-b border-line bg-white/85 px-3 backdrop-blur-xl tablet:flex desk:hidden"
     >
-      {PANEL_NAV.map((item) => {
+      {visibleNav((id) => canAccess(role, id)).map((item) => {
         const active = isNavItemActive(item, pathname);
         const Icon = NAV_ICONS[item.id];
         return (
