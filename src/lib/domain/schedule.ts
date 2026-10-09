@@ -82,3 +82,23 @@ export function previewSessions(rules: readonly RuleForPreview[], from: string, 
 export function shortDateLabel(date: string): string {
   return format(parseISO(date), "d MMM", { locale: es }).replace(".", "");
 }
+
+/** Días hacia delante que se generan salidas (job diario, skill dominio-reservas). */
+export const GENERATION_DAYS = 120;
+
+/**
+ * Hora local del negocio (fecha YYYY-MM-DD + HH:MM) → instante real. Respeta los cambios de
+ * hora: nunca suma offsets a mano. Es lo mismo que hace generate_sessions en SQL con
+ * `(fecha + hora) at time zone 'Atlantic/Canary'`.
+ */
+export function localToInstant(date: string, time: string, timeZone: string = BUSINESS_TIMEZONE): Date {
+  const [year = 0, month = 1, day = 1] = date.split("-").map(Number);
+  const [hours = 0, minutes = 0] = time.split(":").map(Number);
+  return new Date(new TZDate(year, month - 1, day, hours, minutes, timeZone).getTime());
+}
+
+/** Ventana del job diario: desde hoy (en Canarias) hasta hoy + GENERATION_DAYS, ambos incluidos. */
+export function generationWindow(now: Date = new Date()): { from: string; to: string } {
+  const from = businessToday(now);
+  return { from, to: format(addDays(parseISO(from), GENERATION_DAYS), "yyyy-MM-dd") };
+}
