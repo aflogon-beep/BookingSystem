@@ -50,6 +50,39 @@ test("del listado a la ficha: día, horario y entradas", async ({ page }, testIn
   const salida = new URL(page.url()).searchParams.get("salida");
   const next = booking.getByRole("link", { name: "Continuar" });
   await expect(next).toHaveAttribute("href", new RegExp(`/experiencias/teide-atardecer-estrellas/reservar\\?salida=${salida}&entradas=`));
+
+  // Completar la reserva: sin pasarela, se paga el día de la excursión.
+  await next.click();
+  await expect(page.getByRole("heading", { level: 1, name: "Completa tu reserva" })).toBeVisible();
+  const summary = page.getByRole("complementary", { name: "Tu reserva" });
+  await expect(summary).toContainText("2 × Adulto");
+  await expect(summary).toContainText(/183\s€/);
+  const name = `Cliente web ${testInfo.project.name} ${Date.now()}`;
+  await page.getByLabel("Nombre y apellidos").fill(name);
+  await page.getByLabel("Email").fill(`web-${testInfo.project.name}-${Date.now()}@example.test`);
+  await page.getByLabel("Hotel de recogida").fill("Hotel Mencey");
+  await page.getByRole("button", { name: /^Confirmar reserva/ }).click();
+
+  await expect(page.getByRole("heading", { level: 1, name: "¡Reserva confirmada!" })).toBeVisible();
+  await expect(page).toHaveURL(/\/reserva\/VT[0-9A-Z]{6}$/);
+  const ticket = page.getByRole("region", { name: "Tu reserva" });
+  await expect(ticket).toContainText("Pagas allí");
+  await expect(ticket).toContainText("Recogida en Hotel Mencey");
+  await expect(ticket).toContainText("2 Adulto · 1 Niño");
+
+  // Con el código solo, otro navegador no ve la reserva.
+  const other = await page.context().browser()?.newContext();
+  if (other) {
+    const response = await (await other.newPage()).goto(page.url());
+    expect(response?.status()).toBe(404);
+    await other.close();
+  }
+});
+
+test("sin plazas o con entradas raras, el pago no deja seguir", async ({ page }) => {
+  await page.goto("/experiencias/teide-atardecer-estrellas/reservar?salida=00000000-0000-4000-8000-000000000999&entradas=x");
+  await expect(page.getByRole("heading", { level: 1, name: "Esta salida ya no está disponible" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Volver a Teide al atardecer y estrellas" })).toBeVisible();
 });
 
 test("se puede cambiar de mes y no se vuelve a meses pasados", async ({ page }) => {

@@ -1,0 +1,111 @@
+import "server-only";
+
+import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { CircleCheck, MapPin } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Pill } from "@/components/ui/pill";
+import { createAdminClient } from "@/lib/db/admin";
+import { longDayLabel, toBusinessDateTime } from "@/lib/domain/calendar";
+import { formatCents } from "@/lib/domain/money";
+import { isLanguageCode, LANGUAGES } from "@/lib/domain/settings";
+import { hasRecentBooking, RECENT_BOOKINGS_COOKIE } from "@/lib/domain/web-checkout";
+
+import { loadSite } from "../../data";
+
+export const metadata: Metadata = { title: "Reserva confirmada", robots: { index: false } };
+
+const CODE = /^VT[0-9A-Z]{6}$/;
+
+/**
+ * Confirmación de una reserva web. Tiene datos del cliente, así que solo la ve el navegador que
+ * la hizo (cookie httpOnly con sus últimas reservas); con el código solo, da 404.
+ */
+export default async function ConfirmationPage({ params }: PageProps<"/reserva/[codigo]">) {
+  const { codigo } = await params;
+  if (!CODE.test(codigo)) notFound();
+
+  const [site, { data: booking, error }] = await Promise.all([
+    loadSite(),
+    createAdminClient()
+      .from("bookings")
+      .select(
+        "id, code, status, payment_status, total_cents, hotel, sessions(starts_at, language, products(name, meeting_point, pickup)), booking_lines(qty, ticket_types(name, sort))",
+      )
+      .eq("code", codigo)
+      .eq("channel", "web")
+      .maybeSingle(),
+  ]);
+  if (error) throw new Error("No se pudo cargar la reserva.");
+  const jar = await cookies();
+  if (!booking || !hasRecentBooking(jar.get(RECENT_BOOKINGS_COOKIE)?.value, booking.id)) notFound();
+  const session = booking.sessions;
+  const product = session?.products;
+  if (!session || !product) notFound();
+
+  const { date, time } = toBusinessDateTime(session.starts_at);
+  const language = isLanguageCode(session.language) ? LANGUAGES[session.language] : session.language.toUpperCase();
+  const lines = [...booking.booking_lines].sort((a, b) => (a.ticket_types?.sort ?? 0) - (b.ticket_types?.sort ?? 0));
+  const cancelled = booking.status === "cancelled" || booking.status === "expired";
+  const place = product.pickup && booking.hotel ? `Recogida en ${booking.hotel}` : product.meeting_point;
+
+  return (
+    <div className="mx-auto flex w-full max-w-[520px] flex-col gap-3.5 px-4 py-[22px]">
+      <div className="flex flex-col items-center gap-1 text-center">
+        <CircleCheck aria-hidden="true" className={cancelled ? "size-12 text-muted-foreground" : "size-12 text-ok"} />
+        <h1 className="text-[1.4rem]">{cancelled ? "Reserva cancelada" : "¡Reserva confirmada!"}</h1>
+        {!cancelled ? (
+          <p className="text-muted-foreground">
+            Guarda tu código: te lo pedirán el día de la excursión.
+          </p>
+        ) : null}
+      </div>
+
+      <section
+        aria-label="Tu reserva"
+        className="flex flex-col gap-2.5 rounded-xl border-[1.5px] border-dashed border-[#a9c0f0] bg-primary-soft p-[18px]"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-[0.68rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Código de reserva</div>
+            <div className="font-mono text-[1.5rem] font-medium tracking-[0.06em]">{booking.code}</div>
+          </div>
+          {booking.payment_status === "paid" ? <Pill tone="ok">Pagada</Pill> : <Pill tone="warn">Pagas allí</Pill>}
+        </div>
+        <div>
+          <b className="font-semibold">{product.name}</b>
+          <p className="text-[0.86rem]">
+            <span className="inline-block first-letter:uppercase">{longDayLabel(date)}</span> ·{" "}
+            <span className="font-mono">{time}</span> · {language}
+          </p>
+          {place ? (
+            <p className="mt-0.5 flex items-start gap-1 text-[0.84rem] text-muted-foreground">
+              <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              {place}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex justify-between gap-2.5">
+          <span>{lines.map((line) => `${line.qty} ${line.ticket_types?.name ?? ""}`).join(" · ")}</span>
+          <b className="tabular-nums">{formatCents(booking.total_cents)}</b>
+        </div>
+      </section>
+
+      {!cancelled ? (
+        <p className="text-center text-[0.84rem] text-muted-foreground">
+          Pagas el total el día de la excursión.
+          {site.cancelHours > 0 ? ` Cancelación gratuita hasta ${site.cancelHours} h antes de la salida.` : ""}
+          {site.phone ? ` Para cambios o cancelaciones, llama al ${site.phone}.` : ""}
+        </p>
+      ) : null}
+      <div className="flex justify-center">
+        <Button asChild variant="outline">
+          <Link href="/">Volver a la web</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
