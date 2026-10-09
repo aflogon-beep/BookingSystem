@@ -10,7 +10,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [x] 0.5 Login del equipo (Supabase Auth, email + contraseña), proxy que protege `(panel)` y tabla `staff` con roles. Contraseñas: mínimo 10 con mayúsculas, minúsculas y dígitos. Alta con `npm run staff:create`. CI con Supabase (migraciones, tipos, RLS y e2e con login).
 
 ## Fase 1 — Núcleo de reservas
-- [ ] 1.1 Migración: settings, ticket_types, products, product_prices, schedule_rules y RLS. Seed de la empresa de ejemplo. Tipos regenerados con `npm run db:types`.
+- [x] 1.1 Migración: settings, ticket_types, products, product_prices, schedule_rules y RLS. Seed de la empresa de ejemplo. Tipos regenerados con `npm run db:types`. RLS: el staff gestiona productos, precios y horarios; ajustes y tipos de entrada solo admin; anon sin acceso.
 - [ ] 1.2 Ajustes: empresa, idiomas, tipos de entrada y políticas. Equipo: invitar miembros, cambiar rol y dar de baja (con doble campo de contraseña al aceptar la invitación).
 - [ ] 1.3 Productos: editor con pestañas, subida de foto a Storage y vista previa de salidas.
 - [ ] 1.4 `generate_sessions` + cron diario + tests de zona horaria.
