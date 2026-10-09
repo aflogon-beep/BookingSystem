@@ -68,6 +68,9 @@ test.describe("navegación del panel", () => {
       "/panel/ajustes/entradas",
       "/panel/ajustes/politicas",
       "/panel/ajustes/usuarios",
+      "/panel/productos",
+      "/panel/productos/nuevo",
+      "/panel/productos/00000000-0000-4000-8000-000000000201",
     ]) {
       await page.goto(path);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
