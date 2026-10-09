@@ -257,8 +257,17 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "create_booking_hold":
+            "booking_collect_payment":
+{ Args: { "p_booking_id": string,"p_method": string }; Returns: undefined
+                           },
+"booking_set_checked_in":
+{ Args: { "p_booking_id": string,"p_checked": boolean }; Returns: boolean
+                           },
+"create_booking_hold":
 { Args: { "p_booking"?: Json,"p_customer": Json,"p_hold_minutes"?: number,"p_lines": Json,"p_session_id": string }; Returns: Json
+                           },
+"format_cents":
+{ Args: { "p_cents": number }; Returns: string
                            },
 "generate_sessions":
 { Args: { "p_from": string,"p_product_id"?: string,"p_to": string }; Returns: number
@@ -272,8 +281,17 @@ isOneToOne: false
 "save_product":
 { Args: { "p_id"?: string,"p_prices": Json,"p_product": Json,"p_rules": Json }; Returns: Json
                            },
+"session_check_in_all":
+{ Args: { "p_session_id": string }; Returns: number
+                           },
 "session_occupied_seats":
 { Args: { "p_session_id": string }; Returns: number
+                           },
+"session_set_status":
+{ Args: { "p_session_id": string,"p_status": string }; Returns: number
+                           },
+"staff_actor":
+{ Args: Record<PropertyKey, never>; Returns: string
                            }
           }
           Enums: {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ClipboardList, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
@@ -86,6 +86,12 @@ export function SessionRow({ session }: { session: TodaySession }) {
             Reservar
           </Button>
         )}
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/panel/salidas/${session.id}`} aria-label={`Manifiesto ${label}`}>
+            <ClipboardList aria-hidden="true" />
+            Manifiesto
+          </Link>
+        </Button>
       </div>
     </li>
   );
