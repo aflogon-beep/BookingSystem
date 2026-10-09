@@ -43,11 +43,10 @@ export function WeekView({ days, sessions, today }: { days: readonly string[]; s
 }
 
 function WeekCard({ session }: { session: CalendarSession }) {
-  const full = session.status !== "cancelled" && session.booked >= session.capacity;
+  const full = session.status !== "cancelled" && session.capacity > 0 && session.booked >= session.capacity;
   const percent = session.capacity ? Math.min(100, (session.booked / session.capacity) * 100) : 0;
   return (
     <li
-      aria-label={`${session.time} ${session.product.name}`}
       className={cn(
         "flex w-full flex-col gap-1.5 rounded-xl border border-black/6 bg-surface px-2.5 py-[9px] shadow-[0_1px_2px_rgb(16_24_40/0.04)]",
         session.past && "opacity-55",
@@ -61,13 +60,13 @@ function WeekCard({ session }: { session: CalendarSession }) {
       </div>
       <div className="flex items-baseline gap-1.5 text-[0.82rem] leading-tight font-semibold">
         <span aria-hidden="true" className="size-2.5 flex-none rounded-[3px]" style={{ background: session.product.color }} />
-        <span>{session.product.name}</span>
+        <span className="min-w-0 break-words">{session.product.name}</span>
       </div>
       <div
         role="progressbar"
         aria-label="Ocupación"
         aria-valuemin={0}
-        aria-valuemax={session.capacity}
+        aria-valuemax={Math.max(1, session.capacity)}
         aria-valuenow={session.booked}
         className="h-[5px] overflow-hidden rounded-full bg-line-2"
       >

@@ -60,7 +60,8 @@ export function MonthView({
             const totals = occupancyTotals(list);
             const outside = !day.startsWith(month);
             const isToday = day === today;
-            const label = `${longDayLabel(day)}: ${list.length ? `${list.length} ${list.length === 1 ? "salida" : "salidas"}` : "sin salidas"}`;
+            const live = list.filter((session) => session.status !== "cancelled").length;
+            const label = `${longDayLabel(day)}: ${live ? `${live} ${live === 1 ? "salida" : "salidas"}, ${totals.booked} de ${totals.capacity} plazas` : "sin salidas"}`;
             return (
               <Link
                 key={day}
@@ -93,7 +94,7 @@ export function MonthView({
                     key={session.id}
                     className={cn(
                       "hidden min-w-0 items-center gap-[5px] rounded-[4px] px-1 py-px text-[0.72rem] leading-[1.3] tablet:flex",
-                      session.status !== "cancelled" && session.booked >= session.capacity ? "bg-warn-soft" : "bg-surface-2",
+                      session.status !== "cancelled" && session.capacity > 0 && session.booked >= session.capacity ? "bg-warn-soft" : "bg-surface-2",
                       session.status === "cancelled" && "line-through opacity-45",
                     )}
                   >

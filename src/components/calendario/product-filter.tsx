@@ -23,7 +23,7 @@ export function ProductFilter({
       aria-label="Producto"
       className="w-full tablet:w-auto tablet:max-w-[210px]"
       value={productId ?? ""}
-      onChange={(event) => router.push(calendarHref({ view, anchor, productId: event.target.value || null }))}
+      onChange={(event) => router.replace(calendarHref({ view, anchor, productId: event.target.value || null }))}
     >
       <option value="">Todos los productos</option>
       {products.map((product) => (

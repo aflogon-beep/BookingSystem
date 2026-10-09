@@ -74,6 +74,14 @@ describe("shiftAnchor", () => {
 });
 
 describe("rangeForDays", () => {
+  it("semana del cambio de marzo: el lunes es de invierno (UTC+0) y el siguiente, de verano", () => {
+    expect(rangeForDays(visibleDays("semana", "2026-03-29"))).toEqual({
+      from: "2026-03-23T00:00:00.000Z",
+      to: "2026-03-29T23:00:00.000Z",
+    });
+    expect(toBusinessDateTime("2026-03-29T01:30:00.000Z")).toEqual({ date: "2026-03-29", time: "02:30" });
+  });
+
   it("cubre los días en hora de Canarias, también con cambio de hora en medio", () => {
     // Semana del cambio de octubre: el lunes es horario de verano (UTC+1) y el lunes siguiente, de invierno.
     expect(rangeForDays(visibleDays("semana", "2026-10-25"))).toEqual({

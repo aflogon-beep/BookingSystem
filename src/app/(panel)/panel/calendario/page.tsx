@@ -29,24 +29,21 @@ const STATUSES = new Set<CalendarSession["status"]>(["open", "closed", "cancelle
 export default async function Page({ searchParams }: PageProps<"/panel/calendario">) {
   await requireAccess("calendario");
   const today = businessToday();
-  const { view, anchor, productId } = parseCalendarParams(await searchParams, today);
+  const { view, anchor, productId: requestedProductId } = parseCalendarParams(await searchParams, today);
   const days = visibleDays(view, anchor);
   const { from, to } = rangeForDays(days);
 
   const supabase = await createClient();
-  let query = supabase
-    .from("sessions")
-    .select("id, starts_at, language, capacity, status, products!inner(name, color, min_pax)")
-    .gte("starts_at", from)
-    .lt("starts_at", to)
-    .order("starts_at");
-  if (productId) query = query.eq("product_id", productId);
-  const [{ data: rows, error }, { data: products, error: productsError }] = await Promise.all([
-    query,
-    supabase.from("products").select("id, name").order("created_at").order("name"),
-  ]);
-  if (error || productsError) throw new Error("No se pudo cargar el calendario.");
+  const { data: products, error: productsError } = await supabase
+    .from("products")
+    .select("id, name")
+    .order("created_at")
+    .order("name");
+  if (productsError) throw new Error("No se pudo cargar el calendario.");
+  // Un producto que ya no existe en la URL cuenta como «Todos los productos».
+  const productId = products.some((product) => product.id === requestedProductId) ? requestedProductId : null;
 
+  const rows = await loadSessionRows(supabase, from, to, productId);
   const sessions = toCalendarSessions(rows, new Date());
 
   return (
@@ -92,6 +89,33 @@ export default async function Page({ searchParams }: PageProps<"/panel/calendari
       )}
     </section>
   );
+}
+
+// PostgREST corta cada respuesta en max_rows (1000): un mes con muchos productos lo supera.
+const PAGE_SIZE = 1000;
+
+async function loadSessionRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  from: string,
+  to: string,
+  productId: string | null,
+): Promise<SessionRow[]> {
+  const rows: SessionRow[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    let query = supabase
+      .from("sessions")
+      .select("id, starts_at, language, capacity, status, products!inner(name, color, min_pax)")
+      .gte("starts_at", from)
+      .lt("starts_at", to)
+      .order("starts_at")
+      .order("id")
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (productId) query = query.eq("product_id", productId);
+    const { data, error } = await query;
+    if (error) throw new Error("No se pudo cargar el calendario.");
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) return rows;
+  }
 }
 
 type SessionRow = {
