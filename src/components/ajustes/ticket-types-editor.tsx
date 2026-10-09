@@ -63,8 +63,8 @@ function TextCell({ row, field, label, maxLength }: { row: TicketTypeRow; field:
         aria-invalid={invalid || undefined}
         onBlur={(event) => commit(event.currentTarget.value)}
         onKeyDown={(event) => {
-        // Enter guarda saliendo del campo: así no se guarda dos veces (Enter y luego blur).
-        if (event.key === "Enter") event.currentTarget.blur();
+          // Enter guarda saliendo del campo: así no se guarda dos veces (Enter y luego blur).
+          if (event.key === "Enter") event.currentTarget.blur();
         }}
         className="tablet:h-9"
       />
