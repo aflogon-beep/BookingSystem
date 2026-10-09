@@ -108,6 +108,12 @@ describe("localToInstant", () => {
     expect(localToInstant("2030-03-31", "16:30").toISOString()).toBe("2030-03-31T15:30:00.000Z");
   });
 
+  it("en las horas que no existen o se repiten usa el horario de invierno, como Postgres", () => {
+    // 01:30 del 31-3-2030 no existe (01:00 → 02:00) y 01:30 del 27-10-2030 ocurre dos veces.
+    expect(localToInstant("2030-03-31", "01:30").toISOString()).toBe("2030-03-31T01:30:00.000Z");
+    expect(localToInstant("2030-10-27", "01:30").toISOString()).toBe("2030-10-27T01:30:00.000Z");
+  });
+
   it("no depende de la zona horaria del servidor", () => {
     expect(localToInstant("2027-07-15", "23:30").toISOString()).toBe("2027-07-15T22:30:00.000Z");
     expect(localToInstant("2027-07-15", "00:15").toISOString()).toBe("2027-07-14T23:15:00.000Z");

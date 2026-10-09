@@ -18,7 +18,11 @@ beforeAll(async () => {
   outsider = await createTestUser();
 });
 
+// Día que solo usa el test del job diario: genera para todos los productos y luego se limpia.
+const JOB_DAY = "2030-11-13";
+
 afterAll(async () => {
+  await adminDb.from("sessions").delete().gte("starts_at", `${JOB_DAY}T00:00:00Z`).lt("starts_at", "2030-11-14T01:00:00Z");
   if (createdProductIds.length) await adminDb.from("products").delete().in("id", createdProductIds);
   await deleteTestUsers([outsider, member]);
 });
@@ -33,7 +37,10 @@ const everyDay = (times: string[], language = "es"): Rule => ({
   valid_to: null,
 });
 
-async function saveProduct(rules: Rule[], options: { id?: string; durationMin?: number } = {}): Promise<string> {
+async function saveProduct(
+  rules: Rule[],
+  options: { id?: string; durationMin?: number; capacity?: number } = {},
+): Promise<string> {
   const { data, error } = await member.db.rpc("save_product", {
     ...(options.id ? { p_id: options.id } : {}),
     p_product: {
@@ -43,7 +50,7 @@ async function saveProduct(rules: Rule[], options: { id?: string; durationMin?: 
       meeting_point: "",
       place: "",
       duration_min: options.durationMin ?? 90,
-      capacity: 10,
+      capacity: options.capacity ?? 10,
       min_pax: 1,
       pickup: false,
       color: "#0A84FF",
@@ -121,9 +128,13 @@ describe("generate_sessions", () => {
     const id = await saveProduct([everyDay(["10:00", "18:00"])]);
     await generate(id);
     await adminDb.from("sessions").update({ status: "closed" }).eq("product_id", id).eq("starts_at", "2030-10-25T17:00:00Z");
-    await adminDb.from("sessions").update({ capacity: 4 }).eq("product_id", id).eq("starts_at", "2030-10-25T09:00:00Z");
+    await adminDb
+      .from("sessions")
+      .update({ capacity: 4, capacity_custom: true })
+      .eq("product_id", id)
+      .eq("starts_at", "2030-10-25T09:00:00Z");
 
-    await saveProduct([everyDay(["10:00"], "en")], { id, durationMin: 120 });
+    await saveProduct([everyDay(["10:00"], "en")], { id, durationMin: 120, capacity: 8 });
     await generate(id);
 
     const sessions = await sessionsOf(id);
@@ -134,8 +145,10 @@ describe("generate_sessions", () => {
       ["2030-10-27T10:00:00.000Z", "open"],
       ["2030-10-28T10:00:00.000Z", "open"],
     ]);
-    // Las abiertas siguen la regla nueva (idioma y duración); el aforo propio se conserva.
+    // Las abiertas siguen la regla y el producto nuevos (idioma, duración y aforo), salvo el aforo
+    // cambiado a mano.
     expect(sessions[0]).toMatchObject({ language: "en", ends_at: "2030-10-25T11:00:00.000Z", capacity: 4 });
+    expect(sessions[2]).toMatchObject({ language: "en", ends_at: "2030-10-26T11:00:00.000Z", capacity: 8 });
   });
 
   it("un producto desactivado no tiene salidas abiertas", async () => {
@@ -160,9 +173,9 @@ describe("generate_sessions", () => {
 
   it("service role genera para todos los productos (job diario)", async () => {
     const id = await saveProduct([everyDay(["09:15"])]);
-    const { error } = await adminDb.rpc("generate_sessions", { p_from: "2030-10-25", p_to: "2030-10-25" });
+    const { error } = await adminDb.rpc("generate_sessions", { p_from: JOB_DAY, p_to: JOB_DAY });
     expect(error).toBeNull();
-    expect(await sessionsOf(id)).toHaveLength(1);
+    expect((await sessionsOf(id)).map((session) => session.starts_at)).toEqual(["2030-11-13T09:15:00.000Z"]);
   });
 
   it("quien no es del equipo no genera nada y anon no puede llamarla", async () => {

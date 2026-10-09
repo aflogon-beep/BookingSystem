@@ -85,14 +85,14 @@ isOneToOne: false
                   ]
                 },"sessions": {
                   Row: {
-                    "capacity": number,"created_at": string,"ends_at": string,"id": string,"language": string,"product_id": string,"starts_at": string,"status": string
+                    "capacity": number,"capacity_custom": boolean,"created_at": string,"ends_at": string,"id": string,"language": string,"product_id": string,"starts_at": string,"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "capacity": number,"created_at"?: string,"ends_at": string,"id"?: string,"language": string,"product_id": string,"starts_at": string,"status"?: string
+                    "capacity": number,"capacity_custom"?: boolean,"created_at"?: string,"ends_at": string,"id"?: string,"language": string,"product_id": string,"starts_at": string,"status"?: string
                   }
                   Update: {
-                    "capacity"?: number,"created_at"?: string,"ends_at"?: string,"id"?: string,"language"?: string,"product_id"?: string,"starts_at"?: string,"status"?: string
+                    "capacity"?: number,"capacity_custom"?: boolean,"created_at"?: string,"ends_at"?: string,"id"?: string,"language"?: string,"product_id"?: string,"starts_at"?: string,"status"?: string
                   }
                   Relationships: [
                     {

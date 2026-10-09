@@ -7,6 +7,7 @@ create table public.sessions (
   ends_at timestamptz not null,
   language text not null check (language ~ '^[a-z]{2}$'),
   capacity integer not null check (capacity between 1 and 500),
+  capacity_custom boolean not null default false,
   status text not null default 'open' check (status in ('open', 'closed', 'cancelled')),
   created_at timestamptz not null default now(),
   constraint sessions_product_starts_unique unique (product_id, starts_at),
@@ -15,7 +16,9 @@ create table public.sessions (
 
 comment on table public.sessions is
   'Salidas concretas de un producto, materializadas desde schedule_rules por generate_sessions.';
-comment on column public.sessions.capacity is 'Aforo de esta salida. Se copia del producto al crearla y puede cambiarse.';
+comment on column public.sessions.capacity is 'Aforo de esta salida. Sigue al del producto salvo que se cambie a mano.';
+comment on column public.sessions.capacity_custom is
+  'true si el aforo se cambió a mano en esta salida: generate_sessions ya no lo iguala al del producto.';
 
 -- Calendario: salidas entre dos fechas.
 create index sessions_starts_at_idx on public.sessions (starts_at);
@@ -115,13 +118,17 @@ $$;
 -- Materializa las salidas de los productos activos entre p_from y p_to (fechas locales del
 -- negocio, ambas incluidas). Idempotente: se puede llamar las veces que haga falta.
 --   * Crea las salidas futuras que piden las reglas y aún no existen (aforo del producto).
---   * En las salidas futuras abiertas que siguen en las reglas, actualiza idioma y hora de fin
---     (por si cambió la regla o la duración). El aforo propio de la salida no se toca.
+--   * En las salidas futuras abiertas que siguen en las reglas, actualiza idioma, hora de fin y
+--     aforo (por si cambió la regla, la duración o el aforo del producto). El aforo no se toca si
+--     se cambió a mano en esa salida (capacity_custom).
 --   * Borra las salidas futuras abiertas que ya no piden las reglas (regla cambiada o producto
 --     desactivado). Las cerradas o canceladas no se tocan.
 -- TODO(1.6): no borrar ni cambiar salidas con reservas.
--- La hora local se convierte con la zona de Ajustes: (fecha + hora) at time zone. Si dos reglas
--- piden la misma hora, gana la más antigua. security invoker: RLS decide (equipo o service role).
+-- La hora local se convierte con Atlantic/Canary: (fecha + hora) at time zone. Una hora que no
+-- existe (01:30 del cambio de marzo) queda con el offset de invierno, y una repetida (01:30 de
+-- octubre) con el de invierno, igual que localToInstant en TypeScript. Si dos reglas
+-- piden la misma hora, gana la primera del editor. security invoker: RLS decide (equipo o
+-- service role). Un cerrojo evita que el cron y un guardado del panel se pisen.
 -- Devuelve cuántas salidas se crearon o actualizaron.
 create function public.generate_sessions(p_from date, p_to date, p_product_id uuid default null)
 returns integer
@@ -130,15 +137,15 @@ security invoker
 set search_path = ''
 as $$
 declare
-  v_tz text;
+  -- Fija, no la de Ajustes: el panel y localToInstant usan siempre la del negocio.
+  v_tz constant text := 'Atlantic/Canary';
   v_count integer;
 begin
   if p_from is null or p_to is null or p_to < p_from or p_to - p_from > 400 then
     raise exception 'Rango de fechas no válido' using errcode = 'invalid_parameter_value';
   end if;
 
-  select coalesce(timezone, 'Atlantic/Canary') into v_tz from public.settings where id = 1;
-  v_tz := coalesce(v_tz, 'Atlantic/Canary');
+  perform pg_advisory_xact_lock(hashtext('public.generate_sessions'));
 
   with candidates as (
     select
@@ -178,9 +185,14 @@ begin
   from wanted w
   where w.starts_at > now()
   on conflict (product_id, starts_at) do update
-    set language = excluded.language, ends_at = excluded.ends_at
+    set language = excluded.language,
+        ends_at = excluded.ends_at,
+        capacity = case when public.sessions.capacity_custom then public.sessions.capacity else excluded.capacity end
     where public.sessions.status = 'open'
-      and (public.sessions.language, public.sessions.ends_at) is distinct from (excluded.language, excluded.ends_at);
+      and (
+        (public.sessions.language, public.sessions.ends_at) is distinct from (excluded.language, excluded.ends_at)
+        or (not public.sessions.capacity_custom and public.sessions.capacity <> excluded.capacity)
+      );
   get diagnostics v_count = row_count;
 
   return v_count;
