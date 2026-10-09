@@ -44,6 +44,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
 
 export async function logout(): Promise<void> {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  // Solo este dispositivo: en la oficina se comparten equipos y no queremos cerrar las demás sesiones.
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/login");
 }
