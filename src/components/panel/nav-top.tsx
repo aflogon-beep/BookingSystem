@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { PANEL_NAV, isNavItemActive } from "@/lib/panel-nav";
+import { canAccess, type StaffRole } from "@/lib/domain/auth";
+import { isNavItemActive, visibleNav } from "@/lib/panel-nav";
 import { focusRing } from "@/components/panel/styles";
 import { cn } from "@/lib/utils";
 
 /** Navegación principal en la barra superior (escritorio). */
-export function NavTop() {
+export function NavTop({ role }: { role: StaffRole }) {
   const pathname = usePathname();
 
   return (
     <nav aria-label="Principal" className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-hidden desk:flex">
-      {PANEL_NAV.filter((item) => item.inTopNav).map((item) => {
+      {visibleNav((id) => canAccess(role, id)).filter((item) => item.inTopNav).map((item) => {
         const active = isNavItemActive(item, pathname);
         return (
           <Link

@@ -1,4 +1,9 @@
+import { existsSync } from "node:fs";
+
 import { defineConfig, devices } from "@playwright/test";
+
+// En local, las claves de Supabase están en .env.local (el setup crea usuarios de prueba).
+if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 const isCI = !!process.env.CI;
 const port = 3100;
@@ -6,6 +11,8 @@ const baseURL = `http://localhost:${port}`;
 
 // Opcional: ruta a un Chromium ya instalado (entornos sin descarga de navegadores).
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
+
+const ADMIN_STATE = "playwright/.auth/admin.json";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -22,17 +29,22 @@ export default defineConfig({
     launchOptions: executablePath ? { executablePath } : {},
   },
   projects: [
+    // Crea los usuarios de prueba e inicia sesión como admin una vez para el resto de proyectos.
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
       name: "movil",
-      use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 },
+      dependencies: ["setup"],
+      use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, storageState: ADMIN_STATE },
     },
     {
       name: "tablet",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 820, height: 1180 } },
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], viewport: { width: 820, height: 1180 }, storageState: ADMIN_STATE },
     },
     {
       name: "escritorio",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, storageState: ADMIN_STATE },
     },
   ],
   webServer: {

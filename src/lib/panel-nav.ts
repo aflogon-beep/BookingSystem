@@ -35,6 +35,11 @@ export const TAB_BAR_IDS: readonly NavId[] = ["hoy", "calendario", "reservas"];
 
 export const NEW_BOOKING_HREF = "/panel/reservas/nueva";
 
+/** Secciones visibles según un predicado de acceso (el rol se decide en lib/domain/auth). */
+export function visibleNav(canSee: (id: NavId) => boolean): NavItem[] {
+  return PANEL_NAV.filter((item) => canSee(item.id));
+}
+
 export function navItem(id: NavId): NavItem {
   const item = PANEL_NAV.find((candidate) => candidate.id === id);
   if (!item) throw new Error(`Sección de panel desconocida: ${id}`);

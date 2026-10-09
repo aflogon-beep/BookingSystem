@@ -36,6 +36,24 @@ Claude Code lee `CLAUDE.md` y carga las skills de `.claude/skills/` automáticam
 
 Opcional: integra Claude con GitHub para poder mencionar a `@claude` en issues y PRs. Dentro de Claude Code escribe `/install-github-app` y sigue los pasos.
 
+## 4 bis. Arrancar la app en local
+Con Docker Desktop abierto:
+```bash
+npm ci
+npm run db:start          # Supabase local; al terminar imprime la URL y las claves
+```
+Crea `.env.local` copiando `.env.example` y rellena con lo que imprime `db:start` (o `npx supabase status`):
+- `NEXT_PUBLIC_SUPABASE_URL` → «API URL»
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` → «anon key» (o «Publishable key»)
+- `SUPABASE_SERVICE_ROLE_KEY` → «service_role key» (o «Secret key»). Solo servidor: nunca con `NEXT_PUBLIC_`.
+
+Crea tu usuario administrador (te pedirá la contraseña dos veces) y arranca:
+```bash
+npm run staff:create -- --email tu@email.com --name "Tu nombre" --role admin
+npm run dev               # http://localhost:3000/panel
+```
+Antes de un PR: `npm run lint && npm run typecheck && npm run test && npm run test:db && npm run test:e2e`.
+
 ## 5. Primeros prompts (cópialos tal cual)
 
 **Arranque:**

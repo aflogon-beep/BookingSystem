@@ -7,11 +7,11 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [x] 0.2 Vitest y Playwright configurados con un test de ejemplo cada uno. CI en verde.
 - [x] 0.3 Supabase local (`supabase init`), clientes `server.ts` y `admin.ts` (`server-only`), tipos generados. _(Tipos provisionales a mano: se generan con `npm run db:types` en la 1.1.)_
 - [x] 0.4 Tokens de diseño (skill `diseno-ui`) en Tailwind y shadcn. Layout del panel con barra superior, navegación y barra de pestañas móvil.
-- [ ] 0.5 Login del equipo (Supabase Auth, email + contraseña), middleware que protege `(panel)` y tabla `staff` con roles. Decidir política de contraseñas (`supabase/config.toml`: hoy mínimo 6 sin requisitos).
+- [x] 0.5 Login del equipo (Supabase Auth, email + contraseña), proxy que protege `(panel)` y tabla `staff` con roles. Contraseñas: mínimo 10 con mayúsculas, minúsculas y dígitos. Alta con `npm run staff:create`. CI con Supabase (migraciones, tipos, RLS y e2e con login).
 
 ## Fase 1 — Núcleo de reservas
-- [ ] 1.1 Migración: settings, ticket_types, products, product_prices, schedule_rules y RLS. Seed de la empresa de ejemplo. Tipos reales con `npm run db:types`. CI con Supabase: `supabase start`, `db reset` (migraciones y seed aplican desde cero) y comprobación de que `src/lib/database.types.ts` coincide con los tipos generados.
-- [ ] 1.2 Ajustes: empresa, idiomas, tipos de entrada y políticas.
+- [ ] 1.1 Migración: settings, ticket_types, products, product_prices, schedule_rules y RLS. Seed de la empresa de ejemplo. Tipos regenerados con `npm run db:types`.
+- [ ] 1.2 Ajustes: empresa, idiomas, tipos de entrada y políticas. Equipo: invitar miembros, cambiar rol y dar de baja (con doble campo de contraseña al aceptar la invitación).
 - [ ] 1.3 Productos: editor con pestañas, subida de foto a Storage y vista previa de salidas.
 - [ ] 1.4 `generate_sessions` + cron diario + tests de zona horaria.
 - [ ] 1.5 Calendario (semana por defecto y mes) con ocupación.

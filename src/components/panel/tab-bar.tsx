@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronRight, Menu, Plus, Store } from "lucide-react";
+import { ChevronRight, LogOut, Menu, Plus, Store } from "lucide-react";
+
+import { logout } from "@/app/(auth)/actions";
 
 import { NAV_ICONS } from "@/components/panel/nav-icons";
 import { focusRing } from "@/components/panel/styles";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { NEW_BOOKING_HREF, PANEL_NAV, TAB_BAR_IDS, isMoreActive, isNavItemActive, navItem } from "@/lib/panel-nav";
+import { canAccess, type StaffRole } from "@/lib/domain/auth";
+import { NEW_BOOKING_HREF, TAB_BAR_IDS, isMoreActive, isNavItemActive, navItem, visibleNav } from "@/lib/panel-nav";
 import { cn } from "@/lib/utils";
 
 // Inactivas en muted-foreground (no faint como el prototipo): faint no llega a 4,5:1 a este tamaño.
@@ -18,11 +21,11 @@ const tabClass = cn(
 );
 
 /** Barra de pestañas inferior (móvil): Hoy, Calendario, +, Reservas, Más. */
-export function TabBar() {
+export function TabBar({ role, name }: { role: StaffRole; name: string }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [hoy, calendario, reservas] = TAB_BAR_IDS.map(navItem);
-  const moreItems = PANEL_NAV.filter((item) => !TAB_BAR_IDS.includes(item.id));
+  const moreItems = visibleNav((id) => canAccess(role, id)).filter((item) => !TAB_BAR_IDS.includes(item.id));
 
   const tab = (item: typeof hoy) => {
     if (!item) return null;
@@ -81,6 +84,17 @@ export function TabBar() {
               ),
             )}
           </ul>
+          <form action={logout} className="border-t border-line px-3 pt-2 pb-4">
+            <button
+              type="submit"
+              className="flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-left text-[0.95rem] text-foreground outline-none hover:bg-line-2 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <LogOut className="size-5 text-muted-foreground" aria-hidden="true" />
+              <span className="flex-1">
+                Salir <span className="text-muted-foreground">· {name}</span>
+              </span>
+            </button>
+          </form>
         </SheetContent>
       </Sheet>
     </nav>
