@@ -106,7 +106,9 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
               {attention.length ? (
                 attention.slice(0, 5).map(({ session, text }) => (
                   <FeedItem key={session.id} icon={UserMinus} tone="warn">
-                    <b className="block truncate">{session.product.name}</b>
+                    <Link href={`/panel/salidas/${session.id}`} className="block truncate font-bold hover:underline">
+                      {session.product.name}
+                    </Link>
                     <span className="text-muted-foreground">
                       <AttentionWhen session={session} today={today} /> · {text}
                     </span>

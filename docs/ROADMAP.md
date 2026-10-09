@@ -18,7 +18,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [x] 1.6 Migración de reservas (bookings, booking_lines, booking_events, customers) + `create_booking_hold` + test de concurrencia.
 - [x] 1.7 Nueva reserva interna (modal) con canales y métodos de pago.
 - [x] 1.8 Hoy: KPIs, salidas del día y actividad.
-- [ ] 1.9 Manifiesto: pasajeros, check-in, cobrar y estado y aforo de la salida.
+- [x] 1.9 Manifiesto: pasajeros, check-in, cobrar y estado y aforo de la salida.
 
 ## Fase 2 — Venta online
 - [ ] 2.1 Web pública: listado y ficha de tour con calendario y horarios.

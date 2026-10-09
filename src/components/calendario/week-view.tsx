@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { cn } from "@/lib/utils";
 import { groupByDate, occupancyTotals, weekdayLabel } from "@/lib/domain/calendar";
 
@@ -48,7 +50,8 @@ function WeekCard({ session }: { session: CalendarSession }) {
   return (
     <li
       className={cn(
-        "flex w-full flex-col gap-1.5 rounded-xl border border-black/6 bg-surface px-2.5 py-[9px] shadow-[0_1px_2px_rgb(16_24_40/0.04)]",
+        "relative flex w-full flex-col gap-1.5 rounded-xl border border-black/6 bg-surface px-2.5 py-[9px] shadow-[0_1px_2px_rgb(16_24_40/0.04)] hover:border-line",
+        "focus-within:ring-[3px] focus-within:ring-ring/50",
         session.past && "opacity-55",
       )}
     >
@@ -60,7 +63,14 @@ function WeekCard({ session }: { session: CalendarSession }) {
       </div>
       <div className="flex items-baseline gap-1.5 text-[0.82rem] leading-tight font-semibold">
         <span aria-hidden="true" className="size-2.5 flex-none rounded-[3px]" style={{ background: session.product.color }} />
-        <span className="min-w-0 break-words">{session.product.name}</span>
+        {/* Toda la tarjeta abre el manifiesto de la salida. */}
+        <Link
+          href={`/panel/salidas/${session.id}`}
+          aria-label={`Manifiesto ${session.time} ${session.product.name}`}
+          className="min-w-0 break-words outline-none after:absolute after:inset-0 after:rounded-xl"
+        >
+          {session.product.name}
+        </Link>
       </div>
       <div
         role="progressbar"
