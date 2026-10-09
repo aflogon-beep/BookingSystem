@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { businessToday, daysLabel, parseTimes, previewSessions, shortDateLabel, type RuleForPreview } from "./schedule";
+import {
+  businessToday,
+  daysLabel,
+  generationWindow,
+  localToInstant,
+  parseTimes,
+  previewSessions,
+  shortDateLabel,
+  type RuleForPreview,
+} from "./schedule";
 
 describe("parseTimes", () => {
   it("normaliza, ordena y quita repetidas", () => {
@@ -78,5 +87,43 @@ describe("shortDateLabel", () => {
   it("muestra día y mes abreviado en español", () => {
     expect(shortDateLabel("2026-10-12")).toBe("12 oct");
     expect(shortDateLabel("2026-01-03")).toBe("3 ene");
+  });
+});
+
+describe("localToInstant", () => {
+  it("convierte la hora de Canarias en invierno (UTC+0) y en verano (UTC+1)", () => {
+    expect(localToInstant("2027-01-15", "10:00").toISOString()).toBe("2027-01-15T10:00:00.000Z");
+    expect(localToInstant("2027-07-15", "10:00").toISOString()).toBe("2027-07-15T09:00:00.000Z");
+  });
+
+  it("respeta el cambio de hora de octubre (último domingo, 2:00 → 1:00)", () => {
+    // 2030-10-27 es el último domingo de octubre.
+    expect(localToInstant("2030-10-26", "10:00").toISOString()).toBe("2030-10-26T09:00:00.000Z");
+    expect(localToInstant("2030-10-27", "10:00").toISOString()).toBe("2030-10-27T10:00:00.000Z");
+  });
+
+  it("respeta el cambio de hora de marzo (último domingo, 1:00 → 2:00)", () => {
+    // 2030-03-31 es el último domingo de marzo.
+    expect(localToInstant("2030-03-30", "16:30").toISOString()).toBe("2030-03-30T16:30:00.000Z");
+    expect(localToInstant("2030-03-31", "16:30").toISOString()).toBe("2030-03-31T15:30:00.000Z");
+  });
+
+  it("en las horas que no existen o se repiten usa el horario de invierno, como Postgres", () => {
+    // 01:30 del 31-3-2030 no existe (01:00 → 02:00) y 01:30 del 27-10-2030 ocurre dos veces.
+    expect(localToInstant("2030-03-31", "01:30").toISOString()).toBe("2030-03-31T01:30:00.000Z");
+    expect(localToInstant("2030-10-27", "01:30").toISOString()).toBe("2030-10-27T01:30:00.000Z");
+  });
+
+  it("no depende de la zona horaria del servidor", () => {
+    expect(localToInstant("2027-07-15", "23:30").toISOString()).toBe("2027-07-15T22:30:00.000Z");
+    expect(localToInstant("2027-07-15", "00:15").toISOString()).toBe("2027-07-14T23:15:00.000Z");
+  });
+});
+
+describe("generationWindow", () => {
+  it("va de hoy en Canarias a 120 días después", () => {
+    // 23:30 UTC del 31 de julio = 00:30 del 1 de agosto en Canarias.
+    expect(generationWindow(new Date("2027-07-31T23:30:00Z"))).toEqual({ from: "2027-08-01", to: "2027-11-29" });
+    expect(generationWindow(new Date("2027-01-01T12:00:00Z"))).toEqual({ from: "2027-01-01", to: "2027-05-01" });
   });
 });

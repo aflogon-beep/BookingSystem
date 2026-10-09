@@ -83,6 +83,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"sessions": {
+                  Row: {
+                    "capacity": number,"capacity_custom": boolean,"created_at": string,"ends_at": string,"id": string,"language": string,"product_id": string,"starts_at": string,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "capacity": number,"capacity_custom"?: boolean,"created_at"?: string,"ends_at": string,"id"?: string,"language": string,"product_id": string,"starts_at": string,"status"?: string
+                  }
+                  Update: {
+                    "capacity"?: number,"capacity_custom"?: boolean,"created_at"?: string,"ends_at"?: string,"id"?: string,"language"?: string,"product_id"?: string,"starts_at"?: string,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sessions_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"settings": {
                   Row: {
                     "business_name": string,"cancel_hours": number,"created_at": string,"currency": string,"cutoff_hours": number,"default_capacity": number,"email": string,"id": number,"languages": (string)[],"phone": string,"timezone": string
@@ -131,7 +151,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "is_admin":
+            "generate_sessions":
+{ Args: { "p_from": string,"p_product_id"?: string,"p_to": string }; Returns: number
+                           },
+"is_admin":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
 "is_staff":

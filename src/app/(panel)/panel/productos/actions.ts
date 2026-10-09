@@ -13,6 +13,7 @@ import {
   type ProductData,
   type ProductTab,
 } from "@/lib/domain/product";
+import { generationWindow } from "@/lib/domain/schedule";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 export type SaveProductResult = { ok: true; id: string } | { ok: false; error: string; tab: ProductTab };
@@ -31,6 +32,16 @@ function refresh() {
 /** Borra una foto que ya no usa ningún producto. Si falla, solo queda un archivo huérfano. */
 async function removePhoto(supabase: Supabase, path: string | null) {
   if (path) await supabase.storage.from(PRODUCT_PHOTO_BUCKET).remove([path]);
+}
+
+/**
+ * Regenera las salidas del producto para que el calendario refleje el cambio al momento, sin
+ * esperar al job diario. Si falla, el job de la noche lo corrige: no se avisa como error.
+ */
+async function regenerateSessions(supabase: Supabase, productId: string) {
+  const { from, to } = generationWindow();
+  const { error } = await supabase.rpc("generate_sessions", { p_from: from, p_to: to, p_product_id: productId });
+  if (error) console.error("generate_sessions falló", error.code, error.message);
 }
 
 function rpcArgs(product: ProductData) {
@@ -98,6 +109,7 @@ export async function saveProduct(id: string | null, input: unknown): Promise<Sa
     // La foto anterior se lee en la misma transacción, con la fila bloqueada.
     const previous = saved.data.previous_photo_path;
     if (previous !== product.photoPath) await removePhoto(supabase, previous);
+    await regenerateSessions(supabase, id);
     refresh();
     return { ok: true, id };
   }
@@ -109,6 +121,7 @@ export async function saveProduct(id: string | null, input: unknown): Promise<Sa
     const { data, error } = await supabase.rpc("save_product", { ...args, p_product: { ...args.p_product, slug } });
     const saved = savedSchema.safeParse(data);
     if (!error && saved.success) {
+      await regenerateSessions(supabase, saved.data.id);
       refresh();
       return { ok: true, id: saved.data.id };
     }
@@ -125,6 +138,7 @@ export async function setProductActive(id: string, active: boolean): Promise<Act
   const supabase = await createClient();
   const { data, error } = await supabase.from("products").update({ active }).eq("id", id).select("id");
   if (error || data.length !== 1) return { ok: false, error: SAVE_FAILED };
+  await regenerateSessions(supabase, id);
   refresh();
   return { ok: true };
 }
