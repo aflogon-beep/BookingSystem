@@ -11,7 +11,8 @@ import { getPublicEnv } from "@/lib/env";
 
 /**
  * Productos a la venta con sus entradas y precios, y la salida de partida: la de `?salida=` si
- * existe (botón «Reservar» de una salida) o el primer producto en la fecha de hoy.
+ * existe (botón «Reservar» de una salida) o el primer producto en la fecha de `?fecha=` (hoy si no
+ * viene o ya pasó).
  */
 export async function loadNewBooking(search: Record<string, string | string[] | undefined>) {
   const supabase = await createClient();
@@ -44,7 +45,9 @@ export async function loadNewBooking(search: Record<string, string | string[] | 
   );
 
   const today = businessToday();
-  let initial: NewBookingInitial | null = catalog[0] ? { productId: catalog[0].id, date: today, sessionId: null } : null;
+  const rawDate = Array.isArray(search.fecha) ? search.fecha[0] : search.fecha;
+  const date = rawDate && z.iso.date().safeParse(rawDate).success && rawDate > today ? rawDate : today;
+  let initial: NewBookingInitial | null = catalog[0] ? { productId: catalog[0].id, date, sessionId: null } : null;
   const raw = Array.isArray(search.salida) ? search.salida[0] : search.salida;
   if (raw && z.uuid().safeParse(raw).success) {
     const { data: session } = await supabase.from("sessions").select("id, product_id, starts_at").eq("id", raw).maybeSingle();

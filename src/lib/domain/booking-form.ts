@@ -74,3 +74,26 @@ export function canAddTicket(
   if ((quantities[ticket.id] ?? 0) >= 100) return false;
   return !ticket.takesSeat || selectedSeats(tickets, quantities) < free;
 }
+
+/** Mensaje para el equipo según el código de error de `create_booking_hold` (RB001 trae las libres en el HINT). */
+export function bookingErrorMessage(code: string | undefined, hint: string | undefined): string {
+  switch (code) {
+    case "RB001": {
+      const free = hint === undefined || hint.trim() === "" ? Number.NaN : Number(hint);
+      if (free === 0) return "La salida se ha completado: ya no quedan plazas.";
+      return Number.isInteger(free) && free > 0
+        ? `Solo ${free === 1 ? "queda 1 plaza" : `quedan ${free} plazas`} en esta salida.`
+        : "No quedan plazas suficientes.";
+    }
+    case "RB002":
+      return "Esta salida ya no admite reservas.";
+    case "RB003":
+      return "Revisa las entradas: alguna ya no se vende en este producto.";
+    case "P0002":
+      return "Esta salida ya no existe.";
+    case "42501":
+      return "No tienes permiso para crear reservas.";
+    default:
+      return "No se pudo crear la reserva. Inténtalo de nuevo.";
+  }
+}

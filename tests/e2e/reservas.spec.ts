@@ -2,12 +2,14 @@ import { expect, test } from "@playwright/test";
 import { addDays, addWeeks, format, parseISO, startOfISOWeek } from "date-fns";
 
 import { weekdayLabel } from "@/lib/domain/calendar";
+import { formatCents } from "@/lib/domain/money";
 import { businessToday } from "@/lib/domain/schedule";
 
 const PROJECT_WEEKS: Record<string, number> = { movil: 10, tablet: 11, escritorio: 12 };
 
 // Un jueves de dentro de unas 10-12 semanas, distinto por proyecto para que las reservas no se pisen
 // (y lejos del mes que comprueba calendario.spec.ts). El Teide sale todos los días a las 16:30.
+// Cada ejecución suma 2 plazas: en local, si se llena, npx supabase db reset.
 function thursdayFor(project: string): string {
   const monday = startOfISOWeek(addWeeks(parseISO(businessToday()), PROJECT_WEEKS[project] ?? 10));
   return format(addDays(monday, 3), "yyyy-MM-dd");
@@ -16,7 +18,12 @@ function thursdayFor(project: string): string {
 test("crea una reserva de agencia desde el modal y el calendario la cuenta", async ({ page }, testInfo) => {
   const day = thursdayFor(testInfo.project.name);
   await page.goto(`/panel/calendario?fecha=${day}`);
-  await expect(page.getByRole("heading", { level: 1, name: "Calendario" })).toBeVisible();
+  const column = page.getByRole("region", { name: weekdayLabel(day), exact: true });
+  const teide = column.getByRole("listitem").filter({ hasText: "16:30" }).filter({ hasText: "Teide al atardecer y estrellas" });
+  await expect(teide).toBeVisible();
+  const before = (await teide.textContent())?.match(/(\d+)\/(\d+)/);
+  expect(before).toBeTruthy();
+  const [booked, capacity] = [Number(before?.[1]), Number(before?.[2])];
 
   await page.getByRole("link", { name: "Nueva reserva" }).filter({ visible: true }).first().click();
   const dialog = page.getByRole("dialog", { name: "Nueva reserva" });
@@ -25,8 +32,7 @@ test("crea una reserva de agencia desde el modal y el calendario la cuenta", asy
   await dialog.getByLabel("Producto").selectOption({ label: "Teide al atardecer y estrellas" });
   await dialog.getByLabel("Fecha").fill(day);
   const slot = dialog.getByRole("group", { name: "Salidas del día" }).getByRole("button").filter({ hasText: "16:30" });
-  await expect(slot).toContainText("libres");
-  const free = Number((await slot.textContent())?.match(/(\d+) libres/)?.[1]);
+  await expect(slot).toContainText(`${capacity - booked} libres`);
   await slot.click();
   await expect(slot).toHaveAttribute("aria-pressed", "true");
 
@@ -43,16 +49,16 @@ test("crea una reserva de agencia desde el modal y el calendario la cuenta", asy
     "true",
   );
   await dialog.getByLabel("Agencia u hotel").fill("Agencia Atlántico");
-  await expect(dialog.getByRole("complementary", { name: "Resumen" })).toContainText("138");
+  await expect(dialog.getByRole("complementary", { name: "Resumen" }).getByText("Total").locator("..")).toContainText(
+    formatCents(13800),
+  );
 
   await dialog.getByRole("button", { name: "Confirmar reserva" }).click();
   await expect(page.getByText(/^Reserva VT[0-9A-Z]{6} creada$/)).toBeVisible();
   await expect(dialog).toBeHidden();
   await expect(page).toHaveURL(new RegExp(`fecha=${day}`));
 
-  const column = page.getByRole("region", { name: weekdayLabel(day), exact: true });
-  const teide = column.getByRole("listitem").filter({ hasText: "16:30" }).filter({ hasText: "Teide al atardecer y estrellas" });
-  await expect(teide.getByText(`${16 - free + 2}/16`)).toBeVisible();
+  await expect(teide.getByText(`${booked + 2}/${capacity}`)).toBeVisible();
 });
 
 test("la página completa de nueva reserva se abre al entrar por URL", async ({ page }) => {

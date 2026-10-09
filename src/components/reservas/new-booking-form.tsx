@@ -30,6 +30,7 @@ import {
   defaultPayment,
   paymentNote,
   paymentOptions,
+  selectedSeats,
   type InternalChannel,
   type PaymentOption,
 } from "@/lib/domain/booking-form";
@@ -78,11 +79,14 @@ export function NewBookingForm({
   today,
   initial,
   mode,
+  onPendingChange,
 }: {
   products: readonly NewBookingProduct[];
   today: string;
   initial: NewBookingInitial | null;
   mode: "modal" | "page";
+  /** El modal no se deja cerrar mientras se crea la reserva. */
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const router = useRouter();
   const id = useId();
@@ -92,7 +96,8 @@ export function NewBookingForm({
   const [quantities, setQuantities] = useState<Record<string, number>>(() =>
     firstTicket(products.find((product) => product.id === initial?.productId)),
   );
-  const [day, setDay] = useState<{ key: string; sessions: DaySession[] } | null>(null);
+  // Salidas del día cargadas (null = error). Al recargar tras un error se siguen viendo las anteriores.
+  const [day, setDay] = useState<{ key: string; sessions: DaySession[] | null } | null>(null);
   const [reload, setReload] = useState(0);
   const [customer, setCustomer] = useState({ name: "", email: "", phone: "", hotel: "", notes: "" });
   const [channel, setChannel] = useState<InternalChannel>("phone");
@@ -101,25 +106,31 @@ export function NewBookingForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const headingLevel = mode === "page" ? "h2" : "h3";
   const product = products.find((candidate) => candidate.id === productId);
-  const dayKey = `${productId}|${date}|${reload}`;
-  const sessions = day?.key === dayKey ? day.sessions : null;
+  const dayKey = `${productId}|${date}`;
+  const loaded = day?.key === dayKey;
+  const sessions = loaded ? day.sessions : null;
   const session = sessions?.find((candidate) => candidate.id === sessionId && isBookable(candidate)) ?? null;
 
   useEffect(() => {
     if (!productId || !date) return;
     let cancelled = false;
     loadDaySessions(productId, date)
-      .then((loaded) => {
-        if (!cancelled) setDay({ key: dayKey, sessions: loaded });
+      .then((result) => {
+        if (!cancelled) setDay({ key: dayKey, sessions: result });
       })
       .catch(() => {
-        if (!cancelled) setDay({ key: dayKey, sessions: [] });
+        if (!cancelled) setDay({ key: dayKey, sessions: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [productId, date, dayKey]);
+  }, [productId, date, dayKey, reload]);
+
+  useEffect(() => {
+    onPendingChange?.(pending);
+  }, [pending, onPendingChange]);
 
   if (!product) {
     return (
@@ -134,7 +145,9 @@ export function NewBookingForm({
     .map((ticket) => ({ ticket, qty: quantities[ticket.id] ?? 0 }))
     .filter((line) => line.qty > 0);
   const total = bookingTotal(lines.map((line) => ({ qty: line.qty, unitPriceCents: line.ticket.priceCents })));
-  const canSubmit = !!session && lines.some((line) => line.ticket.takesSeat) && !pending;
+  const seats = selectedSeats(tickets, quantities);
+  const tooMany = !!session && seats > session.free;
+  const canSubmit = !!session && lines.some((line) => line.ticket.takesSeat) && !tooMany && !pending;
 
   function changeProduct(next: string) {
     setProductId(next);
@@ -192,7 +205,7 @@ export function NewBookingForm({
       }}
     >
       <div className="flex flex-col gap-5 px-5 py-[18px] desk:overflow-y-auto">
-        <Section number={1} title="Salida">
+        <Section level={headingLevel} number={1} title="Salida">
           <div className="grid grid-cols-1 gap-3.5 tablet:grid-cols-[minmax(0,1.3fr)_minmax(140px,1fr)]">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`${id}-product`}>Producto</Label>
@@ -219,10 +232,17 @@ export function NewBookingForm({
               />
             </div>
           </div>
-          {sessions === null ? (
+          {!loaded ? (
             <p className="p-2 text-[0.84rem] text-muted-foreground" role="status">
               Buscando salidas…
             </p>
+          ) : sessions === null ? (
+            <div role="alert" className="flex flex-wrap items-center gap-2 p-2 text-[0.84rem] text-danger">
+              No se pudieron cargar las salidas.
+              <Button type="button" variant="outline" size="sm" onClick={() => setReload((value) => value + 1)}>
+                Reintentar
+              </Button>
+            </div>
           ) : sessions.length ? (
             <div role="group" aria-label="Salidas del día" className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2">
               {sessions.map((candidate) => (
@@ -252,7 +272,7 @@ export function NewBookingForm({
 
         {session ? (
           <>
-            <Section number={2} title="Entradas">
+            <Section level={headingLevel} number={2} title="Entradas">
               <ul aria-label="Entradas" className="flex flex-col">
                 {tickets.map((ticket) => {
                   const qty = quantities[ticket.id] ?? 0;
@@ -290,7 +310,7 @@ export function NewBookingForm({
               </ul>
             </Section>
 
-            <Section number={3} title="Cliente">
+            <Section level={headingLevel} number={3} title="Cliente">
               <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3.5">
                 <TextField label="Nombre" className="col-span-full" required autoComplete="off" {...field("name")} />
                 <TextField label="Email" type="email" autoComplete="off" {...field("email")} />
@@ -307,7 +327,7 @@ export function NewBookingForm({
               </div>
             </Section>
 
-            <Section number={4} title="Canal y pago">
+            <Section level={headingLevel} number={4} title="Canal y pago">
               <OptionCards
                 label="Canal"
                 options={CHANNELS.map((option) => ({ ...option, icon: CHANNEL_ICONS[option.value] }))}
@@ -358,10 +378,15 @@ export function NewBookingForm({
               </div>
             ))
           : null}
-        <div className="mt-auto flex items-baseline justify-between border-t border-line pt-2.5">
+        <p className="mt-auto flex items-baseline justify-between border-t border-line pt-2.5">
           <span>Total</span>
           <b className="text-[1.4rem] font-semibold tabular-nums">{formatCents(total)}</b>
-        </div>
+        </p>
+        {tooMany ? (
+          <p className="rounded-[10px] bg-danger-soft px-3 py-2 text-[0.84rem] text-danger">
+            {session.free === 1 ? "Solo queda 1 plaza" : `Solo quedan ${session.free} plazas`} en esta salida: quita entradas.
+          </p>
+        ) : null}
         {session ? <p className="text-[0.8rem] text-muted-foreground">{paymentNote(payment)}</p> : null}
         {error ? (
           <p role="alert" className="rounded-[10px] bg-danger-soft px-3 py-2 text-[0.84rem] text-danger">
@@ -377,10 +402,21 @@ export function NewBookingForm({
   );
 }
 
-function Section({ number, title, children }: { number: number; title: string; children: ReactNode }) {
+function Section({
+  number,
+  title,
+  level,
+  children,
+}: {
+  number: number;
+  title: string;
+  level: "h2" | "h3";
+  children: ReactNode;
+}) {
+  const Heading = level;
   return (
     <section className="flex flex-col gap-2.5">
-      <h3 className="flex items-center gap-2 text-[0.7rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+      <Heading className="flex items-center gap-2 text-[0.7rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         <span
           aria-hidden="true"
           className="grid size-[18px] place-items-center rounded-full bg-foreground text-[0.64rem] tracking-normal text-white"
@@ -388,7 +424,7 @@ function Section({ number, title, children }: { number: number; title: string; c
           {number}
         </span>
         {title}
-      </h3>
+      </Heading>
       {children}
     </section>
   );

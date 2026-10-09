@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { DaySession } from "@/components/reservas/types";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
-import { isPaymentAllowed, paymentMethodFor, type PaymentOption } from "@/lib/domain/booking-form";
+import { bookingErrorMessage, isPaymentAllowed, paymentMethodFor, type PaymentOption } from "@/lib/domain/booking-form";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
 
 const dateSchema = z.iso.date();
@@ -59,7 +59,12 @@ const bookingSchema = z
       .min(1, "Añade al menos una entrada")
       .max(20),
     name: z.string().trim().min(1, "Escribe el nombre del cliente").max(120),
-    email: z.union([z.literal(""), z.email("El email no es válido").max(254)]).optional().default(""),
+    email: z
+      .string()
+      .trim()
+      .pipe(z.union([z.literal(""), z.email("El email no es válido").max(254)]))
+      .optional()
+      .default(""),
     phone: optionalText(40),
     hotel: optionalText(200),
     notes: optionalText(2000),
@@ -81,7 +86,7 @@ const createdSchema = z.object({ code: z.string() });
 export async function createInternalBooking(input: NewBookingInput): Promise<CreateBookingResult> {
   await requireAccess("reservas");
   const parsed = bookingSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
+  if (!parsed.success) return { ok: false, error: validationMessage(parsed.error.issues[0]) };
   const data = parsed.data;
 
   const supabase = await createClient();
@@ -105,24 +110,9 @@ export async function createInternalBooking(input: NewBookingInput): Promise<Cre
   return { ok: true, code: result.data.code };
 }
 
-function bookingErrorMessage(code: string | undefined, hint: string | undefined): string {
-  switch (code) {
-    case "RB001": {
-      const free = Number(hint);
-      if (free === 0) return "La salida se ha completado: ya no quedan plazas.";
-      return Number.isInteger(free)
-        ? `Solo ${free === 1 ? "queda 1 plaza" : `quedan ${free} plazas`} en esta salida.`
-        : "No quedan plazas suficientes.";
-    }
-    case "RB002":
-      return "Esta salida ya no admite reservas.";
-    case "RB003":
-      return "Revisa las entradas: alguna ya no se vende en este producto.";
-    case "P0002":
-      return "Esta salida ya no existe.";
-    case "42501":
-      return "No tienes permiso para crear reservas.";
-    default:
-      return "No se pudo crear la reserva. Inténtalo de nuevo.";
-  }
+// Solo los mensajes propios están en español; el resto (ids, cantidades) no debería llegar desde el formulario.
+const OWN_MESSAGES = new Set(["name", "email", "payment", "lines"]);
+
+function validationMessage(issue: z.core.$ZodIssue | undefined): string {
+  return issue && issue.path.length === 1 && OWN_MESSAGES.has(String(issue.path[0])) ? issue.message : "Revisa los datos de la reserva.";
 }
