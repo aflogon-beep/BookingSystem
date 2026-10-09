@@ -257,11 +257,20 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "booking_collect_payment":
+            "booking_cancel":
+{ Args: { "p_booking_id": string,"p_refund"?: boolean }; Returns: number
+                           },
+"booking_collect_payment":
 { Args: { "p_booking_id": string,"p_method": string }; Returns: undefined
+                           },
+"booking_move":
+{ Args: { "p_booking_id": string,"p_session_id": string }; Returns: undefined
                            },
 "booking_set_checked_in":
 { Args: { "p_booking_id": string,"p_checked": boolean }; Returns: boolean
+                           },
+"cancel_locked_booking":
+{ Args: { "p_booking_id": string,"p_reason": string,"p_refund": boolean }; Returns: number
                            },
 "create_booking_hold":
 { Args: { "p_booking"?: Json,"p_customer": Json,"p_hold_minutes"?: number,"p_lines": Json,"p_session_id": string }; Returns: Json
@@ -277,6 +286,12 @@ isOneToOne: false
                            },
 "is_staff":
 { Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"lock_booking_with_session":
+{ Args: { "p_booking_id": string,"p_other_session_id"?: string }; Returns: string
+                           },
+"payment_method_label":
+{ Args: { "p_method": string }; Returns: string
                            },
 "save_product":
 { Args: { "p_id"?: string,"p_prices": Json,"p_product": Json,"p_rules": Json }; Returns: Json

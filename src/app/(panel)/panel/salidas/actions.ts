@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
-import { sendSessionCancellations } from "@/lib/email/booking-emails";
+import { sendCancellations } from "@/lib/email/booking-emails";
 
 export type ManifestActionResult = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -99,7 +99,7 @@ export async function setSessionStatus(sessionId: string, status: string): Promi
   }
   const { data, error } = await supabase.rpc("session_set_status", { p_session_id: sessionId, p_status: parsed.data });
   if (error) return fail(error.code);
-  if (confirmedIds.length) after(() => sendSessionCancellations(sessionId, confirmedIds));
+  if (confirmedIds.length) after(() => sendCancellations(confirmedIds));
   const cancelled = data ? ` y ${data === 1 ? "1 reserva cancelada" : `${data} reservas canceladas`}` : "";
   return done(STATUS_MESSAGES[parsed.data] + cancelled);
 }

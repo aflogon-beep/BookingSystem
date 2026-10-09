@@ -275,7 +275,9 @@ function PassengerRow({ row, session }: { row: ManifestRow; session: ManifestSes
         {live ? <CheckInToggle bookingId={row.id} checked={row.checkedIn} name={row.customerName} /> : null}
       </td>
       <td className="max-w-[220px] px-2 py-2.5">
-        <b className="block truncate font-semibold">{row.customerName}</b>
+        <Link href={`/panel/reservas/${row.code}`} className="block truncate font-semibold underline-offset-2 hover:underline">
+          {row.customerName}
+        </Link>
         <span className="font-mono text-[0.74rem] text-faint">{row.code}</span>
         {row.notes ? (
           <span title={row.notes} className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-warn-soft px-1.5 text-[0.7rem] font-semibold text-warn">

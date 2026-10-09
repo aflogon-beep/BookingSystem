@@ -244,7 +244,9 @@ function ActivityRow({ item, now }: { item: ActivityItem; now: Date }) {
       tone={item.cancelled ? "danger" : item.channel === "web" ? "accent" : "ok"}
     >
       <div className="flex justify-between gap-2">
-        <b className="truncate">{item.customerName}</b>
+        <Link href={`/panel/reservas/${item.code}`} className="truncate font-semibold underline-offset-2 hover:underline">
+          {item.customerName}
+        </Link>
         <span className="text-[0.76rem] whitespace-nowrap text-faint">{timeAgo(item.at, now)}</span>
       </div>
       <div className="truncate text-muted-foreground">{item.text}</div>

@@ -61,7 +61,17 @@ describe("bookingEmail", () => {
     expect(pending.text).toContain("del miércoles 14 de octubre a las 16:30 está cancelada");
     expect(pending.text).not.toContain("Total");
     expect(pending.text).not.toContain("devolveremos");
-    expect(bookingEmail("cancellation", { ...data, paymentStatus: "paid" }).text).toContain("Te devolveremos lo que pagaste.");
+    expect(bookingEmail("cancellation", { ...data, paymentStatus: "refunded" }).text).toContain("Te devolvemos lo que pagaste.");
+    // Cancelada fuera de plazo y sin reembolso: no promete devolver nada.
+    expect(bookingEmail("cancellation", { ...data, paymentStatus: "paid" }).text).not.toContain("devolvemos");
+  });
+
+  it("cambio de fecha: la nueva fecha y el importe sin cambios", () => {
+    const email = bookingEmail("change", data);
+    expect(email.subject).toBe("Cambio de fecha · Teide al atardecer · VTAB12CD");
+    expect(email.text).toContain("La nueva fecha es el miércoles 14 de octubre a las 16:30.");
+    expect(email.text).toContain("Las entradas y el importe no cambian.");
+    expect(email.text).toMatch(/Total: 183\s€/);
   });
 
   it("escapa en el HTML lo que escribe el cliente o el equipo", () => {
