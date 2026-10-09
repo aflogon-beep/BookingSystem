@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CircleCheck, MapPin } from "lucide-react";
+import { CircleCheck, CircleX, MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
@@ -55,11 +55,15 @@ export default async function ConfirmationPage({ params }: PageProps<"/reserva/[
   return (
     <div className="mx-auto flex w-full max-w-[520px] flex-col gap-3.5 px-4 py-[22px]">
       <div className="flex flex-col items-center gap-1 text-center">
-        <CircleCheck aria-hidden="true" className={cancelled ? "size-12 text-muted-foreground" : "size-12 text-ok"} />
+        {cancelled ? (
+          <CircleX aria-hidden="true" className="size-12 text-muted-foreground" />
+        ) : (
+          <CircleCheck aria-hidden="true" className="size-12 text-ok" />
+        )}
         <h1 className="text-[1.4rem]">{cancelled ? "Reserva cancelada" : "¡Reserva confirmada!"}</h1>
         {!cancelled ? (
           <p className="text-muted-foreground">
-            Guarda tu código: te lo pedirán el día de la excursión.
+            Apunta este código o haz una captura: te lo pedirán el día de la excursión.
           </p>
         ) : null}
       </div>
@@ -73,7 +77,13 @@ export default async function ConfirmationPage({ params }: PageProps<"/reserva/[
             <div className="text-[0.68rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Código de reserva</div>
             <div className="font-mono text-[1.5rem] font-medium tracking-[0.06em]">{booking.code}</div>
           </div>
-          {booking.payment_status === "paid" ? <Pill tone="ok">Pagada</Pill> : <Pill tone="warn">Pagas allí</Pill>}
+          {cancelled ? (
+            <Pill>Cancelada</Pill>
+          ) : booking.payment_status === "paid" ? (
+            <Pill tone="ok">Pagada</Pill>
+          ) : (
+            <Pill tone="warn">Pagas allí</Pill>
+          )}
         </div>
         <div>
           <b className="font-semibold">{product.name}</b>

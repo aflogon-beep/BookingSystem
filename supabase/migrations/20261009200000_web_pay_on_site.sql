@@ -4,6 +4,8 @@
 -- confirmada al momento, con el pago pendiente y sin método (se cobra el día del tour desde el
 -- manifiesto) y sin bloqueo temporal. Todo lo demás es igual: solo service role, producto a la
 -- venta, cierre de venta, plazas comprobadas con la salida bloqueada (FOR UPDATE) y precios de la BD.
+-- Como nadie paga al reservar, una reserva así admite como mucho 10 plazas (RB008): los grupos
+-- reservan por teléfono.
 -- Sin `payment` sigue como antes: pendiente con bloqueo de 35 min y tarjeta online (para Stripe).
 
 create or replace function public.create_booking_hold(
@@ -113,6 +115,9 @@ begin
   end if;
   if v_seats = 0 then
     raise exception 'La reserva necesita al menos una entrada con plaza' using errcode = 'RB003';
+  end if;
+  if v_pay_on_site and v_seats > 10 then
+    raise exception 'Demasiadas plazas para una reserva web' using errcode = 'RB008', hint = '10';
   end if;
   if v_total > 2147483647 then
     raise exception 'Importe demasiado alto' using errcode = 'RB003';

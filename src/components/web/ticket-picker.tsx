@@ -9,6 +9,7 @@ import { canAddTicket, selectedSeats } from "@/lib/domain/booking-form";
 import { formatCents } from "@/lib/domain/money";
 import { bookingTotal } from "@/lib/domain/pricing";
 import { ticketsParam } from "@/lib/domain/storefront";
+import { WEB_MAX_SEATS } from "@/lib/domain/web-checkout";
 
 type Ticket = { id: string; name: string; note: string; takesSeat: boolean; priceCents: number };
 
@@ -32,7 +33,8 @@ export function TicketPicker({
   const total = bookingTotal(lines.map((line) => ({ qty: line.qty, unitPriceCents: line.ticket.priceCents })));
   const seats = selectedSeats(tickets, quantities);
   const ready = seats > 0;
-  const full = seats >= free;
+  const limit = Math.min(free, WEB_MAX_SEATS);
+  const full = seats >= limit;
   const href = `/experiencias/${slug}/reservar?${new URLSearchParams({ salida: sessionId, entradas: ticketsParam(quantities) })}`;
 
   function change(ticketId: string, delta: 1 | -1) {
@@ -64,7 +66,7 @@ export function TicketPicker({
                   </output>
                   <StepButton
                     label={`Añadir ${ticket.name}`}
-                    disabled={!canAddTicket(ticket, tickets, quantities, free)}
+                    disabled={!canAddTicket(ticket, tickets, quantities, limit)}
                     onClick={() => change(ticket.id, 1)}
                   >
                     <Plus aria-hidden="true" />
@@ -77,7 +79,9 @@ export function TicketPicker({
       </ul>
       {full ? (
         <p role="status" className="text-[0.8rem] text-warn">
-          {free === 1 ? "Solo queda 1 plaza" : `Solo quedan ${free} plazas`} en esta salida.
+          {free <= WEB_MAX_SEATS
+            ? `${free === 1 ? "Solo queda 1 plaza" : `Solo quedan ${free} plazas`} en esta salida.`
+            : `Por la web puedes reservar hasta ${WEB_MAX_SEATS} plazas. Para grupos, llámanos.`}
         </p>
       ) : null}
       <p className="flex items-baseline justify-between border-t border-line pt-2.5">

@@ -4,6 +4,9 @@ import { bookingTotal } from "@/lib/domain/pricing";
 
 /** Reserva desde la web pública (sin pasarela: se paga el día del tour). */
 
+/** Plazas como máximo en una reserva web sin pago (igual que create_booking_hold, RB008). */
+export const WEB_MAX_SEATS = 10;
+
 export type CartTicket = { id: string; name: string; takesSeat: boolean; priceCents: number };
 
 export type CartLine = { ticket: CartTicket; qty: number };
@@ -30,6 +33,7 @@ export function resolveCart(
   }
   const seats = lines.reduce((sum, line) => sum + (line.ticket.takesSeat ? line.qty : 0), 0);
   if (seats === 0) return { ok: false, error: "Añade al menos una entrada con plaza." };
+  if (seats > WEB_MAX_SEATS) return { ok: false, error: GROUP_MESSAGE };
   if (seats > free) {
     return {
       ok: false,
@@ -45,7 +49,7 @@ export function cartLabel(lines: readonly { ticket: { name: string }; qty: numbe
   return lines.map((line) => `${line.qty} ${line.ticket.name}`).join(" · ");
 }
 
-/** Datos del cliente que envía el formulario. `website` es un campo trampa para bots: debe llegar vacío. */
+/** Datos del cliente que envía el formulario. `trap` es un campo trampa para bots: debe llegar vacío. */
 export const webCustomerSchema = z.object({
   name: z.string().trim().min(1, "Escribe tu nombre y apellidos.").max(120, "El nombre es demasiado largo."),
   email: z.string().trim().toLowerCase().pipe(z.email("Revisa el email: no parece válido.").max(254)),
@@ -57,10 +61,12 @@ export const webCustomerSchema = z.object({
     .optional()
     .default(""),
   hotel: z.string().trim().max(200, "El nombre del hotel es demasiado largo.").optional().default(""),
-  website: z.string().max(0).optional().default(""),
+  trap: z.string().max(0).optional().default(""),
 });
 
 export type WebCustomerInput = z.input<typeof webCustomerSchema>;
+
+const GROUP_MESSAGE = `Por la web puedes reservar hasta ${WEB_MAX_SEATS} plazas. Para grupos, llámanos.`;
 
 /** Mensaje para el cliente según el código de error de create_booking_hold. */
 export function webBookingErrorMessage(code: string | undefined, hint: string | undefined): string {
@@ -77,6 +83,8 @@ export function webBookingErrorMessage(code: string | undefined, hint: string | 
       return "Esta salida ya no admite reservas. Elige otro horario.";
     case "RB003":
       return "Alguna de las entradas ya no se vende. Vuelve a elegirlas.";
+    case "RB008":
+      return GROUP_MESSAGE;
     default:
       return "No se pudo completar la reserva. Inténtalo de nuevo en unos minutos.";
   }

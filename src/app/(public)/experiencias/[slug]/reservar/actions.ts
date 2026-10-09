@@ -23,7 +23,10 @@ const requestSchema = z.object({
   lines: z
     .array(z.object({ ticketTypeId: z.uuid(), qty: z.int().min(1).max(100) }))
     .min(1)
-    .max(20),
+    .max(20)
+    .refine((lines) => new Set(lines.map((line) => line.ticketTypeId)).size === lines.length),
+  // Total que el cliente ha visto al confirmar: si el precio cambia entre medias, no se reserva.
+  expectedTotalCents: z.int().min(0),
 });
 
 export type WebBookingInput = z.input<typeof requestSchema> & { customer: WebCustomerInput };
@@ -42,17 +45,20 @@ export async function createWebBooking(input: WebBookingInput): Promise<{ ok: fa
   if (!customer.success) {
     const issue = customer.error.issues[0];
     // El campo trampa no explica nada: a un bot no hay que darle pistas.
-    if (!issue || issue.path[0] === "website") return { ok: false, error: "No se pudo completar la reserva." };
+    if (!issue || issue.path[0] === "trap") return { ok: false, error: "No se pudo completar la reserva." };
     return { ok: false, error: issue.message };
   }
 
-  const { slug, sessionId, lines } = request.data;
+  const { slug, sessionId, lines, expectedTotalCents } = request.data;
   const site = await loadSite();
   const product = await loadWebProduct(slug);
   const session = product ? await loadWebSession(product.id, sessionId, site.cutoffHours) : null;
   if (!product || !session) return { ok: false, error: webBookingErrorMessage("RB002", undefined) };
   const cart = resolveCart(product.tickets, lines, session.free);
   if (!cart.ok) return { ok: false, error: cart.error };
+  if (cart.totalCents !== expectedTotalCents) {
+    return { ok: false, error: "El precio ha cambiado. Vuelve a elegir las entradas para ver el total actualizado." };
+  }
 
   const { name, email, phone, hotel } = customer.data;
   const { data, error } = await createAdminClient().rpc("create_booking_hold", {

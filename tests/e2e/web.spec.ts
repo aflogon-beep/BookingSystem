@@ -16,7 +16,9 @@ function tuesdayFor(project: string): string {
 // La web pública no necesita sesión.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-test("del listado a la ficha: día, horario y entradas", async ({ page }, testInfo) => {
+// Cada ejecución deja una reserva de 3 plazas en el martes de cada proyecto (16 plazas): en local,
+// tras unas cuantas ejecuciones hace falta `npx supabase db reset`. En CI la BD es nueva.
+test("del listado a la ficha y a la confirmación", async ({ page, browser }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
   await expect(page).toHaveTitle("Experiencias en Tenerife · Volcán Tours");
@@ -57,9 +59,9 @@ test("del listado a la ficha: día, horario y entradas", async ({ page }, testIn
   const summary = page.getByRole("complementary", { name: "Tu reserva" });
   await expect(summary).toContainText("2 × Adulto");
   await expect(summary).toContainText(/183\s€/);
-  const name = `Cliente web ${testInfo.project.name} ${Date.now()}`;
-  await page.getByLabel("Nombre y apellidos").fill(name);
-  await page.getByLabel("Email").fill(`web-${testInfo.project.name}-${Date.now()}@example.test`);
+  const stamp = `${testInfo.project.name}-${Date.now()}`;
+  await page.getByLabel("Nombre y apellidos").fill(`Cliente web ${stamp}`);
+  await page.getByLabel("Email").fill(`web-${stamp}@example.test`);
   await page.getByLabel("Hotel de recogida").fill("Hotel Mencey");
   await page.getByRole("button", { name: /^Confirmar reserva/ }).click();
 
@@ -71,15 +73,13 @@ test("del listado a la ficha: día, horario y entradas", async ({ page }, testIn
   await expect(ticket).toContainText("2 Adulto · 1 Niño");
 
   // Con el código solo, otro navegador no ve la reserva.
-  const other = await page.context().browser()?.newContext();
-  if (other) {
-    const response = await (await other.newPage()).goto(page.url());
-    expect(response?.status()).toBe(404);
-    await other.close();
-  }
+  const other = await browser.newContext();
+  const response = await (await other.newPage()).goto(page.url());
+  expect(response?.status()).toBe(404);
+  await other.close();
 });
 
-test("sin plazas o con entradas raras, el pago no deja seguir", async ({ page }) => {
+test("sin salida válida o con entradas raras, no deja reservar", async ({ page }) => {
   await page.goto("/experiencias/teide-atardecer-estrellas/reservar?salida=00000000-0000-4000-8000-000000000999&entradas=x");
   await expect(page.getByRole("heading", { level: 1, name: "Esta salida ya no está disponible" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Volver a Teide al atardecer y estrellas" })).toBeVisible();

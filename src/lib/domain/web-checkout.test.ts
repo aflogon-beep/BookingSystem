@@ -21,6 +21,12 @@ describe("resolveCart", () => {
     if (cart.ok) expect(cartLabel(cart.lines)).toBe("2 Adulto · 1 Niño · 1 Bebé");
   });
 
+  it("por la web, como mucho 10 plazas", () => {
+    expect(resolveCart(TICKETS, [{ ticketTypeId: "a", qty: 10 }], 16)).toMatchObject({ ok: true, seats: 10 });
+    expect(resolveCart(TICKETS, [{ ticketTypeId: "a", qty: 10 }, { ticketTypeId: "c", qty: 1 }], 16)).toMatchObject({ ok: false });
+    expect(webBookingErrorMessage("RB008", "10")).toMatch(/hasta 10 plazas/);
+  });
+
   it("rechaza entradas que no se venden, sin plaza o de más", () => {
     expect(resolveCart(TICKETS, [{ ticketTypeId: "x", qty: 1 }], 5)).toMatchObject({ ok: false });
     expect(resolveCart(TICKETS, [{ ticketTypeId: "b", qty: 1 }], 5)).toEqual({ ok: false, error: "Añade al menos una entrada con plaza." });
@@ -36,7 +42,7 @@ describe("webCustomerSchema", () => {
       email: "lucia@example.com",
       phone: "",
       hotel: "",
-      website: "",
+      trap: "",
     });
   });
 
@@ -44,7 +50,7 @@ describe("webCustomerSchema", () => {
     expect(webCustomerSchema.safeParse({ name: "", email: "a@b.es" }).success).toBe(false);
     expect(webCustomerSchema.safeParse({ name: "Ana", email: "no-es-email" }).success).toBe(false);
     expect(webCustomerSchema.safeParse({ name: "Ana", email: "a@b.es", phone: "abc" }).success).toBe(false);
-    expect(webCustomerSchema.safeParse({ name: "Ana", email: "a@b.es", website: "http://spam" }).success).toBe(false);
+    expect(webCustomerSchema.safeParse({ name: "Ana", email: "a@b.es", trap: "http://spam" }).success).toBe(false);
   });
 });
 

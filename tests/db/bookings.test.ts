@@ -181,6 +181,10 @@ describe("create_booking_hold", () => {
     // Sigue comprobando plazas, y el equipo no puede usar el canal web.
     expect((await book(sessionId, adults(2), { channel: "web", payment: "on_site" }, adminDb)).error?.code).toBe("RB001");
     expect((await book(sessionId, adults(1), { channel: "web", payment: "on_site" })).error?.code).toBe("42501");
+    // Sin pago, como mucho 10 plazas por reserva web.
+    const { sessionId: big } = await createSession(20);
+    expect((await book(big, adults(11), { channel: "web", payment: "on_site" }, adminDb)).error?.code).toBe("RB008");
+    await bookOk(big, adults(10), { channel: "web", payment: "on_site" }, adminDb);
     // «payment» no cambia nada en los canales del panel.
     const phone = await bookOk(sessionId, adults(1), { channel: "phone", payment: "on_site", payment_method: "cash" });
     expect(phone).toMatchObject({ status: "confirmed", payment_status: "paid" });

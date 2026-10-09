@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { Check, Wallet } from "lucide-react";
 
+import { unstable_rethrow } from "next/navigation";
+
 import { createWebBooking } from "@/app/(public)/experiencias/[slug]/reservar/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +19,7 @@ export function WebCheckoutForm({
   slug,
   sessionId,
   lines,
+  totalCents,
   totalLabel,
   pickup,
   meetingPoint,
@@ -25,13 +28,14 @@ export function WebCheckoutForm({
   slug: string;
   sessionId: string;
   lines: { ticketTypeId: string; qty: number }[];
+  totalCents: number;
   totalLabel: string;
   pickup: boolean;
   meetingPoint: string;
   cancelHours: number;
 }) {
   const id = useId();
-  const [customer, setCustomer] = useState({ name: "", email: "", phone: "", hotel: "", website: "" });
+  const [customer, setCustomer] = useState({ name: "", email: "", phone: "", hotel: "", trap: "" });
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -49,13 +53,18 @@ export function WebCheckoutForm({
         event.preventDefault();
         setError(null);
         startTransition(async () => {
-          // Si sale bien, el servidor lleva a la confirmación.
-          const result = await createWebBooking({ slug, sessionId, lines, customer });
-          setError(result.error);
+          try {
+            // Si sale bien, el servidor lleva a la confirmación.
+            const result = await createWebBooking({ slug, sessionId, lines, expectedTotalCents: totalCents, customer });
+            setError(result.error);
+          } catch (caught) {
+            unstable_rethrow(caught);
+            setError("No se pudo completar la reserva. Inténtalo de nuevo en unos minutos.");
+          }
         });
       }}
     >
-      <Field label="Nombre y apellidos" className="col-span-full">
+      <Field label="Nombre y apellidos">
         <Input required autoComplete="name" maxLength={120} {...field("name")} />
       </Field>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
@@ -77,8 +86,8 @@ export function WebCheckoutForm({
       ) : null}
       {/* Campo trampa: las personas no lo ven; los bots lo rellenan. */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
-        <label htmlFor={`${id}-website`}>No rellenes este campo</label>
-        <input tabIndex={-1} autoComplete="off" {...field("website")} />
+        <label htmlFor={`${id}-trap`}>No rellenes este campo</label>
+        <input tabIndex={-1} autoComplete="off" {...field("trap")} />
       </div>
 
       <div className="flex items-start gap-3 rounded-xl border border-line bg-surface-2 p-3.5">

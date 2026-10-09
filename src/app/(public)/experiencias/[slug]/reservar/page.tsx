@@ -98,6 +98,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
           slug={product.slug}
           sessionId={session.id}
           lines={cart.lines.map((line) => ({ ticketTypeId: line.ticket.id, qty: line.qty }))}
+          totalCents={cart.totalCents}
           totalLabel={formatCents(cart.totalCents)}
           pickup={product.pickup}
           meetingPoint={product.meetingPoint}
