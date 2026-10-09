@@ -57,8 +57,11 @@ export async function inviteMember(input: { email: string; name: string; role: s
   const supabase = await createClient();
   const { error: staffError } = await supabase.from("staff").insert({ user_id: data.user.id, name, role });
   if (staffError) {
-    // 23505: ya estaba en el equipo con una invitación pendiente. Su cuenta no se toca.
-    if (staffError.code === "23505") return { ok: false, error: EMAIL_TAKEN };
+    // 23505: ya estaba en el equipo con una invitación pendiente. generateLink acaba de anular su
+    // enlace anterior, así que se devuelve el nuevo (su nombre y rol no cambian).
+    if (staffError.code === "23505") {
+      return { ok: true, url: buildInviteUrl(await requestOrigin(), data.properties.hashed_token) };
+    }
     await admin.auth.admin.deleteUser(data.user.id);
     return { ok: false, error: FAILED };
   }
@@ -80,7 +83,9 @@ export async function regenerateInvite(userId: string): Promise<InviteResult> {
   const admin = createAdminClient();
   const { data: user } = await admin.auth.admin.getUserById(userId);
   if (!user.user?.email) return { ok: false, error: FAILED };
-  if (user.user.email_confirmed_at) return { ok: false, error: "Ya aceptó la invitación." };
+  if (user.user.email_confirmed_at) {
+    return { ok: false, error: "Ya aceptó la invitación. Si no puede entrar, dale de baja y vuelve a invitarle." };
+  }
 
   const { data, error } = await admin.auth.admin.generateLink({ type: "invite", email: user.user.email });
   if (error) return { ok: false, error: FAILED };

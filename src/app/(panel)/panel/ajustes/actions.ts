@@ -13,6 +13,7 @@ import {
   nextTicketTypeSort,
   parseSettingsField,
   parseTicketTypeField,
+  productsLeftWithoutPrices,
   toggleLanguage,
 } from "@/lib/domain/settings";
 
@@ -97,6 +98,12 @@ export async function deleteTicketType(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { count } = await supabase.from("ticket_types").select("id", { count: "exact", head: true });
   if (count !== null && count <= 1) return { ok: false, error: "Tiene que quedar al menos un tipo de entrada." };
+
+  // Ningún producto puede quedarse sin entradas que vender.
+  const { data: prices } = await supabase.from("product_prices").select("product_id, ticket_type_id, products(name)");
+  if (!prices) return { ok: false, error: SAVE_FAILED };
+  const orphan = productsLeftWithoutPrices(prices, id)[0];
+  if (orphan) return { ok: false, error: `«${orphan}» se quedaría sin entradas. Añádele otra en Productos antes.` };
 
   const { data, error } = await supabase.from("ticket_types").delete().eq("id", id).select("id");
   if (error) {

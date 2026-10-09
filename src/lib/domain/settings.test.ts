@@ -6,6 +6,7 @@ import {
   nextTicketTypeSort,
   parseSettingsField,
   parseTicketTypeField,
+  productsLeftWithoutPrices,
   toggleLanguage,
 } from "./settings";
 
@@ -111,5 +112,16 @@ describe("nextTicketTypeSort", () => {
   it("coloca el tipo nuevo al final", () => {
     expect(nextTicketTypeSort([])).toBe(1);
     expect(nextTicketTypeSort([{ sort: 1 }, { sort: 4 }, { sort: 2 }])).toBe(5);
+  });
+});
+
+describe("productsLeftWithoutPrices", () => {
+  const price = (product: string, type: string) => ({ product_id: product, ticket_type_id: type, products: { name: product } });
+
+  it("detecta los productos que solo venden ese tipo", () => {
+    const prices = [price("Teide", "adulto"), price("Teide", "nino"), price("Anaga", "nino"), price("Laguna", "adulto")];
+    expect(productsLeftWithoutPrices(prices, "nino")).toEqual(["Anaga"]);
+    expect(productsLeftWithoutPrices(prices, "adulto")).toEqual(["Laguna"]);
+    expect(productsLeftWithoutPrices(prices, "bebe")).toEqual([]);
   });
 });

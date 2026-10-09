@@ -123,7 +123,6 @@ function InviteDialog() {
       if (response.ok) {
         setError(null);
         setResult({ url: response.url, name: input.name.trim() });
-        toast.success(`${input.name.trim()} invitado`);
       } else {
         setError(response.error);
       }

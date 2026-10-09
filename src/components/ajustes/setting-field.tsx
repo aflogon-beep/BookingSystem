@@ -86,7 +86,8 @@ export function SettingInput({ field, label, defaultValue, hint, suffix, classNa
       aria-busy={pending || undefined}
       onBlur={(event) => commit(event.currentTarget.value)}
       onKeyDown={(event) => {
-        if (event.key === "Enter") commit(event.currentTarget.value);
+        // Enter guarda saliendo del campo: así no se guarda dos veces (Enter y luego blur).
+        if (event.key === "Enter") event.currentTarget.blur();
       }}
       className={suffix ? "rounded-r-none" : undefined}
       {...inputProps}

@@ -145,3 +145,22 @@ export function parseTicketTypeField<F extends TicketTypeField>(field: F, raw: u
 export function nextTicketTypeSort(existing: readonly { sort: number }[]): number {
   return existing.reduce((max, ticketType) => Math.max(max, ticketType.sort), 0) + 1;
 }
+
+/**
+ * Nombres de los productos que solo venden el tipo de entrada indicado: al borrarlo se
+ * quedarían sin ningún precio.
+ */
+export function productsLeftWithoutPrices(
+  prices: readonly { product_id: string; ticket_type_id: string; products: { name: string } | null }[],
+  ticketTypeId: string,
+): string[] {
+  const byProduct = new Map<string, { name: string; types: Set<string> }>();
+  for (const price of prices) {
+    const entry = byProduct.get(price.product_id) ?? { name: price.products?.name ?? "", types: new Set<string>() };
+    entry.types.add(price.ticket_type_id);
+    byProduct.set(price.product_id, entry);
+  }
+  return [...byProduct.values()]
+    .filter((product) => product.types.size === 1 && product.types.has(ticketTypeId))
+    .map((product) => product.name);
+}
