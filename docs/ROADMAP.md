@@ -14,7 +14,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [x] 1.2 Ajustes: empresa, idiomas, tipos de entrada y políticas. Equipo: invitar miembros, cambiar rol y dar de baja (con doble campo de contraseña al aceptar la invitación).
 - [x] 1.3 Productos: editor con pestañas, subida de foto a Storage y vista previa de salidas.
 - [x] 1.4 `generate_sessions` + cron diario + tests de zona horaria.
-- [ ] 1.5 Calendario (semana por defecto y mes) con ocupación.
+- [x] 1.5 Calendario (semana por defecto y mes) con ocupación.
 - [ ] 1.6 Migración de reservas (bookings, booking_lines, booking_events, customers) + `create_booking_hold` + test de concurrencia.
 - [ ] 1.7 Nueva reserva interna (modal) con canales y métodos de pago.
 - [ ] 1.8 Hoy: KPIs, salidas del día y actividad.
