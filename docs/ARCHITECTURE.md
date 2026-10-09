@@ -35,17 +35,20 @@ product_prices(product_id fk, ticket_type_id fk, price_cents int check (>=0), pk
 schedule_rules(id uuid pk, product_id fk, weekdays int[], times time[], language,
                valid_from date null, valid_to date null)
 
-product_needs(product_id fk, resource_type check in ('guide','vehicle','equipment'), qty int)
+product_needs(product_id fk, resource_type check in ('guide','vehicle','equipment'), qty int 1..5,
+              pk(product_id, resource_type))   -- sin fila = no necesita ese tipo
 
 sessions(id uuid pk, product_id fk, starts_at timestamptz, ends_at timestamptz, language,
          capacity int, status check in ('open','closed','cancelled'),
          unique(product_id, starts_at))
 
 resources(id uuid pk, name, type check in ('guide','vehicle','equipment'),
-          seats int, languages text[], active bool)
+          seats int (vehículo: asientos; material: unidades; guía: 1), languages text[] (guías))
 
-session_resources(session_id fk, resource_id fk, pk(session_id, resource_id))
-  -- + restricción de exclusión (btree_gist) para impedir solapes del mismo recurso
+session_resources(session_id fk, resource_id fk, period tstzrange, pk(session_id, resource_id))
+  -- period copia el horario de la salida (trigger); exclude using gist (resource_id with =,
+  -- period with &&) impide que un recurso esté en dos salidas a la vez. Al cancelar la salida
+  -- se liberan sus recursos; al cambiarla de hora, se quitan los que ya estén ocupados.
 
 customers(id uuid pk, name, email, phone, created_at)
 

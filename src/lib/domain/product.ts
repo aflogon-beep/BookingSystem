@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { productNeedsSchema } from "@/lib/domain/resources";
 import { parseTimes } from "@/lib/domain/schedule";
 
 /** Colores de producto del prototipo. */
@@ -160,6 +161,8 @@ export const productInputSchema = z
         error: "Hay un tipo de entrada repetido.",
       }),
     rules: z.array(ruleSchema).max(50, { error: "Demasiadas reglas de horario." }),
+    // Si no llega, save_product deja como estaba lo que necesita cada salida.
+    needs: productNeedsSchema.optional(),
   })
   .refine((product) => product.minPax <= product.capacity, {
     error: "El mínimo para salir no puede ser mayor que el aforo.",
@@ -169,13 +172,14 @@ export const productInputSchema = z
 export type ProductInput = z.input<typeof productInputSchema>;
 export type ProductData = z.output<typeof productInputSchema>;
 
-export type ProductTab = "general" | "precios" | "horarios";
+export type ProductTab = "general" | "precios" | "horarios" | "equipo";
 
 /** Pestaña del editor donde está el campo con error, para llevar ahí al usuario. */
 export function tabForIssue(path: readonly PropertyKey[]): ProductTab {
   const field = path[0];
   if (field === "prices") return "precios";
   if (field === "rules") return "horarios";
+  if (field === "needs") return "equipo";
   return "general";
 }
 

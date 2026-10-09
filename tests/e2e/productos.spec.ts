@@ -91,6 +91,13 @@ test("crea, edita, retira de la venta y elimina un producto con foto", async ({ 
   const rule = page.getByRole("listitem", { name: "Regla 1" });
   await rule.getByLabel("Horas de salida").fill("9:00, 17:30");
   await rule.getByRole("button", { name: "sábado" }).click();
+
+  // Equipo: un guía por defecto; además, un vehículo.
+  await tab(page, "Equipo").click();
+  await expect(page.getByLabel("Guías")).toHaveValue("1");
+  await expect(page.locator("#pn-vehicle-hint")).toHaveText("3 disponibles");
+  await page.getByLabel("Vehículos").fill("1");
+  await tab(page, "Horarios").click();
   await expect(page.getByText(/\d+ salidas · \d+ plazas a la venta en 14 días/)).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Así lo verá el cliente" }).getByText("25,50 €")).toBeVisible();
 
@@ -122,6 +129,8 @@ test("crea, edita, retira de la venta y elimina un producto con foto", async ({ 
 
   // Eliminar.
   await page.getByRole("listitem", { name }).getByRole("link", { name: `Editar ${name}` }).click();
+  await tab(page, "Equipo").click();
+  await expect(page.getByLabel("Vehículos")).toHaveValue("1");
   await page.getByRole("button", { name: "Eliminar" }).click();
   const dialog = page.getByRole("dialog", { name: `¿Eliminar «${name}»?` });
   await dialog.getByRole("button", { name: "Eliminar" }).click();
