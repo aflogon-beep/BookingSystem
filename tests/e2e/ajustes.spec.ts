@@ -78,7 +78,9 @@ test("tipos de entrada: añadir, renombrar y eliminar con confirmación", async 
   const nameEn = list.getByRole("listitem").last().getByLabel("Nombre en inglés");
   await nameEn.fill("Senior");
   // Ya hay un aviso de «Ajustes guardados» en pantalla: se espera a la respuesta de la acción.
-  const saved = page.waitForResponse((response) => response.request().method() === "POST");
+  const saved = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.request().headers()["next-action"] !== undefined,
+  );
   await nameEn.press("Enter");
   await saved;
 

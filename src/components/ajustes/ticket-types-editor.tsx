@@ -108,7 +108,7 @@ function SeatSwitch({ row }: { row: TicketTypeRow }) {
   const id = `tt-seat-${row.id}`;
 
   return (
-    <div className="flex items-center gap-2 min-[700px]:justify-center">
+    <div className="order-last flex items-center gap-2 min-[700px]:order-none min-[700px]:justify-center">
       <Switch
         id={id}
         checked={checked}
@@ -227,7 +227,8 @@ export function TicketTypesEditor({ rows }: { rows: TicketTypeRow[] }) {
               <TextCell row={row} field="note" label="Condición" maxLength={TICKET_TYPE_LIMITS.note} />
             </div>
             <SeatSwitch row={row} />
-            <div className="flex justify-end">
+            {/* En móvil, interruptor y papelera van después de los textos en inglés. */}
+            <div className="order-last flex justify-end min-[700px]:order-none">
               <DeleteButton row={row} />
             </div>
             <div className="col-span-2 grid gap-3 min-[700px]:contents">

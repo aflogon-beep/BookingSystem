@@ -136,6 +136,11 @@ describe("save_product", () => {
     expect(tooLong.error?.code).toBe("23514");
   });
 
+  it("los textos en inglés de las entradas tienen el mismo límite que en español", async () => {
+    const { error } = await adminDb.from("ticket_types").update({ note_en: "x".repeat(121) }).eq("id", ADULT_ID);
+    expect(error?.code).toBe("23514");
+  });
+
   it("si algo falla no guarda nada (una sola transacción)", async () => {
     const product = productJson();
     const { error } = await member.db.rpc("save_product", {
