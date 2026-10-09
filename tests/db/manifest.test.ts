@@ -185,6 +185,10 @@ describe("estado de la salida", () => {
     const checkIn = await member.db.from("bookings").update({ checked_in: true }).eq("id", id);
     expect(checkIn.error).not.toBeNull();
     expect(await bookingRow(id)).toMatchObject({ status: "confirmed", checked_in: false });
+    // Las marcas de email las pone solo el servidor.
+    for (const mark of [{ reminder_sent_at: new Date().toISOString() }, { cancellation_sent_at: new Date().toISOString() }]) {
+      expect((await member.db.from("bookings").update(mark).eq("id", id)).error?.code).toBe("42501");
+    }
     // Cerrar la venta sí puede hacerse directamente.
     expect((await member.db.from("sessions").update({ status: "closed" }).eq("id", sessionId)).error).toBeNull();
   });

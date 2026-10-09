@@ -45,6 +45,22 @@ export function parseServerEnv(raw: RawEnv): ServerEnv {
   };
 }
 
+export type EmailConfig = { resendApiKey: string; from: string };
+
+// «Volcán Tours <reservas@dominio.com>» o solo «reservas@dominio.com».
+const FROM = /^(?:[^<>@\r\n]{1,100} <[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+>|[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+)$/;
+
+/**
+ * Emails con Resend (RESEND_API_KEY y EMAIL_FROM). Son opcionales: sin ellas, o si no son
+ * válidas, devuelve null y no se envía ningún email (la reserva sigue funcionando).
+ */
+export function parseEmailConfig(raw: RawEnv): EmailConfig | null {
+  const resendApiKey = raw.RESEND_API_KEY?.trim();
+  const from = raw.EMAIL_FROM?.trim();
+  if (!resendApiKey || !from || !FROM.test(from)) return null;
+  return { resendApiKey, from };
+}
+
 /** Variables públicas. Se leen de forma literal para que Next.js las incruste en el cliente. */
 export function getPublicEnv(): PublicEnv {
   return parsePublicEnv({

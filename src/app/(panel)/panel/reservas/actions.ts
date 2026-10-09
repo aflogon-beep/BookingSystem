@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
 import type { DaySession } from "@/components/reservas/types";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
+import { sendBookingConfirmation } from "@/lib/email/booking-emails";
 import { bookingErrorMessage, isPaymentAllowed, paymentMethodFor, type PaymentOption } from "@/lib/domain/booking-form";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
 
@@ -80,7 +82,7 @@ const bookingSchema = z
 export type NewBookingInput = z.input<typeof bookingSchema>;
 export type CreateBookingResult = { ok: true; code: string } | { ok: false; error: string };
 
-const createdSchema = z.object({ code: z.string() });
+const createdSchema = z.object({ id: z.uuid(), code: z.string() });
 
 /** Crea una reserva confirmada desde el panel. Plazas, precios y total los decide la BD. */
 export async function createInternalBooking(input: NewBookingInput): Promise<CreateBookingResult> {
@@ -106,6 +108,7 @@ export async function createInternalBooking(input: NewBookingInput): Promise<Cre
 
   const result = createdSchema.safeParse(created);
   if (!result.success) return { ok: false, error: "No se pudo crear la reserva. Inténtalo de nuevo." };
+  after(() => sendBookingConfirmation(result.data.id));
   revalidatePath("/panel", "layout");
   return { ok: true, code: result.data.code };
 }

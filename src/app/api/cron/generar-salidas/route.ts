@@ -1,4 +1,4 @@
-import { isAuthorizedCron } from "@/lib/cron";
+import { rejectUnauthorizedCron } from "@/lib/cron";
 import { createAdminClient } from "@/lib/db/admin";
 import { generationWindow } from "@/lib/domain/schedule";
 
@@ -7,15 +7,8 @@ import { generationWindow } from "@/lib/domain/schedule";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || secret.length < 16) {
-    // Sin secreto el job nunca correría: que se vea en los logs de Vercel.
-    console.error("CRON_SECRET no está configurado (o tiene menos de 16 caracteres)");
-    return Response.json({ error: "Cron sin configurar" }, { status: 500 });
-  }
-  if (!isAuthorizedCron(request.headers.get("authorization"), secret)) {
-    return Response.json({ error: "No autorizado" }, { status: 401 });
-  }
+  const rejected = rejectUnauthorizedCron(request);
+  if (rejected) return rejected;
 
   const { from, to } = generationWindow();
   const { data, error } = await createAdminClient().rpc("generate_sessions", { p_from: from, p_to: to });

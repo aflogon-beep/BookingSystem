@@ -71,14 +71,14 @@ isOneToOne: false
                   ]
                 },"bookings": {
                   Row: {
-                    "agent": string,"channel": string,"checked_in": boolean,"code": string,"created_at": string,"customer_id": string,"hold_expires_at": string | null,"hotel": string,"id": string,"notes": string,"paid_cents": number,"payment_method": string | null,"payment_status": string,"session_id": string,"status": string,"stripe_checkout_id": string | null,"stripe_payment_intent": string | null,"total_cents": number
+                    "agent": string,"cancellation_sent_at": string | null,"channel": string,"checked_in": boolean,"code": string,"created_at": string,"customer_id": string,"hold_expires_at": string | null,"hotel": string,"id": string,"notes": string,"paid_cents": number,"payment_method": string | null,"payment_status": string,"reminder_sent_at": string | null,"session_id": string,"status": string,"stripe_checkout_id": string | null,"stripe_payment_intent": string | null,"total_cents": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "agent"?: string,"channel": string,"checked_in"?: boolean,"code": string,"created_at"?: string,"customer_id": string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"session_id": string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents": number
+                    "agent"?: string,"cancellation_sent_at"?: string | null,"channel": string,"checked_in"?: boolean,"code": string,"created_at"?: string,"customer_id": string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"reminder_sent_at"?: string | null,"session_id": string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents": number
                   }
                   Update: {
-                    "agent"?: string,"channel"?: string,"checked_in"?: boolean,"code"?: string,"created_at"?: string,"customer_id"?: string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"session_id"?: string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents"?: number
+                    "agent"?: string,"cancellation_sent_at"?: string | null,"channel"?: string,"checked_in"?: boolean,"code"?: string,"created_at"?: string,"customer_id"?: string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"reminder_sent_at"?: string | null,"session_id"?: string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents"?: number
                   }
                   Relationships: [
                     {
