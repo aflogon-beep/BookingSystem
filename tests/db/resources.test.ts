@@ -89,6 +89,8 @@ describe("recursos", () => {
       { name: "Barco", type: "boat" },
       { name: "Minibús", type: "vehicle", seats: 0 },
       { name: "Guía", type: "guide", languages: ["ES"] },
+      { name: "Guía", type: "guide", seats: 2 },
+      { name: "Minibús", type: "vehicle", languages: ["es"] },
     ];
     for (const row of cases) {
       const { error } = await member.db.from("resources").insert(row);
@@ -131,6 +133,45 @@ describe("asignación sin solapes", () => {
     expect(String(data?.period)).toContain("2030-11-05 10:00:00+00");
   });
 
+  it("si varias salidas crecen a la vez y se solapan, el recurso se queda solo en una", async () => {
+    const guide = await newResource();
+    const rules = [{ weekdays: [1, 2, 3, 4, 5, 6, 7], times: ["09:00", "11:00"], language: "es", valid_from: null, valid_to: null }];
+    const product = (durationMin: number) => ({
+      slug: `recursos-crecen-${randomUUID()}`,
+      name: "Tour que crece",
+      description: "",
+      meeting_point: "",
+      place: "",
+      duration_min: durationMin,
+      capacity: 10,
+      min_pax: 1,
+      pickup: false,
+      color: "#0A84FF",
+      photo_path: null,
+      active: true,
+    });
+    const prices = [{ ticket_type_id: ADULT_ID, price_cents: 1000 }];
+    const { data, error } = await member.db.rpc("save_product", { p_product: product(120), p_prices: prices, p_rules: rules });
+    expect(error).toBeNull();
+    const { id } = data as { id: string };
+    try {
+      // 2030-11-11 no lo usa ningún otro test.
+      const generate = () => member.db.rpc("generate_sessions", { p_from: "2030-11-11", p_to: "2030-11-11", p_product_id: id });
+      expect((await generate()).error).toBeNull();
+      const { data: sessions } = await adminDb.from("sessions").select("id").eq("product_id", id);
+      expect(sessions).toHaveLength(2);
+      for (const session of sessions ?? []) expect((await assign(session.id, guide)).error).toBeNull();
+
+      // 3 horas: 09:00–12:00 y 11:00–14:00 se solapan. generate_sessions las cambia en un solo update.
+      expect((await member.db.rpc("save_product", { p_id: id, p_product: product(180), p_prices: prices, p_rules: rules })).error).toBeNull();
+      expect((await generate()).error).toBeNull();
+      const { data: left } = await adminDb.from("session_resources").select("session_id").eq("resource_id", guide);
+      expect(left).toHaveLength(1);
+    } finally {
+      await adminDb.from("products").delete().eq("id", id);
+    }
+  });
+
   it("cancelar una salida libera sus recursos y ya no admite asignaciones", async () => {
     const guide = await newResource();
     const session = await newSession("2030-11-06T09:00:00Z");
@@ -146,7 +187,8 @@ describe("asignación sin solapes", () => {
     const guide = await newResource();
     const session = await newSession("2030-11-07T09:00:00Z");
     expect((await assign(session, guide)).error).toBeNull();
-    await member.db.from("resources").delete().eq("id", guide);
+    const { error } = await member.db.from("resources").delete().eq("id", guide);
+    expect(error).toBeNull();
     expect(await assignedTo(session)).toEqual([]);
   });
 

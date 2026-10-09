@@ -85,9 +85,11 @@ function AutoSaveInput({
   );
 }
 
-function GuideLanguages({ row }: { row: ResourceRow }) {
+function GuideLanguages({ row, languages }: { row: ResourceRow; languages: readonly string[] }) {
   const [pending, startTransition] = useTransition();
   const labelId = `rl-${row.id}`;
+  // Los idiomas de Ajustes, más los que el guía ya tenga y ya no estén (para poder quitarlos).
+  const options = LANGUAGE_CODES.filter((code) => languages.includes(code) || row.languages.includes(code));
 
   function toggle(code: string) {
     startTransition(async () => {
@@ -103,7 +105,7 @@ function GuideLanguages({ row }: { row: ResourceRow }) {
         Idiomas que guía
       </span>
       <div role="group" aria-labelledby={labelId} className="flex flex-wrap gap-1">
-        {LANGUAGE_CODES.map((code) => {
+        {options.map((code) => {
           const on = row.languages.includes(code);
           return (
             <button
@@ -176,7 +178,7 @@ function DeleteResource({ row }: { row: ResourceRow }) {
   );
 }
 
-function ResourceCard({ type, row }: { type: ResourceType; row: ResourceRow }) {
+function ResourceCard({ type, row, languages }: { type: ResourceType; row: ResourceRow; languages: readonly string[] }) {
   const seatsLabel = RESOURCE_TYPE_TEXT[type].seatsLabel;
   const Icon = type === "vehicle" ? Bus : Package;
 
@@ -206,7 +208,7 @@ function ResourceCard({ type, row }: { type: ResourceType; row: ResourceRow }) {
         </div>
         <DeleteResource row={row} />
       </div>
-      {type === "guide" ? <GuideLanguages row={row} /> : null}
+      {type === "guide" ? <GuideLanguages row={row} languages={languages} /> : null}
       {seatsLabel ? (
         <label className="flex items-center gap-2.5 text-[0.84rem] text-muted-foreground">
           {seatsLabel}
@@ -227,8 +229,26 @@ function ResourceCard({ type, row }: { type: ResourceType; row: ResourceRow }) {
   );
 }
 
-export function ResourceList({ type, rows }: { type: ResourceType; rows: ResourceRow[] }) {
+/** Botón «Añadir guía / vehículo / equipo». */
+export function AddResourceButton({ type, label, size }: { type: ResourceType; label?: string; size?: "sm" }) {
   const [pending, startTransition] = useTransition();
+
+  function add() {
+    startTransition(async () => {
+      const result = await addResource(type);
+      if (!result.ok) toast.error(result.error);
+    });
+  }
+
+  return (
+    <Button onClick={add} disabled={pending} size={size}>
+      {pending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
+      {label ?? `Añadir ${RESOURCE_TYPE_TEXT[type].singular}`}
+    </Button>
+  );
+}
+
+export function ResourceList({ type, rows, languages }: { type: ResourceType; rows: ResourceRow[]; languages: string[] }) {
   const listRef = useRef<HTMLUListElement>(null);
   const previousCount = useRef(rows.length);
   const text = RESOURCE_TYPE_TEXT[type];
@@ -244,39 +264,16 @@ export function ResourceList({ type, rows }: { type: ResourceType; rows: Resourc
     previousCount.current = rows.length;
   }, [rows.length]);
 
-  function add() {
-    startTransition(async () => {
-      const result = await addResource(type);
-      if (!result.ok) toast.error(result.error);
-    });
-  }
-
-  const addButton = (label: string, size?: "sm") => (
-    <Button onClick={add} disabled={pending} size={size}>
-      {pending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
-      {label}
-    </Button>
-  );
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div>{addButton(`Añadir ${text.singular}`)}</div>
-      {rows.length ? (
-        <ul
-          ref={listRef}
-          aria-label={text.plural}
-          className="grid grid-cols-[repeat(auto-fill,minmax(min(290px,100%),1fr))] gap-4"
-        >
-          {rows.map((row) => (
-            <ResourceCard key={row.id} type={type} row={row} />
-          ))}
-        </ul>
-      ) : (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-black/5 bg-surface px-6 py-12 text-center shadow-card">
-          <b className="font-semibold">No hay {text.plural.toLowerCase()}</b>
-          {addButton("Añadir", "sm")}
-        </div>
-      )}
+  return rows.length ? (
+    <ul ref={listRef} aria-label={text.plural} className="grid grid-cols-[repeat(auto-fill,minmax(min(290px,100%),1fr))] gap-4">
+      {rows.map((row) => (
+        <ResourceCard key={row.id} type={type} row={row} languages={languages} />
+      ))}
+    </ul>
+  ) : (
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-black/5 bg-surface px-6 py-12 text-center shadow-card">
+      <b className="font-semibold">No hay {text.plural.toLowerCase()}</b>
+      <AddResourceButton type={type} label="Añadir" size="sm" />
     </div>
   );
 }

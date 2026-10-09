@@ -12,7 +12,9 @@ create table public.resources (
   seats integer not null default 1 check (seats between 1 and 100),
   languages text[] not null default '{}'
     check (cardinality(languages) <= 10 and array_to_string(languages, ',') ~ '^([a-z]{2}(,[a-z]{2})*)?$'),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint resources_guide_one_seat check (type <> 'guide' or seats = 1),
+  constraint resources_languages_only_guides check (type = 'guide' or cardinality(languages) = 0)
 );
 
 comment on table public.resources is 'Guías, vehículos y material que se asignan a las salidas.';

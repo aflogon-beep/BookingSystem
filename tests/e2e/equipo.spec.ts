@@ -38,11 +38,12 @@ test("añade un guía, lo renombra, cambia sus idiomas y lo elimina", async ({ p
 
   const card = page.getByRole("listitem", { name });
   await expect(card).toBeVisible();
-  await expect(card.getByText("Sin idiomas no se le asignará ninguna salida.")).toBeVisible();
-  await card.getByRole("button", { name: "Francés" }).click();
-  await expect(card.getByRole("button", { name: "Francés" })).toHaveAttribute("aria-pressed", "true");
+  // Un guía nuevo guía en el primer idioma de Ajustes.
+  await expect(card.getByRole("button", { name: "Español" })).toHaveAttribute("aria-pressed", "true");
+  await card.getByRole("button", { name: "Alemán" }).click();
+  await expect(card.getByRole("button", { name: "Alemán" })).toHaveAttribute("aria-pressed", "true");
   await page.reload();
-  await expect(page.getByRole("listitem", { name }).getByRole("button", { name: "Francés" })).toHaveAttribute(
+  await expect(page.getByRole("listitem", { name }).getByRole("button", { name: "Alemán" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );

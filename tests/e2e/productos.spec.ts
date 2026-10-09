@@ -95,7 +95,7 @@ test("crea, edita, retira de la venta y elimina un producto con foto", async ({ 
   // Equipo: un guía por defecto; además, un vehículo.
   await tab(page, "Equipo").click();
   await expect(page.getByLabel("Guías")).toHaveValue("1");
-  await expect(page.getByText("3 disponibles")).toBeVisible();
+  await expect(page.locator("#pn-vehicle-hint")).toHaveText("3 disponibles");
   await page.getByLabel("Vehículos").fill("1");
   await tab(page, "Horarios").click();
   await expect(page.getByText(/\d+ salidas · \d+ plazas a la venta en 14 días/)).toBeVisible();
