@@ -64,6 +64,7 @@ test.describe("navegación del panel", () => {
     for (const path of [
       "/panel",
       "/panel/calendario",
+      "/panel/calendario?vista=mes",
       "/panel/ajustes/empresa",
       "/panel/ajustes/entradas",
       "/panel/ajustes/politicas",

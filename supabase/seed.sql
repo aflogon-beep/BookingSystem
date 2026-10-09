@@ -54,3 +54,9 @@ insert into public.schedule_rules (product_id, weekdays, times, language) values
   ('00000000-0000-4000-8000-000000000202', '{2,6}', '{09:30}', 'de'),
   ('00000000-0000-4000-8000-000000000203', '{2,3,4,5,6,7}', '{10:30,17:30}', 'es'),
   ('00000000-0000-4000-8000-000000000203', '{1,3,5}', '{12:00}', 'en');
+
+-- Salidas de los próximos 120 días (la migración de salidas genera antes de que exista el seed).
+select public.generate_sessions(
+  (now() at time zone 'Atlantic/Canary')::date,
+  (now() at time zone 'Atlantic/Canary')::date + 120
+);
