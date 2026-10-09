@@ -33,6 +33,11 @@ export function isPublicPath(path: string): boolean {
   return path === "/" || /^\/(experiencias|reserva)\/[^/]/.test(path);
 }
 
+/** Texto del catálogo en el idioma de la web: el inglés si lo hay; si no, el español. */
+export function localizedText(locale: Locale, es: string, en: string): string {
+  return locale === "en" && en.trim() ? en : es;
+}
+
 /** Ruta (con su `?…`) en un idioma: «/experiencias/x?mes=…» → «/en/experiencias/x?mes=…». */
 export function localizedPath(locale: Locale, path: string): string {
   if (locale === DEFAULT_LOCALE) return path;

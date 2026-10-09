@@ -70,15 +70,22 @@ test("tipos de entrada: añadir, renombrar y eliminar con confirmación", async 
 
   await page.getByRole("button", { name: "Añadir" }).click();
   await expect(list.getByRole("listitem")).toHaveCount(before + 1);
-  const name = list.getByRole("listitem").last().getByLabel("Nombre");
+  const name = list.getByRole("listitem").last().getByLabel("Nombre", { exact: true });
   await expect(name).toBeFocused();
   await name.fill("Senior e2e");
   await name.press("Enter");
   await expectSaved(page);
+  const nameEn = list.getByRole("listitem").last().getByLabel("Nombre en inglés");
+  await nameEn.fill("Senior");
+  // Ya hay un aviso de «Ajustes guardados» en pantalla: se espera a la respuesta de la acción.
+  const saved = page.waitForResponse((response) => response.request().method() === "POST");
+  await nameEn.press("Enter");
+  await saved;
 
   await page.reload();
   const row = page.getByRole("list", { name: "Tipos de entrada" }).getByRole("listitem").last();
-  await expect(row.getByLabel("Nombre")).toHaveValue("Senior e2e");
+  await expect(row.getByLabel("Nombre", { exact: true })).toHaveValue("Senior e2e");
+  await expect(row.getByLabel("Nombre en inglés")).toHaveValue("Senior");
 
   await row.getByRole("button", { name: "Eliminar Senior e2e" }).click();
   const dialog = page.getByRole("dialog", { name: "¿Eliminar «Senior e2e»?" });

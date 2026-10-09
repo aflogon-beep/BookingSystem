@@ -21,7 +21,24 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { TICKET_TYPE_LIMITS, type TicketTypeField } from "@/lib/domain/settings";
 
-export type TicketTypeRow = { id: string; name: string; note: string; takesSeat: boolean; productCount: number };
+export type TicketTypeRow = {
+  id: string;
+  name: string;
+  note: string;
+  nameEn: string;
+  noteEn: string;
+  takesSeat: boolean;
+  productCount: number;
+};
+
+type TextField = "name" | "note" | "name_en" | "note_en";
+
+const ROW_VALUE: Record<TextField, (row: TicketTypeRow) => string> = {
+  name: (row) => row.name,
+  note: (row) => row.note,
+  name_en: (row) => row.nameEn,
+  note_en: (row) => row.noteEn,
+};
 
 const labelClass = "text-[0.75rem] font-medium text-muted-foreground min-[700px]:sr-only";
 
@@ -36,9 +53,21 @@ function useSave(id: string) {
     });
 }
 
-function TextCell({ row, field, label, maxLength }: { row: TicketTypeRow; field: "name" | "note"; label: string; maxLength: number }) {
+function TextCell({
+  row,
+  field,
+  label,
+  maxLength,
+  showLabel = false,
+}: {
+  row: TicketTypeRow;
+  field: TextField;
+  label: string;
+  maxLength: number;
+  showLabel?: boolean;
+}) {
   const save = useSave(row.id);
-  const saved = useRef(row[field]);
+  const saved = useRef(ROW_VALUE[field](row));
   const [invalid, setInvalid] = useState(false);
   const id = `tt-${field}-${row.id}`;
 
@@ -52,13 +81,14 @@ function TextCell({ row, field, label, maxLength }: { row: TicketTypeRow; field:
 
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <label htmlFor={id} className={labelClass}>
+      <label htmlFor={id} className={showLabel ? "text-[0.75rem] font-medium text-muted-foreground" : labelClass}>
         {label}
       </label>
       <Input
         id={id}
+        lang={field.endsWith("_en") ? "en" : undefined}
         data-ticket-name={field === "name" ? row.id : undefined}
-        defaultValue={row[field]}
+        defaultValue={ROW_VALUE[field](row)}
         maxLength={maxLength}
         aria-invalid={invalid || undefined}
         onBlur={(event) => commit(event.currentTarget.value)}
@@ -200,12 +230,16 @@ export function TicketTypesEditor({ rows }: { rows: TicketTypeRow[] }) {
             <div className="flex justify-end">
               <DeleteButton row={row} />
             </div>
+            <div className="col-span-2 grid gap-3 min-[700px]:contents">
+              <TextCell row={row} field="name_en" label="Nombre en inglés" maxLength={TICKET_TYPE_LIMITS.name} showLabel />
+              <TextCell row={row} field="note_en" label="Condición en inglés" maxLength={TICKET_TYPE_LIMITS.note} showLabel />
+            </div>
           </li>
         ))}
       </ul>
       <p className="border-t border-line-2 px-4 py-3 text-[0.75rem] text-faint">
         Desactiva <b className="font-semibold text-muted-foreground">Ocupa plaza</b> en entradas como bebés en brazos: se venden
-        pero no restan aforo.
+        pero no restan aforo. El nombre y la condición en inglés se ven en la web en inglés; si los dejas vacíos, en español.
       </p>
     </Box>
   );

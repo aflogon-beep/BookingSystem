@@ -28,7 +28,8 @@ function first(value: string | string[] | undefined): string | undefined {
 export default async function CheckoutPage({ params, searchParams }: PageProps<"/experiencias/[slug]/reservar">) {
   const { slug } = await params;
   if (!isSlug(slug)) notFound();
-  const [site, product, locale] = await Promise.all([loadSite(), loadWebProduct(slug), getLocale()]);
+  const locale = await getLocale();
+  const [site, product] = await Promise.all([loadSite(), loadWebProduct(slug, locale)]);
   if (!product) notFound();
   const text = webText(locale);
 

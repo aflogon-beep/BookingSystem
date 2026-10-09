@@ -57,7 +57,7 @@ export async function createWebBooking(input: WebBookingInput): Promise<{ ok: fa
 
   const { slug, sessionId, lines, expectedTotalCents } = request.data;
   const site = await loadSite();
-  const product = await loadWebProduct(slug);
+  const product = await loadWebProduct(slug, locale);
   const session = product ? await loadWebSession(product.id, sessionId, site.cutoffHours) : null;
   if (!product || !session) return { ok: false, error: webBookingErrorMessage("RB002", undefined, locale) };
   const cart = resolveCart(product.tickets, lines, session.free, locale);

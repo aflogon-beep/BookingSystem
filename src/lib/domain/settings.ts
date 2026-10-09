@@ -126,6 +126,15 @@ const ticketTypeFieldSchemas = {
     .trim()
     .max(TICKET_TYPE_LIMITS.note, { error: `La condición admite ${TICKET_TYPE_LIMITS.note} caracteres como máximo.` }),
   takes_seat: z.boolean({ error: "Valor no válido." }),
+  // En inglés, para la web /en (opcionales: vacíos, la web muestra el español).
+  name_en: z
+    .string()
+    .trim()
+    .max(TICKET_TYPE_LIMITS.name, { error: `El nombre en inglés admite ${TICKET_TYPE_LIMITS.name} caracteres como máximo.` }),
+  note_en: z
+    .string()
+    .trim()
+    .max(TICKET_TYPE_LIMITS.note, { error: `La condición en inglés admite ${TICKET_TYPE_LIMITS.note} caracteres como máximo.` }),
 };
 
 export type TicketTypeField = keyof typeof ticketTypeFieldSchemas;

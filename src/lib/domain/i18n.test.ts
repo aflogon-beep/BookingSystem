@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { longDayLabel } from "./calendar";
-import { isLocale, isPublicPath, localizedPath, splitLocale } from "./i18n";
+import { isLocale, isPublicPath, localizedPath, localizedText, splitLocale } from "./i18n";
 import { formatCents, formatWholeEuros } from "./money";
+import { productInputSchema } from "./product";
+import { parseTicketTypeField } from "./settings";
 import { monthTitle, seatsLeftLabel } from "./storefront";
 import { resolveCart, webBookingErrorMessage, webCustomerSchemaFor } from "./web-checkout";
 import { languageName, webText } from "./web-text";
@@ -84,5 +86,41 @@ describe("textos y formatos en inglés", () => {
   it("los dos idiomas tienen los mismos textos", () => {
     expect(Object.keys(webText("en")).sort()).toEqual(Object.keys(webText("es")).sort());
     expect(Object.keys(webText("en").errors).sort()).toEqual(Object.keys(webText("es").errors).sort());
+  });
+});
+
+describe("textos del catálogo en inglés", () => {
+  it("usa el inglés si lo hay y si no, el español", () => {
+    expect(localizedText("en", "Adulto", "Adult")).toBe("Adult");
+    expect(localizedText("en", "Adulto", "  ")).toBe("Adulto");
+    expect(localizedText("es", "Adulto", "Adult")).toBe("Adulto");
+  });
+
+  it("el editor de productos acepta textos en inglés opcionales y con límite", () => {
+    const base = {
+      name: "Teide",
+      description: "",
+      meetingPoint: "",
+      place: "",
+      durationMin: 60,
+      capacity: 10,
+      minPax: 1,
+      pickup: false,
+      color: "#0A84FF",
+      photoPath: null,
+      active: true,
+      prices: [{ ticketTypeId: "00000000-0000-4000-8000-000000000101", priceCents: 100 }],
+      rules: [],
+    };
+    const parsed = productInputSchema.parse(base);
+    expect([parsed.nameEn, parsed.descriptionEn, parsed.meetingPointEn]).toEqual(["", "", ""]);
+    expect(productInputSchema.parse({ ...base, nameEn: "  Teide  " }).nameEn).toBe("Teide");
+    expect(productInputSchema.safeParse({ ...base, nameEn: "x".repeat(121) }).success).toBe(false);
+  });
+
+  it("los tipos de entrada admiten nombre y condición en inglés, también vacíos", () => {
+    expect(parseTicketTypeField("name_en", " Adult ")).toEqual({ ok: true, value: "Adult" });
+    expect(parseTicketTypeField("name_en", "")).toEqual({ ok: true, value: "" });
+    expect(parseTicketTypeField("note_en", "x".repeat(121)).ok).toBe(false);
   });
 });

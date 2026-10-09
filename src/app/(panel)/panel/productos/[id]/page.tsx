@@ -17,7 +17,7 @@ export default async function Page({ params }: PageProps<"/panel/productos/[id]"
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, name, description, meeting_point, place, duration_min, capacity, min_pax, pickup, color, photo_path, active, product_prices(ticket_type_id, price_cents), schedule_rules(weekdays, times, language, valid_from, valid_to, created_at)",
+      "id, name, description, meeting_point, name_en, description_en, meeting_point_en, place, duration_min, capacity, min_pax, pickup, color, photo_path, active, product_prices(ticket_type_id, price_cents), schedule_rules(weekdays, times, language, valid_from, valid_to, created_at)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -29,6 +29,9 @@ export default async function Page({ params }: PageProps<"/panel/productos/[id]"
     name: data.name,
     description: data.description,
     meetingPoint: data.meeting_point,
+    nameEn: data.name_en,
+    descriptionEn: data.description_en,
+    meetingPointEn: data.meeting_point_en,
     place: data.place,
     durationMin: data.duration_min,
     capacity: data.capacity,

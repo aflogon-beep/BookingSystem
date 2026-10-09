@@ -6,6 +6,7 @@ import { addDays, format, parseISO } from "date-fns";
 
 import { createAdminClient } from "@/lib/db/admin";
 import { toBusinessDateTime } from "@/lib/domain/calendar";
+import { localizedText, type Locale } from "@/lib/domain/i18n";
 import { minPrice, productPhotoUrl } from "@/lib/domain/product";
 import { businessToday, GENERATION_DAYS, localToInstant } from "@/lib/domain/schedule";
 import { distinctLanguages, isWebBookable, type WebSession } from "@/lib/domain/storefront";
@@ -57,7 +58,7 @@ export type WebProduct = {
 };
 
 const PRODUCT_FIELDS =
-  "id, slug, name, description, meeting_point, place, duration_min, capacity, pickup, color, photo_path, product_prices(ticket_type_id, price_cents), schedule_rules(language, valid_to)";
+  "id, slug, name, description, meeting_point, name_en, description_en, meeting_point_en, place, duration_min, capacity, pickup, color, photo_path, product_prices(ticket_type_id, price_cents), schedule_rules(language, valid_to)";
 
 type ProductRow = {
   id: string;
@@ -65,6 +66,9 @@ type ProductRow = {
   name: string;
   description: string;
   meeting_point: string;
+  name_en: string;
+  description_en: string;
+  meeting_point_en: string;
   place: string;
   duration_min: number;
   capacity: number;
@@ -78,28 +82,37 @@ type ProductRow = {
 async function loadTicketTypes() {
   const { data, error } = await createAdminClient()
     .from("ticket_types")
-    .select("id, name, note, takes_seat")
+    .select("id, name, note, name_en, note_en, takes_seat")
     .order("sort")
     .order("created_at");
   if (error) throw new Error("No se pudieron cargar las entradas.");
   return data;
 }
 
-function toWebProduct(row: ProductRow, ticketTypes: Awaited<ReturnType<typeof loadTicketTypes>>): WebProduct {
+/** Producto para la web en un idioma: los textos en inglés que falten se ven en español. */
+function toWebProduct(row: ProductRow, ticketTypes: Awaited<ReturnType<typeof loadTicketTypes>>, locale: Locale): WebProduct {
   const { supabaseUrl } = getPublicEnv();
   const today = businessToday();
   const tickets = ticketTypes.flatMap((ticketType): WebTicket[] => {
     const price = row.product_prices.find((candidate) => candidate.ticket_type_id === ticketType.id);
     return price
-      ? [{ id: ticketType.id, name: ticketType.name, note: ticketType.note, takesSeat: ticketType.takes_seat, priceCents: price.price_cents }]
+      ? [
+          {
+            id: ticketType.id,
+            name: localizedText(locale, ticketType.name, ticketType.name_en),
+            note: localizedText(locale, ticketType.note, ticketType.note_en),
+            takesSeat: ticketType.takes_seat,
+            priceCents: price.price_cents,
+          },
+        ]
       : [];
   });
   return {
     id: row.id,
     slug: row.slug,
-    name: row.name,
-    description: row.description,
-    meetingPoint: row.meeting_point,
+    name: localizedText(locale, row.name, row.name_en),
+    description: localizedText(locale, row.description, row.description_en),
+    meetingPoint: localizedText(locale, row.meeting_point, row.meeting_point_en),
     place: row.place,
     durationMin: row.duration_min,
     capacity: row.capacity,
@@ -116,7 +129,7 @@ function toWebProduct(row: ProductRow, ticketTypes: Awaited<ReturnType<typeof lo
 }
 
 /** Productos a la venta para el listado, en el orden del panel. */
-export async function loadWebProducts(): Promise<WebProduct[]> {
+export async function loadWebProducts(locale: Locale): Promise<WebProduct[]> {
   const [{ data, error }, ticketTypes] = await Promise.all([
     createAdminClient()
       .from("products")
@@ -127,7 +140,7 @@ export async function loadWebProducts(): Promise<WebProduct[]> {
     loadTicketTypes(),
   ]);
   if (error) throw new Error("No se pudieron cargar las experiencias.");
-  return data.map((row) => toWebProduct(row, ticketTypes)).filter(isSellable);
+  return data.map((row) => toWebProduct(row, ticketTypes, locale)).filter(isSellable);
 }
 
 /** Se puede comprar si vende alguna entrada con plaza (create_booking_hold exige al menos una). */
@@ -136,7 +149,7 @@ function isSellable(product: WebProduct): boolean {
 }
 
 /** Un producto a la venta por su slug, o null. Compartido entre la página y sus metadatos. */
-export const loadWebProduct = cache(async (slug: string): Promise<WebProduct | null> => {
+export const loadWebProduct = cache(async (slug: string, locale: Locale): Promise<WebProduct | null> => {
   const [{ data, error }, ticketTypes] = await Promise.all([
     createAdminClient()
       .from("products")
@@ -148,7 +161,7 @@ export const loadWebProduct = cache(async (slug: string): Promise<WebProduct | n
   ]);
   if (error) throw new Error("No se pudo cargar la experiencia.");
   if (!data) return null;
-  const product = toWebProduct(data, ticketTypes);
+  const product = toWebProduct(data, ticketTypes, locale);
   return isSellable(product) ? product : null;
 });
 

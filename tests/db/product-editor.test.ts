@@ -106,6 +106,36 @@ describe("save_product", () => {
     });
   });
 
+  it("guarda los textos en inglés y, si no llegan, los deja vacíos", async () => {
+    const english = { name_en: "Test tour", description_en: "A walk.", meeting_point_en: "Square" };
+    const { data: created, error } = await member.db.rpc("save_product", {
+      p_product: productJson(english),
+      p_prices: [{ ticket_type_id: ADULT_ID, price_cents: 3900 }],
+      p_rules: [],
+    });
+    expect(error).toBeNull();
+    const { id } = created as { id: string };
+    createdProductIds.push(id);
+    const read = () => member.db.from("products").select("name_en, description_en, meeting_point_en").eq("id", id).single();
+    expect((await read()).data).toEqual(english);
+
+    await member.db.rpc("save_product", {
+      p_id: id,
+      p_product: productJson(),
+      p_prices: [{ ticket_type_id: ADULT_ID, price_cents: 3900 }],
+      p_rules: [],
+    });
+    expect((await read()).data).toEqual({ name_en: "", description_en: "", meeting_point_en: "" });
+
+    const tooLong = await member.db.rpc("save_product", {
+      p_id: id,
+      p_product: productJson({ name_en: "x".repeat(121) }),
+      p_prices: [{ ticket_type_id: ADULT_ID, price_cents: 3900 }],
+      p_rules: [],
+    });
+    expect(tooLong.error?.code).toBe("23514");
+  });
+
   it("si algo falla no guarda nada (una sola transacción)", async () => {
     const product = productJson();
     const { error } = await member.db.rpc("save_product", {

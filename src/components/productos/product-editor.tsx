@@ -52,6 +52,9 @@ export type EditorProduct = {
   name: string;
   description: string;
   meetingPoint: string;
+  nameEn: string;
+  descriptionEn: string;
+  meetingPointEn: string;
   place: string;
   durationMin: number;
   capacity: number;
@@ -70,6 +73,9 @@ type Draft = {
   name: string;
   description: string;
   meetingPoint: string;
+  nameEn: string;
+  descriptionEn: string;
+  meetingPointEn: string;
   place: string;
   durationMin: string;
   capacity: string;
@@ -103,6 +109,9 @@ function toDraft(product: EditorProduct, ticketTypes: readonly EditorTicketType[
     name: product.name,
     description: product.description,
     meetingPoint: product.meetingPoint,
+    nameEn: product.nameEn,
+    descriptionEn: product.descriptionEn,
+    meetingPointEn: product.meetingPointEn,
     place: product.place,
     durationMin: String(product.durationMin),
     capacity: String(product.capacity),
@@ -145,6 +154,9 @@ function buildInput(draft: Draft, active: boolean, ticketTypes: readonly EditorT
       name: draft.name,
       description: draft.description,
       meetingPoint: draft.meetingPoint,
+      nameEn: draft.nameEn,
+      descriptionEn: draft.descriptionEn,
+      meetingPointEn: draft.meetingPointEn,
       place: draft.place,
       durationMin: toNumber(draft.durationMin),
       capacity: toNumber(draft.capacity),
@@ -426,6 +438,41 @@ function GeneralTab({ draft, update, photo }: TabProps & { photo: PhotoState }) 
           Ofrece recogida en hotel <span className="text-muted-foreground">(se pide el hotel al reservar)</span>
         </label>
       </div>
+      <fieldset className="col-span-full grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3.5 rounded-xl border border-line-2 p-3.5">
+        <legend className="px-1 text-[0.8rem] font-medium text-[#2a3644]">
+          En inglés <span className="font-normal text-muted-foreground">(web en inglés; si lo dejas vacío, se ve en español)</span>
+        </legend>
+        <Field id="pf-name-en" label="Nombre en inglés" className="col-span-full">
+          <Input
+            id="pf-name-en"
+            lang="en"
+            value={draft.nameEn}
+            maxLength={PRODUCT_LIMITS.name}
+            placeholder="E.g.: Volcano route"
+            onChange={(event) => update({ nameEn: event.target.value })}
+          />
+        </Field>
+        <Field id="pf-desc-en" label="Descripción en inglés" className="col-span-full">
+          <textarea
+            id="pf-desc-en"
+            lang="en"
+            rows={3}
+            value={draft.descriptionEn}
+            maxLength={PRODUCT_LIMITS.description}
+            onChange={(event) => update({ descriptionEn: event.target.value })}
+            className="w-full min-w-0 rounded-[10px] border border-input bg-surface px-3 py-2 text-[0.95rem] text-foreground outline-none placeholder:text-faint focus-visible:border-[#66aaf0] focus-visible:ring-[3px] focus-visible:ring-primary/15 tablet:text-sm"
+          />
+        </Field>
+        <Field id="pf-meet-en" label="Punto de encuentro en inglés">
+          <Input
+            id="pf-meet-en"
+            lang="en"
+            value={draft.meetingPointEn}
+            maxLength={PRODUCT_LIMITS.meetingPoint}
+            onChange={(event) => update({ meetingPointEn: event.target.value })}
+          />
+        </Field>
+      </fieldset>
       <PhotoField draft={draft} update={update} {...photo} />
       <div className="col-span-full flex flex-col gap-1.5">
         <span id="pf-color" className="text-[0.8rem] font-medium text-[#2a3644]">
