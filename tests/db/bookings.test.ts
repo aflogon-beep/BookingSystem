@@ -11,23 +11,33 @@ const BABY_ID = "00000000-0000-4000-8000-000000000103";
 
 // Fechas lejanas para no cruzarse con el seed ni con los e2e.
 const DAY = "2031-03-12";
+const PRODUCT_NAME = "Tour de reservas (test)";
 
 let member: TestUser;
 let outsider: TestUser;
 const productIds: string[] = [];
-const sessionIds: string[] = [];
 const ticketTypeIds: string[] = [];
 const testTag = randomUUID().slice(0, 8);
 
+/** Borra lo que haya dejado una ejecución anterior interrumpida (los e2e usan la misma BD). */
+async function removeTestProducts(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const { data: sessions } = await adminDb.from("sessions").select("id").in("product_id", ids);
+  const sessionIdsToClean = sessions?.map((session) => session.id) ?? [];
+  if (sessionIdsToClean.length) await adminDb.from("bookings").delete().in("session_id", sessionIdsToClean);
+  await adminDb.from("products").delete().in("id", ids);
+}
+
 beforeAll(async () => {
+  const { data: leftovers } = await adminDb.from("products").select("id").eq("name", PRODUCT_NAME);
+  await removeTestProducts(leftovers?.map((product) => product.id) ?? []);
   member = await createTestUser({ name: "Carla Staff", role: "staff" });
   outsider = await createTestUser();
 });
 
 afterAll(async () => {
-  if (sessionIds.length) await adminDb.from("bookings").delete().in("session_id", sessionIds);
+  await removeTestProducts(productIds);
   await adminDb.from("customers").delete().like("email", `%-${testTag}@example.test`);
-  if (productIds.length) await adminDb.from("products").delete().in("id", productIds);
   if (ticketTypeIds.length) await adminDb.from("ticket_types").delete().in("id", ticketTypeIds);
   await deleteTestUsers([outsider, member]);
 });
@@ -37,7 +47,7 @@ async function createSession(capacity = 10): Promise<{ productId: string; sessio
   const { data, error } = await member.db.rpc("save_product", {
     p_product: {
       slug: `reservas-${randomUUID()}`,
-      name: "Tour de reservas",
+      name: PRODUCT_NAME,
       description: "",
       meeting_point: "",
       place: "",
@@ -67,7 +77,6 @@ async function createSession(capacity = 10): Promise<{ productId: string; sessio
     .eq("product_id", productId)
     .single();
   if (sessionError) throw sessionError;
-  sessionIds.push(session.id);
   return { productId, sessionId: session.id };
 }
 
@@ -145,9 +154,9 @@ describe("create_booking_hold", () => {
     const { sessionId } = await createSession(4);
     const hold = await bookOk(sessionId, adults(3), { channel: "web" }, adminDb);
     expect(hold).toMatchObject({ status: "pending", payment_status: "pending", total_cents: 15000 });
-    const minutes = (new Date(hold.hold_expires_at ?? 0).getTime() - Date.now()) / 60_000;
-    expect(minutes).toBeGreaterThan(34);
-    expect(minutes).toBeLessThanOrEqual(35.1);
+    const { data: row } = await adminDb.from("bookings").select("created_at").eq("id", hold.id).single();
+    const minutes = (new Date(hold.hold_expires_at ?? 0).getTime() - new Date(row?.created_at ?? 0).getTime()) / 60_000;
+    expect(minutes).toBeCloseTo(35, 3);
     expect((await book(sessionId, adults(2))).error?.code).toBe("RB001");
 
     await adminDb.from("bookings").update({ hold_expires_at: new Date(Date.now() - 1000).toISOString() }).eq("id", hold.id);
@@ -209,26 +218,87 @@ describe("create_booking_hold", () => {
     await bookOk(sessionId, adults(1));
   });
 
-  it("reutiliza el cliente si repite email", async () => {
+  it("reutiliza el cliente si repite email y nombre; con otro nombre crea otro", async () => {
     const { sessionId } = await createSession();
     const person = customer("Marta Ruiz");
     const first = await bookOk(sessionId, adults(1), { channel: "phone" }, member.db, person);
-    const second = await bookOk(sessionId, adults(1), { channel: "phone" }, member.db, { ...person, email: person.email.toUpperCase() });
-    const { data } = await adminDb.from("bookings").select("customer_id").in("id", [first.id, second.id]);
-    expect(new Set(data?.map((row) => row.customer_id)).size).toBe(1);
+    const same = await bookOk(sessionId, adults(1), { channel: "phone" }, member.db, {
+      name: "marta ruiz",
+      email: person.email.toUpperCase(),
+    });
+    const other = await bookOk(sessionId, adults(1), { channel: "agency", agent: "Viajes Teide" }, member.db, {
+      ...person,
+      name: "Jon Smith",
+    });
+    const { data } = await adminDb.from("bookings").select("id, agent, customers(name)").in("id", [first.id, same.id, other.id]);
+    const nameOf = (id: string) => data?.find((row) => row.id === id)?.customers.name;
+    expect([nameOf(first.id), nameOf(same.id), nameOf(other.id)]).toEqual(["Marta Ruiz", "Marta Ruiz", "Jon Smith"]);
+    expect(data?.find((row) => row.id === other.id)?.agent).toBe("Viajes Teide");
+  });
+
+  it("la web respeta el cierre de venta y nadie reserva una salida ya empezada", async () => {
+    const { sessionId } = await createSession();
+    // Ajustes del seed: cierre de venta 2 horas antes.
+    const soon = new Date(Date.now() + 60 * 60_000).toISOString();
+    await adminDb.from("sessions").update({ starts_at: soon, ends_at: new Date(Date.now() + 2 * 60 * 60_000).toISOString() }).eq("id", sessionId);
+    expect((await book(sessionId, adults(1), { channel: "web" }, adminDb)).error?.code).toBe("RB002");
+    await bookOk(sessionId, adults(1), { channel: "phone" });
+
+    const { sessionId: started } = await createSession();
+    const past = new Date(Date.now() - 60_000).toISOString();
+    await adminDb.from("sessions").update({ starts_at: past }).eq("id", started);
+    expect((await book(started, adults(1))).error?.code).toBe("RB002");
+  });
+
+  it("líneas mal formadas dan RB003, no un error genérico", async () => {
+    const { sessionId } = await createSession();
+    const bad = [
+      [{ ticket_type_id: ADULT_ID, qty: 1 }, { ticket_type_id: CHILD_ID, qty: null }],
+      [{ ticket_type_id: "no-es-un-uuid", qty: 1 }],
+      [{ ticket_type_id: ADULT_ID, qty: "dos" }],
+    ];
+    for (const lines of bad) {
+      const { error } = await member.db.rpc("create_booking_hold", {
+        p_session_id: sessionId,
+        p_lines: lines,
+        p_customer: customer(),
+        p_booking: { channel: "phone" },
+      });
+      expect(error?.code, JSON.stringify(lines)).toBe("RB003");
+    }
   });
 });
 
 describe("salidas y productos con reservas", () => {
-  it("generate_sessions no borra ni cambia una salida con reservas", async () => {
+  it("generate_sessions no cambia una salida con plazas ocupadas", async () => {
     const { productId, sessionId } = await createSession();
     await bookOk(sessionId, adults(1));
-    await member.db.from("schedule_rules").delete().eq("product_id", productId);
     await member.db.from("products").update({ capacity: 30 }).eq("id", productId);
     const { error } = await member.db.rpc("generate_sessions", { p_from: DAY, p_to: DAY, p_product_id: productId });
     expect(error).toBeNull();
     const { data } = await adminDb.from("sessions").select("id, capacity, status").eq("product_id", productId);
     expect(data).toEqual([{ id: sessionId, capacity: 10, status: "open" }]);
+  });
+
+  it("si la regla desaparece, una salida con reservas se cierra en lugar de borrarse", async () => {
+    const { productId, sessionId } = await createSession();
+    // Un pago web abandonado: la reserva caduca, pero queda en el historial.
+    const hold = await bookOk(sessionId, adults(1), { channel: "web" }, adminDb);
+    await adminDb.from("bookings").update({ hold_expires_at: new Date(Date.now() - 1000).toISOString() }).eq("id", hold.id);
+    await member.db.from("schedule_rules").delete().eq("product_id", productId);
+    const { error } = await member.db.rpc("generate_sessions", { p_from: DAY, p_to: DAY, p_product_id: productId });
+    expect(error).toBeNull();
+    const { data } = await adminDb.from("sessions").select("id, status").eq("product_id", productId);
+    expect(data).toEqual([{ id: sessionId, status: "closed" }]);
+  });
+
+  it("el aforo de una salida no baja de las plazas ocupadas", async () => {
+    const { sessionId } = await createSession();
+    await bookOk(sessionId, adults(4));
+    const tooLow = await member.db.from("sessions").update({ capacity: 3, capacity_custom: true }).eq("id", sessionId);
+    expect(tooLow.error?.code).toBe("RB001");
+    const ok = await member.db.from("sessions").update({ capacity: 4, capacity_custom: true }).eq("id", sessionId);
+    expect(ok.error).toBeNull();
   });
 
   it("no se puede borrar un producto ni un tipo de entrada con reservas", async () => {
@@ -265,7 +335,29 @@ describe("RLS de reservas", () => {
     expect((await outsider.db.from("bookings").select("id")).data).toEqual([]);
     expect((await outsider.db.from("customers").select("id")).data).toEqual([]);
     expect((await outsider.db.from("session_availability").select("session_id")).data).toEqual([]);
-    expect((await book(sessionId, adults(1), { channel: "phone" }, outsider.db)).error?.code).toBe("P0002");
+    expect((await book(sessionId, adults(1), { channel: "phone" }, outsider.db)).error?.code).toBe("42501");
+    // La web solo entra desde el servidor (service role), ni siquiera el equipo.
+    expect((await book(sessionId, adults(1), { channel: "web" })).error?.code).toBe("42501");
+  });
+
+  it("el equipo no crea reservas, líneas ni historial a mano, ni cambia estado o importes", async () => {
+    const { sessionId } = await createSession();
+    const created = await bookOk(sessionId, adults(1), { channel: "phone" });
+    const { data: line } = await adminDb.from("booking_lines").select("*").eq("booking_id", created.id).single();
+    const { data: booking } = await adminDb
+      .from("bookings")
+      .select("session_id, customer_id, channel, total_cents")
+      .eq("id", created.id)
+      .single();
+    if (!line || !booking) throw new Error("Sin reserva");
+    const direct = await member.db.from("bookings").insert({ ...booking, code: "VT222222", status: "confirmed", total_cents: 0 });
+    expect(direct.error?.code).toBe("42501");
+    expect((await member.db.from("booking_lines").insert({ ...line, qty: 50 })).error?.code).toBe("42501");
+    expect((await member.db.from("booking_events").insert({ booking_id: created.id, actor: "Otro", text: "x" })).error?.code).toBe("42501");
+    expect((await member.db.from("bookings").update({ status: "cancelled" }).eq("id", created.id)).error?.code).toBe("42501");
+    expect((await member.db.from("bookings").update({ paid_cents: 999 }).eq("id", created.id)).error?.code).toBe("42501");
+    const notes = await member.db.from("bookings").update({ notes: "Alergia al gluten", checked_in: true }).eq("id", created.id);
+    expect(notes.error).toBeNull();
   });
 
   it("el equipo no puede borrar reservas ni editar sus líneas", async () => {

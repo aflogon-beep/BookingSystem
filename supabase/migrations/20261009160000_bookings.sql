@@ -13,9 +13,10 @@ create table public.customers (
   created_at timestamptz not null default now()
 );
 
-create unique index customers_email_unique on public.customers (email) where email is not null;
+create index customers_email_idx on public.customers (email);
 
-comment on table public.customers is 'Clientes que reservan. Se reutiliza el mismo cliente si repite email.';
+comment on table public.customers is
+  'Clientes que reservan. Se reutiliza el mismo cliente si repite email y nombre (una agencia reserva con su email para varios clientes).';
 
 -- Reservas ---------------------------------------------------------------------------------------
 
@@ -82,10 +83,12 @@ alter table public.booking_events enable row level security;
 
 revoke all on table public.customers, public.bookings, public.booking_lines, public.booking_events
   from anon, authenticated;
--- Las reservas no se borran (se cancelan) y sus líneas e historial no se editan.
+-- Reservas, líneas e historial solo se crean con create_booking_hold (y las funciones de las
+-- próximas tareas), que comprueban plazas y precios. El equipo edita a mano solo los datos que no
+-- afectan a plazas ni a pagos. Las reservas no se borran (se cancelan).
 grant select, insert, update, delete on table public.customers to authenticated;
-grant select, insert, update on table public.bookings to authenticated;
-grant select, insert on table public.booking_lines, public.booking_events to authenticated;
+grant select on table public.bookings, public.booking_lines, public.booking_events to authenticated;
+grant update (checked_in, agent, hotel, notes) on table public.bookings to authenticated;
 
 create policy customers_select_staff on public.customers
   for select to authenticated using ((select public.is_staff()));
@@ -99,20 +102,14 @@ create policy customers_delete_admin on public.customers
 
 create policy bookings_select_staff on public.bookings
   for select to authenticated using ((select public.is_staff()));
-create policy bookings_insert_staff on public.bookings
-  for insert to authenticated with check ((select public.is_staff()));
 create policy bookings_update_staff on public.bookings
   for update to authenticated using ((select public.is_staff())) with check ((select public.is_staff()));
 
 create policy booking_lines_select_staff on public.booking_lines
   for select to authenticated using ((select public.is_staff()));
-create policy booking_lines_insert_staff on public.booking_lines
-  for insert to authenticated with check ((select public.is_staff()));
 
 create policy booking_events_select_staff on public.booking_events
   for select to authenticated using ((select public.is_staff()));
-create policy booking_events_insert_staff on public.booking_events
-  for insert to authenticated with check ((select public.is_staff()));
 
 -- Disponibilidad ---------------------------------------------------------------------------------
 
@@ -140,6 +137,53 @@ left join lateral (
 revoke all on table public.session_availability from anon, authenticated;
 grant select on table public.session_availability to authenticated;
 
+-- Plazas ocupadas ahora mismo en una salida (misma regla que la vista).
+create function public.session_occupied_seats(p_session_id uuid)
+returns integer
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coalesce(sum(l.qty), 0)::integer
+  from public.bookings b
+  join public.booking_lines l on l.booking_id = b.id
+  where b.session_id = p_session_id
+    and l.takes_seat
+    and (b.status = 'confirmed' or (b.status = 'pending' and b.hold_expires_at > now()));
+$$;
+
+-- security invoker: RLS decide (el equipo ve todas las reservas; otros, ninguna).
+revoke all on function public.session_occupied_seats(uuid) from public, anon;
+grant execute on function public.session_occupied_seats(uuid) to authenticated, service_role;
+
+-- El aforo de una salida no puede bajar de las plazas ya ocupadas. La fila ya está bloqueada por
+-- el update, así que ninguna reserva se cuela entre la comprobación y el cambio.
+create function public.sessions_check_capacity()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_occupied integer := public.session_occupied_seats(new.id);
+begin
+  if new.capacity < v_occupied then
+    raise exception 'El aforo no puede ser menor que las plazas ocupadas (%)', v_occupied
+      using errcode = 'RB001', hint = v_occupied::text;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.sessions_check_capacity() from public, anon, authenticated;
+
+create trigger sessions_check_capacity
+  before update of capacity on public.sessions
+  for each row
+  when (new.capacity < old.capacity)
+  execute function public.sessions_check_capacity();
+
 -- Crear reserva ----------------------------------------------------------------------------------
 
 -- Única forma de crear una reserva. Bloquea la salida (for update), calcula las plazas libres y
@@ -153,9 +197,11 @@ grant select on table public.session_availability to authenticated;
 --   * phone/desk/agency (panel): confirmada al momento hasta la hora de salida. El estado de
 --     pago sale del método: TPV o efectivo, pagada; factura, a factura; si no, pendiente.
 -- Errores: RB001 sin plazas suficientes (HINT = plazas libres), RB002 la salida no admite
--- reservas, RB003 entradas no válidas, P0002 salida no encontrada, 22023 otros datos.
--- security invoker: equipo (RLS) o service role (web, desde el servidor). Toma en modo
--- compartido el cerrojo de generate_sessions para que no borre una salida mientras se reserva.
+-- reservas, RB003 entradas no válidas, P0002 salida no encontrada, 42501 sin permiso, 22023
+-- otros datos.
+-- security definer: el equipo no puede insertar reservas a mano, así que la función comprueba
+-- quién llama: canales del panel, solo el equipo; web, solo service role (el servidor). Toma en
+-- modo compartido el cerrojo de generate_sessions para que no toque la salida mientras se reserva.
 create function public.create_booking_hold(
   p_session_id uuid,
   p_lines jsonb,
@@ -165,7 +211,7 @@ create function public.create_booking_hold(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -194,6 +240,13 @@ declare
 begin
   if v_channel not in ('web', 'phone', 'desk', 'agency') then
     raise exception 'Canal no válido' using errcode = 'invalid_parameter_value';
+  end if;
+  if v_channel = 'web' then
+    if coalesce(auth.role(), '') <> 'service_role' then
+      raise exception 'Sin permiso' using errcode = 'insufficient_privilege';
+    end if;
+  elsif not public.is_staff() then
+    raise exception 'Sin permiso' using errcode = 'insufficient_privilege';
   end if;
   if v_channel = 'web' then
     if p_hold_minutes is null or p_hold_minutes not between 1 and 120 then
@@ -231,11 +284,12 @@ begin
     end if;
   end if;
 
+  begin
   select
     count(*),
     count(distinct r.ticket_type_id),
     count(pp.ticket_type_id),
-    bool_and(r.qty between 1 and 100),
+    bool_and(coalesce(r.qty between 1 and 100, false)),
     coalesce(sum(r.qty) filter (where t.takes_seat), 0),
     coalesce(sum(r.qty::bigint * pp.price_cents), 0)
   into v_line_count, v_distinct, v_priced, v_qty_ok, v_seats, v_total
@@ -245,6 +299,9 @@ begin
   ) r
   left join public.ticket_types t on t.id = r.ticket_type_id
   left join public.product_prices pp on pp.product_id = v_session.product_id and pp.ticket_type_id = r.ticket_type_id;
+  exception when invalid_text_representation or numeric_value_out_of_range or invalid_parameter_value then
+    raise exception 'Entradas no válidas' using errcode = 'RB003';
+  end;
   if v_distinct <> v_line_count or v_priced <> v_line_count or not coalesce(v_qty_ok, false) then
     raise exception 'Entradas no válidas' using errcode = 'RB003';
   end if;
@@ -255,21 +312,26 @@ begin
     raise exception 'Importe demasiado alto' using errcode = 'RB003';
   end if;
 
-  select coalesce(sum(l.qty), 0) into v_occupied
-  from public.bookings b
-  join public.booking_lines l on l.booking_id = b.id
-  where b.session_id = v_session.id
-    and l.takes_seat
-    and (b.status = 'confirmed' or (b.status = 'pending' and b.hold_expires_at > now()));
+  v_occupied := public.session_occupied_seats(v_session.id);
   if v_seats > v_session.capacity - v_occupied then
     raise exception 'No quedan plazas suficientes' using
       errcode = 'RB001', hint = greatest(v_session.capacity - v_occupied, 0)::text;
   end if;
 
-  insert into public.customers (name, email, phone)
-  values (v_name, v_email, v_phone)
-  on conflict (email) where email is not null do update set email = excluded.email
-  returning id into v_customer_id;
+  -- Mismo email y mismo nombre: el mismo cliente. Si no, uno nuevo (una agencia reserva con su
+  -- email para clientes distintos; y nadie se une a la ficha de otro solo con su email).
+  if v_email is not null then
+    select id into v_customer_id
+    from public.customers
+    where email = v_email and lower(name) = lower(v_name)
+    order by created_at
+    limit 1;
+  end if;
+  if v_customer_id is null then
+    insert into public.customers (name, email, phone)
+    values (v_name, v_email, v_phone)
+    returning id into v_customer_id;
+  end if;
 
   if v_channel = 'web' then
     v_status := 'pending';
@@ -287,15 +349,16 @@ begin
 
   loop
     v_attempt := v_attempt + 1;
-    v_code := 'VT' || (
-      select string_agg(substr('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 1 + floor(random() * 32)::integer, 1), '')
-      from generate_series(1, 6)
-    );
+    -- 6 caracteres de 32 posibles con bytes aleatorios seguros (los 6 primeros de un uuid v4).
+    select 'VT' || string_agg(substr('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 1 + get_byte(b, i) % 32, 1), '' order by i)
+    into v_code
+    from (select uuid_send(gen_random_uuid()) as b) as random_bytes, generate_series(0, 5) as i;
     begin
       insert into public.bookings (code, session_id, customer_id, status, payment_status, payment_method, channel,
         agent, hotel, notes, total_cents, paid_cents, hold_expires_at)
       values (v_code, v_session.id, v_customer_id, v_status, v_payment_status, v_method, v_channel,
-        btrim(coalesce(p_booking->>'agent', '')), btrim(coalesce(p_booking->>'hotel', '')),
+        case when v_channel = 'agency' then btrim(coalesce(p_booking->>'agent', '')) else '' end,
+        btrim(coalesce(p_booking->>'hotel', '')),
         btrim(coalesce(p_booking->>'notes', '')), v_total,
         case when v_payment_status = 'paid' then v_total else 0 end, v_hold)
       returning id into v_booking_id;
@@ -334,9 +397,12 @@ grant execute on function public.create_booking_hold(uuid, jsonb, jsonb, jsonb, 
 
 -- Generar salidas --------------------------------------------------------------------------------
 
--- Igual que en 20261009140000_sessions.sql, salvo que no borra ni cambia salidas con reservas
--- (de cualquier estado: siguen en su historial). create_booking_hold toma el mismo cerrojo en
--- modo compartido, así que mientras esto corre no entra ninguna reserva a medias.
+-- Igual que en 20261009140000_sessions.sql, salvo con reservas:
+--   * Una salida que ya no piden las reglas y tiene reservas (de cualquier estado: siguen en su
+--     historial) no se borra: se cierra, para que no se venda más.
+--   * Una salida con plazas ocupadas no cambia de idioma, hora de fin ni aforo.
+-- create_booking_hold toma el mismo cerrojo en modo compartido, así que mientras esto corre no
+-- entra ninguna reserva a medias.
 create or replace function public.generate_sessions(p_from date, p_to date, p_product_id uuid default null)
 returns integer
 language plpgsql
@@ -387,6 +453,17 @@ begin
       and (p_product_id is null or s.product_id = p_product_id)
       and not exists (select 1 from wanted w where w.product_id = s.product_id and w.starts_at = s.starts_at)
       and not exists (select 1 from public.bookings b where b.session_id = s.id)
+  ),
+  closed as (
+    update public.sessions s
+    set status = 'closed'
+    where s.status = 'open'
+      and s.starts_at > now()
+      and s.starts_at >= p_from::timestamp at time zone v_tz
+      and s.starts_at < (p_to + 1)::timestamp at time zone v_tz
+      and (p_product_id is null or s.product_id = p_product_id)
+      and not exists (select 1 from wanted w where w.product_id = s.product_id and w.starts_at = s.starts_at)
+      and exists (select 1 from public.bookings b where b.session_id = s.id)
   )
   insert into public.sessions (product_id, starts_at, ends_at, language, capacity)
   select w.product_id, w.starts_at, w.starts_at + make_interval(mins => w.duration_min), w.language, w.capacity
@@ -397,7 +474,7 @@ begin
         ends_at = excluded.ends_at,
         capacity = case when public.sessions.capacity_custom then public.sessions.capacity else excluded.capacity end
     where public.sessions.status = 'open'
-      and not exists (select 1 from public.bookings b where b.session_id = public.sessions.id)
+      and public.session_occupied_seats(public.sessions.id) = 0
       and (
         (public.sessions.language, public.sessions.ends_at) is distinct from (excluded.language, excluded.ends_at)
         or (not public.sessions.capacity_custom and public.sessions.capacity <> excluded.capacity)

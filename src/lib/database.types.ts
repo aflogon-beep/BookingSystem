@@ -271,6 +271,9 @@ isOneToOne: false
                            },
 "save_product":
 { Args: { "p_id"?: string,"p_prices": Json,"p_product": Json,"p_rules": Json }; Returns: Json
+                           },
+"session_occupied_seats":
+{ Args: { "p_session_id": string }; Returns: number
                            }
           }
           Enums: {
