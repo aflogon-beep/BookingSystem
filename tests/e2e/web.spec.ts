@@ -16,8 +16,9 @@ function tuesdayFor(project: string): string {
 // La web pública no necesita sesión.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-// Cada ejecución deja una reserva de 3 plazas en el martes de cada proyecto (16 plazas): en local,
-// tras unas cuantas ejecuciones hace falta `npx supabase db reset`. En CI la BD es nueva.
+// Cada ejecución deja una reserva de 3 plazas en el martes de cada proyecto y otra de 1 en el
+// domingo (16 plazas): en local, tras unas cuantas ejecuciones hace falta `npx supabase db reset`.
+// En CI la BD es nueva.
 test("del listado a la ficha y a la confirmación", async ({ page, browser }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
@@ -79,16 +80,20 @@ test("del listado a la ficha y a la confirmación", async ({ page, browser }, te
   await other.close();
 });
 
-// Una reserva más de 1 plaza en el mismo martes.
+// El domingo de esa misma semana: ningún otro e2e usa los domingos.
+function sundayFor(project: string): string {
+  return format(addDays(parseISO(tuesdayFor(project)), 5), "yyyy-MM-dd");
+}
+
 test("la web en inglés, de la portada a la confirmación", async ({ page }, testInfo) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "English version" }).click();
+  await page.getByRole("link", { name: /^EN/ }).click();
   await expect(page).toHaveURL(/\/en$/);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page).toHaveTitle("Experiences in Tenerife · Volcán Tours");
   await expect(page.getByRole("link", { name: /Teide al atardecer y estrellas/ })).toContainText(/From\s€45/);
 
-  const day = tuesdayFor(testInfo.project.name);
+  const day = sundayFor(testInfo.project.name);
   await page.goto(`/en/experiencias/teide-atardecer-estrellas?fecha=${day}`);
   const booking = page.getByRole("complementary", { name: "Book" });
   await expect(booking.locator('[aria-current="date"]')).toHaveAttribute(
@@ -96,6 +101,7 @@ test("la web en inglés, de la portada a la confirmación", async ({ page }, tes
     new RegExp(`^${longDayLabel(day, "en")}, from €45$`),
   );
   await booking.getByRole("link", { name: /16:30/ }).click();
+  await expect(booking.getByRole("link", { name: /16:30/ })).toHaveAttribute("aria-current", "true");
   await booking.getByRole("button", { name: "Add Adulto" }).click();
   await booking.getByRole("link", { name: "Continue" }).click();
 
@@ -111,9 +117,10 @@ test("la web en inglés, de la portada a la confirmación", async ({ page }, tes
   await expect(page.getByRole("region", { name: "Your booking" })).toContainText("Pay there");
 
   // Misma reserva en español con el selector de idioma.
-  await page.getByRole("link", { name: "Versión en español" }).click();
+  await page.getByRole("link", { name: /^ES/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "¡Reserva confirmada!" })).toBeVisible();
-  await expect(page).toHaveURL(/\/reserva\/VT[0-9A-Z]{6}$/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "es");
+  expect(new URL(page.url()).pathname).toMatch(/^\/reserva\/VT[0-9A-Z]{6}$/);
 });
 
 test("el panel no tiene versión en inglés", async ({ page }) => {

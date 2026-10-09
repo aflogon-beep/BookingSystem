@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { createAdminClient } from "@/lib/db/admin";
 import { sendBookingConfirmation } from "@/lib/email/booking-emails";
-import { DEFAULT_LOCALE, isLocale, LOCALES, localizedPath } from "@/lib/domain/i18n";
+import { DEFAULT_LOCALE, isLocale, localizedPath, type Locale } from "@/lib/domain/i18n";
 import { isSlug } from "@/lib/domain/storefront";
 import {
   addRecentBooking,
@@ -22,7 +22,6 @@ import { webText } from "@/lib/domain/web-text";
 import { loadSite, loadWebProduct, loadWebSession } from "../../../data";
 
 const requestSchema = z.object({
-  locale: z.enum(LOCALES),
   slug: z.string().refine(isSlug),
   sessionId: z.uuid(),
   lines: z
@@ -34,7 +33,7 @@ const requestSchema = z.object({
   expectedTotalCents: z.int().min(0),
 });
 
-export type WebBookingInput = z.input<typeof requestSchema> & { customer: WebCustomerInput };
+export type WebBookingInput = z.input<typeof requestSchema> & { locale: Locale; customer: WebCustomerInput };
 
 const createdSchema = z.object({ id: z.uuid(), code: z.string().regex(/^VT[0-9A-Z]{6}$/) });
 

@@ -21,6 +21,9 @@ export async function proxy(request: NextRequest) {
   // /en/panel y demás: no existen.
   if (locale !== DEFAULT_LOCALE) return NextResponse.next();
 
+  // Fuera de la web pública, las cabeceras de idioma no pueden venir del navegador.
+  request.headers.delete(LOCALE_HEADER);
+  request.headers.delete(PUBLIC_PATH_HEADER);
   const { response, userId } = await updateSession(request);
 
   if (!userId && pathname.startsWith("/panel")) {

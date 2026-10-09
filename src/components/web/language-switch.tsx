@@ -13,7 +13,7 @@ export function LanguageSwitch({ locale, href, label }: { locale: Locale; href: 
       href={href}
       hrefLang={locale}
       lang={locale}
-      aria-label={label}
+      title={label}
       className="rounded px-1 hover:text-foreground"
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
@@ -23,6 +23,7 @@ export function LanguageSwitch({ locale, href, label }: { locale: Locale; href: 
       }}
     >
       {locale.toUpperCase()}
+      <span className="sr-only"> · {label}</span>
     </a>
   );
 }
