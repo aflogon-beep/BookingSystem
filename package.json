@@ -14,7 +14,8 @@
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/lib/database.types.ts",
     "staff:create": "node --env-file-if-exists=.env.local --import tsx scripts/staff.ts create",
-    "staff:password": "node --env-file-if-exists=.env.local --import tsx scripts/staff.ts password"
+    "staff:password": "node --env-file-if-exists=.env.local --import tsx scripts/staff.ts password",
+    "test:db": "vitest run --config vitest.db.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
