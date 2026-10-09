@@ -25,6 +25,10 @@ function fail(code: string | undefined, hint?: string): ManifestActionResult {
       return { ok: false, error: "Solo las reservas confirmadas hacen check-in." };
     case "RB005":
       return { ok: false, error: "Esta reserva ya no tiene un cobro pendiente." };
+    case "RB006":
+      return { ok: false, error: "La salida está cancelada: ya no se puede volver a abrir." };
+    case "RB007":
+      return { ok: false, error: "La salida ya ha empezado: no se puede cancelar." };
     case "P0002":
       return { ok: false, error: "No se ha encontrado. Recarga la página." };
     case "42501":

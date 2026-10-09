@@ -189,7 +189,6 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
               status={session.status}
               capacity={session.capacity}
               booked={session.booked}
-              bookingCount={live.length}
             />
           </div>
         </Box>
@@ -284,7 +283,20 @@ function PassengerRow({ row, session }: { row: ManifestRow; session: ManifestSes
             Nota
           </span>
         ) : null}
-        {row.notes ? <span className="sr-only">: {row.notes}</span> : null}
+        {/* En móvil y tablet no cabe la columna de recogida: va debajo del nombre, con la nota. */}
+        <span className="mt-0.5 block text-[0.78rem] text-muted-foreground desk:hidden">
+          {session.product.pickup ? (
+            row.hotel || "En punto de encuentro"
+          ) : row.phone ? (
+            <a href={`tel:${row.phone}`} className="font-mono underline-offset-2 hover:underline">
+              {row.phone}
+            </a>
+          ) : (
+            row.email
+          )}
+        </span>
+        {row.notes ? <span className="mt-0.5 block text-[0.78rem] text-warn desk:hidden">{row.notes}</span> : null}
+        {row.notes ? <span className="sr-only max-desk:hidden">: {row.notes}</span> : null}
       </td>
       <td className="px-2 py-2.5">
         <b className="tabular-nums">{paxOf(row)}</b>{" "}

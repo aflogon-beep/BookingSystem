@@ -81,7 +81,9 @@ begin
   if not public.is_staff() then
     raise exception 'Sin permiso' using errcode = 'insufficient_privilege';
   end if;
-  if not exists (select 1 from public.sessions where id = p_session_id) then
+  -- Misma cola que session_set_status y create_booking_hold: sin bloqueos cruzados.
+  perform 1 from public.sessions where id = p_session_id for update;
+  if not found then
     raise exception 'Salida no encontrada' using errcode = 'no_data_found';
   end if;
 
@@ -174,8 +176,17 @@ begin
   if v_session.status = p_status then
     return 0;
   end if;
+  -- Una salida cancelada ya no vuelve: sus reservas siguen canceladas.
+  if v_session.status = 'cancelled' then
+    raise exception 'La salida está cancelada' using errcode = 'RB006';
+  end if;
+  if p_status = 'cancelled' and v_session.starts_at <= now() then
+    raise exception 'La salida ya ha empezado' using errcode = 'RB007';
+  end if;
 
+  perform set_config('app.session_status_change', 'on', true);
   update public.sessions set status = p_status where id = p_session_id;
+  perform set_config('app.session_status_change', '', true);
 
   if p_status = 'cancelled' then
     with cancelled as (
@@ -194,3 +205,29 @@ $$;
 
 revoke all on function public.session_set_status(uuid, text) from public, anon;
 grant execute on function public.session_set_status(uuid, text) to authenticated;
+
+-- Permisos directos ------------------------------------------------------------------------------
+
+-- Cancelar (o «descancelar») una salida solo con session_set_status, que cancela sus reservas y
+-- deja historial. Abrir y cerrar la venta sí puede hacerse con un update (generate_sessions cierra
+-- las salidas con reservas que ya no piden las reglas).
+create function public.sessions_guard_cancel()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if (old.status = 'cancelled') <> (new.status = 'cancelled')
+    and coalesce(current_setting('app.session_status_change', true), '') <> 'on' then
+    raise exception 'Usa session_set_status para cancelar una salida' using errcode = 'insufficient_privilege';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger sessions_guard_cancel
+  before update of status on public.sessions
+  for each row execute function public.sessions_guard_cancel();
+
+-- El check-in pasa por booking_set_checked_in para que quede en el historial.
+revoke update (checked_in) on table public.bookings from authenticated;

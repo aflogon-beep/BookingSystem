@@ -51,7 +51,7 @@ function WeekCard({ session }: { session: CalendarSession }) {
     <li
       className={cn(
         "relative flex w-full flex-col gap-1.5 rounded-xl border border-black/6 bg-surface px-2.5 py-[9px] shadow-[0_1px_2px_rgb(16_24_40/0.04)] hover:border-line",
-        "focus-within:ring-[3px] focus-within:ring-ring/50",
+        "has-[a:focus-visible]:ring-[3px] has-[a:focus-visible]:ring-ring/50",
         session.past && "opacity-55",
       )}
     >

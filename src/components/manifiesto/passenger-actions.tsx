@@ -15,6 +15,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatCents } from "@/lib/domain/money";
 import { cn } from "@/lib/utils";
@@ -40,7 +41,7 @@ export function CheckInToggle({ bookingId, checked, name }: { bookingId: string;
         })
       }
       className={cn(
-        "grid size-11 place-items-center rounded-full border-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 tablet:size-8",
+        "grid size-11 place-items-center rounded-lg border-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 tablet:size-8",
         checked ? "border-ok bg-ok text-white" : "border-line bg-surface text-transparent hover:text-faint",
         pending && "opacity-60",
       )}
@@ -88,10 +89,12 @@ export function CollectButton({
   const [pending, startTransition] = useTransition();
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
-      <Button variant="outline" size="sm" className="text-warn" onClick={() => setOpen(true)}>
-        <HandCoins aria-hidden="true" />
-        Cobrar {formatCents(totalCents)}
-      </Button>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="text-warn">
+          <HandCoins aria-hidden="true" />
+          Cobrar {formatCents(totalCents)}
+        </Button>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <span className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">Cobrar reserva {code}</span>

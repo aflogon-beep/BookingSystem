@@ -54,6 +54,10 @@ test("del día al manifiesto: reserva, check-in, cobro, aforo y estado de la sal
   await page.getByLabel("Aforo de esta salida").fill(String(capacity + 1));
   await page.getByRole("button", { name: "Guardar" }).click();
   await expect(occupancy.getByRole("definition").first()).toContainText(`/ ${capacity + 1}`);
+  // Se deja como estaba para que repetir el test no vaya subiendo el aforo.
+  await page.getByLabel("Aforo de esta salida").fill(String(capacity));
+  await page.getByRole("button", { name: "Guardar" }).click();
+  await expect(occupancy.getByRole("definition").first()).toContainText(`/ ${capacity}`);
 
   // Cerrar la venta y volver a abrirla.
   const status = page.getByRole("group", { name: "Estado de la salida" });

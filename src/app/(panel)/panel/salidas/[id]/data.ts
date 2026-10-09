@@ -43,6 +43,10 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
     ]);
   if (error || availabilityError || bookingsError) throw new Error("No se pudo cargar el manifiesto.");
   if (!row) return null;
+  // Las web que nunca se pagaron (bloqueo caducado o salida cancelada) no son pasajeros.
+  const passengers = bookings.filter(
+    (booking) => !(booking.channel === "web" && booking.status === "cancelled" && booking.payment_status === "pending"),
+  );
 
   const { date, time } = toBusinessDateTime(row.starts_at);
   return {
@@ -65,7 +69,7 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
         pickup: row.products.pickup,
       },
     },
-    bookings: bookings.map((booking) => ({
+    bookings: passengers.map((booking) => ({
       id: booking.id,
       code: booking.code,
       status: booking.status,

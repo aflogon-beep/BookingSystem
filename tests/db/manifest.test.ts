@@ -170,6 +170,23 @@ describe("estado de la salida", () => {
     expect(await bookingRow(b)).toMatchObject({ status: "cancelled", payment_status: "paid" });
     expect((await events(a)).at(-1)).toBe("Marta Guía: Reserva cancelada: salida cancelada por la empresa");
     expect((await member.db.rpc("booking_set_checked_in", { p_booking_id: a, p_checked: true })).error?.code).toBe("RB004");
+    expect((await member.db.rpc("booking_collect_payment", { p_booking_id: a, p_method: "cash" })).error?.code).toBe("RB005");
+    expect((await member.db.rpc("session_check_in_all", { p_session_id: sessionId })).data).toBe(0);
+    // Una salida cancelada no vuelve a la venta.
+    const reopen = await member.db.rpc("session_set_status", { p_session_id: sessionId, p_status: "open" });
+    expect(reopen.error?.code).toBe("RB006");
+  });
+
+  it("no se cancela con un update directo ni se marca el check-in sin historial", async () => {
+    const sessionId = await createSession();
+    const id = await book(sessionId, 1);
+    const cancel = await member.db.from("sessions").update({ status: "cancelled" }).eq("id", sessionId);
+    expect(cancel.error?.code).toBe("42501");
+    const checkIn = await member.db.from("bookings").update({ checked_in: true }).eq("id", id);
+    expect(checkIn.error).not.toBeNull();
+    expect(await bookingRow(id)).toMatchObject({ status: "confirmed", checked_in: false });
+    // Cerrar la venta sí puede hacerse directamente.
+    expect((await member.db.from("sessions").update({ status: "closed" }).eq("id", sessionId)).error).toBeNull();
   });
 
   it("el aforo de la salida no baja de las plazas ocupadas", async () => {

@@ -32,13 +32,11 @@ export function SessionControls({
   status,
   capacity,
   booked,
-  bookingCount,
 }: {
   sessionId: string;
   status: Status;
   capacity: number;
   booked: number;
-  bookingCount: number;
 }) {
   const id = useId();
   const [pending, startTransition] = useTransition();
@@ -71,10 +69,10 @@ export function SessionControls({
             key={option.value}
             type="button"
             aria-pressed={status === option.value}
-            disabled={pending}
+            disabled={pending || status === "cancelled"}
             onClick={() => {
               if (option.value === status) return;
-              if (option.value === "cancelled" && bookingCount > 0) setConfirmCancel(true);
+              if (option.value === "cancelled") setConfirmCancel(true);
               else changeStatus(option.value);
             }}
             className={cn(
@@ -106,9 +104,11 @@ export function SessionControls({
             max={500}
             defaultValue={capacity}
             aria-describedby={`${id}-capacity-hint`}
-            className="w-28"
+            className="w-24"
+            disabled={status === "cancelled"}
           />
-          <Button type="submit" variant="outline" disabled={pending}>
+          <span className="self-center text-[0.84rem] text-muted-foreground">plazas</span>
+          <Button type="submit" variant="outline" disabled={pending || status === "cancelled"}>
             Guardar
           </Button>
         </div>
@@ -122,9 +122,11 @@ export function SessionControls({
           <DialogHeader>
             <DialogTitle>¿Cancelar esta salida?</DialogTitle>
             <DialogDescription>
-              Se cancelarán sus {bookingCount === 1 ? "reserva" : `${bookingCount} reservas`} ({booked}{" "}
-              {booked === 1 ? "plaza" : "plazas"}). El reembolso de lo cobrado y el aviso por email a los clientes llegarán
-              en una próxima versión.
+              {booked > 0
+                ? `Se cancelarán sus reservas (${booked} ${booked === 1 ? "plaza" : "plazas"}). `
+                : "No tiene reservas. "}
+              Una salida cancelada no se puede volver a abrir. El reembolso de lo cobrado y el aviso por email a los
+              clientes llegarán en una próxima versión.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
