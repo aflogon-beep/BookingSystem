@@ -358,8 +358,10 @@ describe("RLS de reservas", () => {
     expect((await member.db.from("booking_events").insert({ booking_id: created.id, actor: "Otro", text: "x" })).error?.code).toBe("42501");
     expect((await member.db.from("bookings").update({ status: "cancelled" }).eq("id", created.id)).error?.code).toBe("42501");
     expect((await member.db.from("bookings").update({ paid_cents: 999 }).eq("id", created.id)).error?.code).toBe("42501");
-    const notes = await member.db.from("bookings").update({ notes: "Alergia al gluten", checked_in: true }).eq("id", created.id);
+    const notes = await member.db.from("bookings").update({ notes: "Alergia al gluten" }).eq("id", created.id);
     expect(notes.error).toBeNull();
+    // El check-in va por booking_set_checked_in (manifest.test.ts).
+    expect((await member.db.from("bookings").update({ checked_in: true }).eq("id", created.id)).error?.code).toBe("42501");
   });
 
   it("el equipo no puede borrar reservas ni editar sus líneas", async () => {
