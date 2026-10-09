@@ -86,9 +86,20 @@ export async function setSessionStatus(sessionId: string, status: string): Promi
   const parsed = statusSchema.safeParse(status);
   if (!uuid.safeParse(sessionId).success || !parsed.success) return fail(undefined);
   const supabase = await createClient();
+  // Al cancelar, solo se avisa por email a las reservas que estaban confirmadas.
+  let confirmedIds: string[] = [];
+  if (parsed.data === "cancelled") {
+    const { data: confirmed, error: readError } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("session_id", sessionId)
+      .eq("status", "confirmed");
+    if (readError) return fail(readError.code);
+    confirmedIds = confirmed.map((booking) => booking.id);
+  }
   const { data, error } = await supabase.rpc("session_set_status", { p_session_id: sessionId, p_status: parsed.data });
   if (error) return fail(error.code);
-  if (parsed.data === "cancelled") after(() => sendSessionCancellations(sessionId));
+  if (confirmedIds.length) after(() => sendSessionCancellations(sessionId, confirmedIds));
   const cancelled = data ? ` y ${data === 1 ? "1 reserva cancelada" : `${data} reservas canceladas`}` : "";
   return done(STATUS_MESSAGES[parsed.data] + cancelled);
 }

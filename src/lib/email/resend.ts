@@ -28,39 +28,60 @@ export async function sendEmails(emails: readonly OutgoingEmail[]): Promise<Set<
     return sent;
   }
 
-  for (let start = 0; start < emails.length; start += BATCH_SIZE) {
-    const chunk = emails.slice(start, start + BATCH_SIZE);
-    const payload = chunk.map((email) => ({
-      from: config.from,
-      to: [email.to],
-      subject: email.subject,
-      html: email.html,
-      text: email.text,
-      ...(email.replyTo ? { reply_to: email.replyTo } : {}),
-    }));
-    const single = chunk.length === 1;
-    const keys = chunk.map((email) => email.idempotencyKey);
+  const toPayload = (email: OutgoingEmail) => ({
+    from: config.from,
+    to: [email.to],
+    subject: email.subject,
+    html: email.html,
+    text: email.text,
+    ...(email.replyTo ? { reply_to: email.replyTo } : {}),
+  });
+
+  /** Devuelve el estado HTTP (0 si no hubo respuesta). */
+  const post = async (url: string, idempotencyKey: string, body: unknown): Promise<number> => {
     try {
-      const response = await fetch(single ? RESEND_URL : `${RESEND_URL}/batch`, {
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${config.resendApiKey}`,
           "Content-Type": "application/json",
           // Si se repite la llamada (reintento), Resend no envía dos veces.
-          "Idempotency-Key": single ? keys.join("") : `batch/${createHash("sha256").update(keys.join(",")).digest("hex")}`,
+          "Idempotency-Key": idempotencyKey,
         },
-        body: JSON.stringify(single ? payload[0] : payload),
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(10_000),
       });
-      if (response.ok) {
-        for (const key of keys) sent.add(key);
-      } else {
+      if (!response.ok) {
         // Solo el estado y el mensaje de Resend: nunca la clave ni las direcciones.
-        const body = (await response.json().catch(() => null)) as { message?: unknown } | null;
-        console.error("Resend rechazó el envío", response.status, typeof body?.message === "string" ? body.message : "");
+        const error = (await response.json().catch(() => null)) as { message?: unknown } | null;
+        console.error("Resend rechazó el envío", response.status, typeof error?.message === "string" ? error.message : "");
       }
+      return response.status;
     } catch (error) {
       console.error("No se pudo contactar con Resend", error instanceof Error ? error.name : "");
+      return 0;
+    }
+  };
+
+  const sendOne = async (email: OutgoingEmail) => {
+    const status = await post(RESEND_URL, email.idempotencyKey, toPayload(email));
+    if (status >= 200 && status < 300) sent.add(email.idempotencyKey);
+  };
+
+  for (let start = 0; start < emails.length; start += BATCH_SIZE) {
+    const chunk = emails.slice(start, start + BATCH_SIZE);
+    if (chunk.length === 1) {
+      for (const email of chunk) await sendOne(email);
+      continue;
+    }
+    const keys = chunk.map((email) => email.idempotencyKey);
+    const batchKey = `batch/${createHash("sha256").update(keys.join(",")).digest("hex")}`;
+    const status = await post(`${RESEND_URL}/batch`, batchKey, chunk.map(toPayload));
+    if (status >= 200 && status < 300) {
+      for (const key of keys) sent.add(key);
+    } else if (status === 400 || status === 422) {
+      // Resend valida el lote entero: si uno no vale, se prueban de uno en uno.
+      for (const email of chunk) await sendOne(email);
     }
   }
   return sent;

@@ -14,6 +14,7 @@ type Admin = ReturnType<typeof createAdminClient>;
 const BOOKING_FIELDS =
   "id, code, total_cents, payment_status, hotel, customers(name, email), sessions(starts_at, language, products(name, meeting_point, pickup)), booking_lines(qty, ticket_types(name, sort))";
 const CHUNK = 100;
+const PAGE = 1000;
 
 function emailsEnabled(): boolean {
   if (parseEmailConfig(process.env)) return true;
@@ -101,7 +102,8 @@ export async function sendBookingConfirmation(bookingId: string): Promise<void> 
 
 /**
  * Marca (reminder_sent_at / cancellation_sent_at) solo las que nadie ha marcado antes, así dos
- * ejecuciones a la vez no envían dos veces. Si un envío falla, se desmarca para reintentarlo.
+ * ejecuciones a la vez no envían dos veces. Si un envío falla, se desmarca: se puede reintentar
+ * (volviendo a llamar al cron), pero nada lo reintenta solo. Es el mejor esfuerzo.
  */
 async function claimAndDeliver(
   admin: Admin,
@@ -123,7 +125,12 @@ async function claimAndDeliver(
     if (error) throw new Error(error.code);
     const mine = data.map((row) => row.id);
     claimed += mine.length;
-    const delivered = await deliver(admin, kind, mine);
+    let delivered = new Set<string>();
+    try {
+      delivered = await deliver(admin, kind, mine);
+    } catch (error) {
+      console.error("Falló el envío", error instanceof Error ? error.message : "");
+    }
     sent += delivered.size;
     const failed = mine.filter((id) => !delivered.has(id));
     if (failed.length) {
@@ -134,19 +141,22 @@ async function claimAndDeliver(
   return { claimed, sent };
 }
 
-/** Aviso a los clientes de las reservas que cancela la cancelación de una salida. Nunca lanza. */
-export async function sendSessionCancellations(sessionId: string): Promise<void> {
+/**
+ * Aviso de cancelación a las reservas que estaban confirmadas antes de cancelar la salida (las lee
+ * quien cancela, antes de llamar a session_set_status): las web pendientes de pago nunca llegaron
+ * a confirmarse y no se avisan. Nunca lanza.
+ */
+export async function sendSessionCancellations(sessionId: string, confirmedIds: readonly string[]): Promise<void> {
   try {
-    if (!emailsEnabled()) return;
+    if (!confirmedIds.length || !emailsEnabled()) return;
     const admin = createAdminClient();
-    // Las reservas web con bloqueo (sin pagar todavía) nunca llegaron a confirmarse: no se avisan.
     const { data, error } = await admin
       .from("bookings")
       .select("id")
       .eq("session_id", sessionId)
       .eq("status", "cancelled")
       .is("cancellation_sent_at", null)
-      .is("hold_expires_at", null);
+      .in("id", [...confirmedIds]);
     if (error) throw new Error(error.code);
     await claimAndDeliver(admin, "cancellation", data.map((row) => row.id));
   } catch (error) {
@@ -159,16 +169,23 @@ export async function sendReminders(now: Date = new Date()): Promise<{ date: str
   const { date, from, to } = reminderWindow(now);
   if (!emailsEnabled()) return { date, enabled: false, claimed: 0, sent: 0 };
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("bookings")
-    .select("id, sessions!inner(starts_at, status)")
-    .eq("status", "confirmed")
-    .is("reminder_sent_at", null)
-    .gte("sessions.starts_at", from)
-    .lt("sessions.starts_at", to)
-    .neq("sessions.status", "cancelled")
-    .order("id");
-  if (error) throw new Error(`No se pudieron leer las reservas de mañana (${error.code})`);
-  const result = await claimAndDeliver(admin, "reminder", data.map((row) => row.id));
+  // Por páginas: PostgREST devuelve como mucho 1000 filas por consulta.
+  const ids: string[] = [];
+  for (let page = 0; ; page += 1) {
+    const { data, error } = await admin
+      .from("bookings")
+      .select("id, sessions!inner(starts_at, status)")
+      .eq("status", "confirmed")
+      .is("reminder_sent_at", null)
+      .gte("sessions.starts_at", from)
+      .lt("sessions.starts_at", to)
+      .neq("sessions.status", "cancelled")
+      .order("id")
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) throw new Error(`No se pudieron leer las reservas de mañana (${error.code})`);
+    ids.push(...data.map((row) => row.id));
+    if (data.length < PAGE) break;
+  }
+  const result = await claimAndDeliver(admin, "reminder", ids);
   return { date, enabled: true, ...result };
 }
