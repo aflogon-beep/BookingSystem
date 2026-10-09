@@ -27,11 +27,14 @@ npm run dev          # desarrollo local
 npm run lint         # ESLint
 npm run typecheck    # tsc --noEmit
 npm run test         # Vitest
-npm run test:e2e     # Playwright
+npm run test:e2e     # Playwright (necesita Supabase local en marcha)
+npm run test:db      # tests de RLS y SQL contra Supabase local
 npm run build        # build de producción
 npx supabase start   # Supabase local (Docker)
 npx supabase migration new <nombre>
-npx supabase gen types typescript --local > src/lib/database.types.ts
+npx supabase gen types typescript --local > src/lib/database.types.ts   # = npm run db:types
+npm run staff:create -- --email … --name … --role admin   # alta en el equipo
+npm run staff:password -- --email …                       # cambiar contraseña
 ```
 
 ## Estructura
