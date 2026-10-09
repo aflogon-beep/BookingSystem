@@ -1,9 +1,22 @@
 import { expect, test } from "@playwright/test";
+import { addDays, addWeeks, format, parseISO, startOfISOWeek } from "date-fns";
+
+import { longDayLabel } from "@/lib/domain/calendar";
+import { businessToday } from "@/lib/domain/schedule";
+
+const PROJECT_WEEKS: Record<string, number> = { movil: 13, tablet: 14, escritorio: 15 };
+
+// Un martes de dentro de 13-15 semanas, distinto por proyecto y de los días de los otros e2e.
+// El Teide sale todos los días a las 16:30.
+function tuesdayFor(project: string): string {
+  const monday = startOfISOWeek(addWeeks(parseISO(businessToday()), PROJECT_WEEKS[project] ?? 13));
+  return format(addDays(monday, 1), "yyyy-MM-dd");
+}
 
 // La web pública no necesita sesión.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-test("del listado a la ficha: día, horario y entradas", async ({ page }) => {
+test("del listado a la ficha: día, horario y entradas", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
   await expect(page).toHaveTitle("Experiencias en Tenerife · Volcán Tours");
@@ -17,10 +30,13 @@ test("del listado a la ficha: día, horario y entradas", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Teide al atardecer y estrellas" })).toBeVisible();
   await expect(page.getByText("Plaza del Cristo, La Laguna")).toBeVisible();
 
-  // El Teide sale todos los días a las 16:30: el primer día con plazas.
   const booking = page.getByRole("complementary", { name: "Reservar" });
-  await booking.getByRole("link", { name: /, desde 45\s€$/ }).first().click();
-  await expect(page).toHaveURL(/fecha=\d{4}-\d{2}-\d{2}/);
+  await expect(booking.getByRole("link", { name: /, desde 45\s€$/ }).first()).toBeVisible();
+
+  // Un día concreto por URL: queda marcado en el calendario.
+  const day = tuesdayFor(testInfo.project.name);
+  await page.goto(`/experiencias/teide-atardecer-estrellas?fecha=${day}`);
+  await expect(booking.locator('[aria-current="date"]')).toHaveAttribute("aria-label", new RegExp(`^${longDayLabel(day)},`));
   await booking.getByRole("link", { name: /16:30/ }).click();
   await expect(booking.getByRole("link", { name: /16:30/ })).toHaveAttribute("aria-current", "true");
 

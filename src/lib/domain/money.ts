@@ -15,6 +15,14 @@ const withCents = new Intl.NumberFormat("es-ES", {
   maximumFractionDigits: 2,
 });
 
+/** Euros sin decimales, redondeados, para sitios estrechos (celdas del calendario): 14950 → «150 €». */
+export function formatWholeEuros(cents: number): string {
+  if (!Number.isSafeInteger(cents)) {
+    throw new RangeError(`El importe debe ser un entero en céntimos: ${cents}`);
+  }
+  return wholeEuros.format(Math.round(cents / 100));
+}
+
 /**
  * Formatea un importe en céntimos (entero) como euros en es-ES, igual que el prototipo:
  * sin decimales en euros enteros (4500 → "45 €") y con dos si hay céntimos (1250 → "12,50 €").

@@ -30,7 +30,9 @@ export function TicketPicker({
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const lines = tickets.map((ticket) => ({ ticket, qty: quantities[ticket.id] ?? 0 })).filter((line) => line.qty > 0);
   const total = bookingTotal(lines.map((line) => ({ qty: line.qty, unitPriceCents: line.ticket.priceCents })));
-  const ready = selectedSeats(tickets, quantities) > 0;
+  const seats = selectedSeats(tickets, quantities);
+  const ready = seats > 0;
+  const full = seats >= free;
   const href = `/experiencias/${slug}/reservar?${new URLSearchParams({ salida: sessionId, entradas: ticketsParam(quantities) })}`;
 
   function change(ticketId: string, delta: 1 | -1) {
@@ -73,6 +75,11 @@ export function TicketPicker({
           );
         })}
       </ul>
+      {full ? (
+        <p role="status" className="text-[0.8rem] text-warn">
+          {free === 1 ? "Solo queda 1 plaza" : `Solo quedan ${free} plazas`} en esta salida.
+        </p>
+      ) : null}
       <p className="flex items-baseline justify-between border-t border-line pt-2.5">
         <span>Total</span>
         <b className="text-[1.4rem] font-semibold tabular-nums">{formatCents(total)}</b>

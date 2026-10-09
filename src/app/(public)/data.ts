@@ -57,7 +57,7 @@ export type WebProduct = {
 };
 
 const PRODUCT_FIELDS =
-  "id, slug, name, description, meeting_point, place, duration_min, capacity, pickup, color, photo_path, product_prices(ticket_type_id, price_cents), schedule_rules(language)";
+  "id, slug, name, description, meeting_point, place, duration_min, capacity, pickup, color, photo_path, product_prices(ticket_type_id, price_cents), schedule_rules(language, valid_to)";
 
 type ProductRow = {
   id: string;
@@ -72,7 +72,7 @@ type ProductRow = {
   color: string;
   photo_path: string | null;
   product_prices: { ticket_type_id: string; price_cents: number }[];
-  schedule_rules: { language: string }[];
+  schedule_rules: { language: string; valid_to: string | null }[];
 };
 
 async function loadTicketTypes() {
@@ -87,6 +87,7 @@ async function loadTicketTypes() {
 
 function toWebProduct(row: ProductRow, ticketTypes: Awaited<ReturnType<typeof loadTicketTypes>>): WebProduct {
   const { supabaseUrl } = getPublicEnv();
+  const today = businessToday();
   const tickets = ticketTypes.flatMap((ticketType): WebTicket[] => {
     const price = row.product_prices.find((candidate) => candidate.ticket_type_id === ticketType.id);
     return price
@@ -105,7 +106,10 @@ function toWebProduct(row: ProductRow, ticketTypes: Awaited<ReturnType<typeof lo
     pickup: row.pickup,
     color: row.color,
     photoUrl: row.photo_path ? productPhotoUrl(supabaseUrl, row.photo_path) : null,
-    languages: distinctLanguages(row.schedule_rules.map((rule) => rule.language)),
+    // Solo los idiomas de reglas que siguen vigentes.
+    languages: distinctLanguages(
+      row.schedule_rules.filter((rule) => !rule.valid_to || rule.valid_to >= today).map((rule) => rule.language),
+    ),
     fromCents: minPrice(tickets),
     tickets,
   };
@@ -123,11 +127,16 @@ export async function loadWebProducts(): Promise<WebProduct[]> {
     loadTicketTypes(),
   ]);
   if (error) throw new Error("No se pudieron cargar las experiencias.");
-  return data.map((row) => toWebProduct(row, ticketTypes)).filter((product) => product.tickets.length > 0);
+  return data.map((row) => toWebProduct(row, ticketTypes)).filter(isSellable);
 }
 
-/** Un producto a la venta por su slug, o null. */
-export async function loadWebProduct(slug: string): Promise<WebProduct | null> {
+/** Se puede comprar si vende alguna entrada con plaza (create_booking_hold exige al menos una). */
+function isSellable(product: WebProduct): boolean {
+  return product.tickets.some((ticket) => ticket.takesSeat);
+}
+
+/** Un producto a la venta por su slug, o null. Compartido entre la página y sus metadatos. */
+export const loadWebProduct = cache(async (slug: string): Promise<WebProduct | null> => {
   const [{ data, error }, ticketTypes] = await Promise.all([
     createAdminClient()
       .from("products")
@@ -140,12 +149,14 @@ export async function loadWebProduct(slug: string): Promise<WebProduct | null> {
   if (error) throw new Error("No se pudo cargar la experiencia.");
   if (!data) return null;
   const product = toWebProduct(data, ticketTypes);
-  return product.tickets.length ? product : null;
-}
+  return isSellable(product) ? product : null;
+});
 
 /**
  * Salidas que la web vende de un producto, desde ahora hasta el final de las generadas, con sus
  * plazas libres (vista session_availability, la misma regla que create_booking_hold).
+ * PostgREST devuelve como mucho 1000 filas: las dos consultas van por fecha para que, en un
+ * producto con más de 8 salidas al día, solo se pierdan los últimos días y nunca días sueltos.
  */
 export async function loadWebSessions(productId: string, cutoffHours: number, now = new Date()): Promise<WebSession[]> {
   const from = new Date(Math.max(now.getTime(), now.getTime() + cutoffHours * 3_600_000)).toISOString();
@@ -166,7 +177,8 @@ export async function loadWebSessions(productId: string, cutoffHours: number, no
       .select("session_id, free_seats")
       .eq("product_id", productId)
       .gte("starts_at", from)
-      .lt("starts_at", to),
+      .lt("starts_at", to)
+      .order("starts_at"),
   ]);
   if (error || availabilityError) throw new Error("No se pudieron cargar las salidas.");
   const free = new Map(availability.map((row) => [row.session_id, row.free_seats ?? 0]));

@@ -6,7 +6,7 @@ import { ArrowLeft, Bus, CalendarCheck, ChevronLeft, ChevronRight, Clock, Langua
 import { ProductArt } from "@/components/productos/product-art";
 import { TicketPicker } from "@/components/web/ticket-picker";
 import { longDayLabel } from "@/lib/domain/calendar";
-import { formatCents } from "@/lib/domain/money";
+import { formatCents, formatWholeEuros } from "@/lib/domain/money";
 import { durationLabel } from "@/lib/domain/product";
 import { businessToday, WEEKDAY_INITIALS } from "@/lib/domain/schedule";
 import { isLanguageCode, LANGUAGES } from "@/lib/domain/settings";
@@ -57,7 +57,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     <article>
       <div className="relative mx-auto w-full max-w-6xl tablet:px-[22px] tablet:pt-[22px]">
         <div className="relative overflow-hidden tablet:rounded-[20px]">
-          <ProductArt seed={product.id} color={product.color} photoUrl={product.photoUrl} className="h-[240px] tablet:h-[300px]" />
+          <ProductArt seed={product.id} color={product.color} photoUrl={product.photoUrl} className="h-[170px] tablet:h-[300px]" />
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgb(0_0_0/0.6),rgb(0_0_0/0.05)_65%)]"
@@ -114,7 +114,8 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           <p className="flex items-start gap-2 text-ok">
             <CalendarCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             <span>
-              Cancelación gratuita hasta {site.cancelHours} h antes. Reserva ahora y asegura tu plaza.
+              {site.cancelHours > 0 ? `Cancelación gratuita hasta ${site.cancelHours} h antes. ` : ""}Reserva ahora y asegura tu
+              plaza.
             </span>
           </p>
         </div>
@@ -157,7 +158,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                   const label = Number(day.slice(8));
                   if (!days.has(day)) {
                     return (
-                      <span key={day} className="flex min-h-[42px] items-start justify-center pt-[5px] text-[0.82rem] text-faint">
+                      <span key={day} aria-hidden="true" className="flex min-h-[42px] items-start justify-center pt-[5px] text-[0.82rem] text-faint">
                         {label}
                       </span>
                     );
@@ -179,7 +180,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                       {label}
                       {product.fromCents > 0 ? (
                         <small className={cn("text-[0.58rem] font-medium", selected ? "text-white" : "text-primary-dark")}>
-                          {formatCents(product.fromCents)}
+                          {formatWholeEuros(product.fromCents)}
                         </small>
                       ) : null}
                     </Link>

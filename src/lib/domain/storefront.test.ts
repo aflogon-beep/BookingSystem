@@ -75,6 +75,12 @@ describe("parseStorefrontParams", () => {
 
   it("mantiene el mes entre hoy y el último mes con salidas", () => {
     expect(parseStorefrontParams({ mes: "2026-12" }, days, today).month).toBe("2026-12");
+    // El mes puede no ser el del día elegido (se ha pasado de mes sin cambiar de día).
+    expect(parseStorefrontParams({ mes: "2026-12", fecha: "2026-11-14", salida: A }, days, today)).toEqual({
+      month: "2026-12",
+      date: "2026-11-14",
+      sessionId: A,
+    });
     expect(parseStorefrontParams({ mes: "2026-01" }, days, today).month).toBe("2026-10");
     expect(parseStorefrontParams({ mes: "2027-05" }, days, today).month).toBe("2026-12");
     expect(parseStorefrontParams({ mes: "2026-13" }, days, today).month).toBe("2026-11");
