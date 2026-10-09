@@ -14,6 +14,7 @@ const DAY = "2031-03-12";
 const PRODUCT_NAME = "Tour de reservas (test)";
 
 let member: TestUser;
+let colleague: TestUser;
 let outsider: TestUser;
 const productIds: string[] = [];
 const ticketTypeIds: string[] = [];
@@ -32,6 +33,7 @@ beforeAll(async () => {
   const { data: leftovers } = await adminDb.from("products").select("id").eq("name", PRODUCT_NAME);
   await removeTestProducts(leftovers?.map((product) => product.id) ?? []);
   member = await createTestUser({ name: "Carla Staff", role: "staff" });
+  colleague = await createTestUser({ name: "Dani Staff", role: "staff" });
   outsider = await createTestUser();
 });
 
@@ -39,7 +41,7 @@ afterAll(async () => {
   await removeTestProducts(productIds);
   await adminDb.from("customers").delete().like("email", `%-${testTag}@example.test`);
   if (ticketTypeIds.length) await adminDb.from("ticket_types").delete().in("id", ticketTypeIds);
-  await deleteTestUsers([outsider, member]);
+  await deleteTestUsers([outsider, member, colleague]);
 });
 
 /** Producto de prueba con una salida diaria a las 10:00 y precios adulto 50 €, niño 20 €, bebé 0 €. */
@@ -177,7 +179,7 @@ describe("create_booking_hold", () => {
   it("no pasa del aforo con muchas reservas a la vez", async () => {
     const { sessionId } = await createSession(5);
     const results = await Promise.all(
-      Array.from({ length: 12 }, (_, index) => book(sessionId, adults(1), { channel: "phone" }, index % 2 ? member.db : adminDb)),
+      Array.from({ length: 12 }, (_, index) => book(sessionId, adults(1), { channel: "phone" }, index % 2 ? member.db : colleague.db)),
     );
     expect(results.filter((result) => !result.error)).toHaveLength(5);
     expect(results.filter((result) => result.error?.code === "RB001")).toHaveLength(7);
