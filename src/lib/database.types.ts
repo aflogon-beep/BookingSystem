@@ -23,7 +23,99 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "product_prices": {
+            "booking_events": {
+                  Row: {
+                    "actor": string,"booking_id": string,"created_at": string,"id": string,"text": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actor": string,"booking_id": string,"created_at"?: string,"id"?: string,"text": string
+                  }
+                  Update: {
+                    "actor"?: string,"booking_id"?: string,"created_at"?: string,"id"?: string,"text"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "booking_events_booking_id_fkey"
+      columns: ["booking_id"]
+isOneToOne: false
+      referencedRelation: "bookings"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"booking_lines": {
+                  Row: {
+                    "booking_id": string,"created_at": string,"qty": number,"takes_seat": boolean,"ticket_type_id": string,"unit_price_cents": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "booking_id": string,"created_at"?: string,"qty": number,"takes_seat": boolean,"ticket_type_id": string,"unit_price_cents": number
+                  }
+                  Update: {
+                    "booking_id"?: string,"created_at"?: string,"qty"?: number,"takes_seat"?: boolean,"ticket_type_id"?: string,"unit_price_cents"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "booking_lines_booking_id_fkey"
+      columns: ["booking_id"]
+isOneToOne: false
+      referencedRelation: "bookings"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "booking_lines_ticket_type_id_fkey"
+      columns: ["ticket_type_id"]
+isOneToOne: false
+      referencedRelation: "ticket_types"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"bookings": {
+                  Row: {
+                    "agent": string,"channel": string,"checked_in": boolean,"code": string,"created_at": string,"customer_id": string,"hold_expires_at": string | null,"hotel": string,"id": string,"notes": string,"paid_cents": number,"payment_method": string | null,"payment_status": string,"session_id": string,"status": string,"stripe_checkout_id": string | null,"stripe_payment_intent": string | null,"total_cents": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agent"?: string,"channel": string,"checked_in"?: boolean,"code": string,"created_at"?: string,"customer_id": string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"session_id": string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents": number
+                  }
+                  Update: {
+                    "agent"?: string,"channel"?: string,"checked_in"?: boolean,"code"?: string,"created_at"?: string,"customer_id"?: string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"session_id"?: string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "bookings_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
+      referencedRelation: "session_availability"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
+      referencedRelation: "sessions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"customers": {
+                  Row: {
+                    "created_at": string,"email": string | null,"id": string,"name": string,"phone": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"email"?: string | null,"id"?: string,"name": string,"phone"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"email"?: string | null,"id"?: string,"name"?: string,"phone"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"product_prices": {
                   Row: {
                     "created_at": string,"price_cents": number,"product_id": string,"ticket_type_id": string
                   }
@@ -148,10 +240,27 @@ isOneToOne: false
                 }
           }
           Views: {
-            [_ in never]: never
+            "session_availability": {
+                  Row: {
+                    "booked_seats": number | null,"capacity": number | null,"free_seats": number | null,"pax": number | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "sessions_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
           }
           Functions: {
-            "generate_sessions":
+            "create_booking_hold":
+{ Args: { "p_booking"?: Json,"p_customer": Json,"p_hold_minutes"?: number,"p_lines": Json,"p_session_id": string }; Returns: Json
+                           },
+"generate_sessions":
 { Args: { "p_from": string,"p_product_id"?: string,"p_to": string }; Returns: number
                            },
 "is_admin":
@@ -162,6 +271,9 @@ isOneToOne: false
                            },
 "save_product":
 { Args: { "p_id"?: string,"p_prices": Json,"p_product": Json,"p_rules": Json }; Returns: Json
+                           },
+"session_occupied_seats":
+{ Args: { "p_session_id": string }; Returns: number
                            }
           }
           Enums: {

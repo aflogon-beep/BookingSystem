@@ -43,8 +43,11 @@ export default async function Page({ searchParams }: PageProps<"/panel/calendari
   // Un producto que ya no existe en la URL cuenta como «Todos los productos».
   const productId = products.some((product) => product.id === requestedProductId) ? requestedProductId : null;
 
-  const rows = await loadSessionRows(supabase, from, to, productId);
-  const sessions = toCalendarSessions(rows, new Date());
+  const [rows, booked] = await Promise.all([
+    loadSessionRows(supabase, from, to, productId),
+    loadBookedSeats(supabase, from, to, productId),
+  ]);
+  const sessions = toCalendarSessions(rows, booked, new Date());
 
   return (
     <section className="flex flex-col gap-4 tablet:gap-5">
@@ -118,6 +121,32 @@ async function loadSessionRows(
   }
 }
 
+/** Plazas ocupadas por salida (vista session_availability: confirmadas y bloqueos vigentes). */
+async function loadBookedSeats(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  from: string,
+  to: string,
+  productId: string | null,
+): Promise<Map<string, number>> {
+  const booked = new Map<string, number>();
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    let query = supabase
+      .from("session_availability")
+      .select("session_id, booked_seats")
+      .gte("starts_at", from)
+      .lt("starts_at", to)
+      .gt("booked_seats", 0)
+      .order("starts_at")
+      .order("session_id")
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (productId) query = query.eq("product_id", productId);
+    const { data, error } = await query;
+    if (error) throw new Error("No se pudo cargar el calendario.");
+    for (const row of data) if (row.session_id) booked.set(row.session_id, row.booked_seats ?? 0);
+    if (data.length < PAGE_SIZE) return booked;
+  }
+}
+
 type SessionRow = {
   id: string;
   starts_at: string;
@@ -127,7 +156,7 @@ type SessionRow = {
   products: { name: string; color: string; min_pax: number };
 };
 
-function toCalendarSessions(rows: readonly SessionRow[], now: Date): CalendarSession[] {
+function toCalendarSessions(rows: readonly SessionRow[], booked: ReadonlyMap<string, number>, now: Date): CalendarSession[] {
   return rows.map((row) => {
     const { date, time } = toBusinessDateTime(row.starts_at);
     return {
@@ -136,7 +165,7 @@ function toCalendarSessions(rows: readonly SessionRow[], now: Date): CalendarSes
       time,
       language: row.language,
       capacity: row.capacity,
-      booked: 0,
+      booked: booked.get(row.id) ?? 0,
       status: STATUSES.has(row.status as CalendarSession["status"]) ? (row.status as CalendarSession["status"]) : "open",
       past: new Date(row.starts_at) < now,
       product: { name: row.products.name, color: row.products.color, minPax: row.products.min_pax },
