@@ -99,13 +99,13 @@ test("la web en inglés, de la portada a la confirmación", async ({ page }, tes
   await page.goto(`/en/experiencias/teide-atardecer-estrellas?fecha=${day}`);
   await expect(page.getByRole("heading", { level: 1, name: "Teide sunset and stars" })).toBeVisible();
   const booking = page.getByRole("complementary", { name: "Book" });
-  await expect(booking).toContainText("13 years and over");
   await expect(booking.locator('[aria-current="date"]')).toHaveAttribute(
     "aria-label",
     new RegExp(`^${longDayLabel(day, "en")}, from €45$`),
   );
   await booking.getByRole("link", { name: /16:30/ }).click();
   await expect(booking.getByRole("link", { name: /16:30/ })).toHaveAttribute("aria-current", "true");
+  await expect(booking).toContainText("13 years and over");
   await booking.getByRole("button", { name: "Add Adult" }).click();
   await booking.getByRole("link", { name: "Continue" }).click();
 
