@@ -34,7 +34,7 @@ afterAll(async () => {
 });
 
 async function newResource(name = "Guía de prueba", type = "guide"): Promise<string> {
-  const { data, error } = await member.db.from("resources").insert({ name, type, languages: ["es"] }).select("id").single();
+  const { data, error } = await member.db.from("resources").insert({ name, type, languages: type === "guide" ? ["es"] : [] }).select("id").single();
   if (error) throw error;
   createdResourceIds.push(data.id);
   return data.id;
