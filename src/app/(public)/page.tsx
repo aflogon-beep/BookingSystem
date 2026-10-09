@@ -17,7 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [products, locale] = await Promise.all([loadWebProducts(), getLocale()]);
+  const locale = await getLocale();
+  const products = await loadWebProducts(locale);
   const text = webText(locale);
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-[22px] tablet:px-[22px]">

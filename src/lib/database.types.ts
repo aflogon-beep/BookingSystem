@@ -143,14 +143,14 @@ isOneToOne: false
                   ]
                 },"products": {
                   Row: {
-                    "active": boolean,"capacity": number,"color": string,"created_at": string,"description": string,"duration_min": number,"id": string,"meeting_point": string,"min_pax": number,"name": string,"photo_path": string | null,"pickup": boolean,"place": string,"slug": string
+                    "active": boolean,"capacity": number,"color": string,"created_at": string,"description": string,"description_en": string,"duration_min": number,"id": string,"meeting_point": string,"meeting_point_en": string,"min_pax": number,"name": string,"name_en": string,"photo_path": string | null,"pickup": boolean,"place": string,"slug": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"capacity": number,"color"?: string,"created_at"?: string,"description"?: string,"duration_min": number,"id"?: string,"meeting_point"?: string,"min_pax"?: number,"name": string,"photo_path"?: string | null,"pickup"?: boolean,"place"?: string,"slug": string
+                    "active"?: boolean,"capacity": number,"color"?: string,"created_at"?: string,"description"?: string,"description_en"?: string,"duration_min": number,"id"?: string,"meeting_point"?: string,"meeting_point_en"?: string,"min_pax"?: number,"name": string,"name_en"?: string,"photo_path"?: string | null,"pickup"?: boolean,"place"?: string,"slug": string
                   }
                   Update: {
-                    "active"?: boolean,"capacity"?: number,"color"?: string,"created_at"?: string,"description"?: string,"duration_min"?: number,"id"?: string,"meeting_point"?: string,"min_pax"?: number,"name"?: string,"photo_path"?: string | null,"pickup"?: boolean,"place"?: string,"slug"?: string
+                    "active"?: boolean,"capacity"?: number,"color"?: string,"created_at"?: string,"description"?: string,"description_en"?: string,"duration_min"?: number,"id"?: string,"meeting_point"?: string,"meeting_point_en"?: string,"min_pax"?: number,"name"?: string,"name_en"?: string,"photo_path"?: string | null,"pickup"?: boolean,"place"?: string,"slug"?: string
                   }
                   Relationships: [
                     
@@ -225,14 +225,14 @@ isOneToOne: false
                   ]
                 },"ticket_types": {
                   Row: {
-                    "created_at": string,"id": string,"name": string,"note": string,"sort": number,"takes_seat": boolean
+                    "created_at": string,"id": string,"name": string,"name_en": string,"note": string,"note_en": string,"sort": number,"takes_seat": boolean
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"name": string,"note"?: string,"sort"?: number,"takes_seat"?: boolean
+                    "created_at"?: string,"id"?: string,"name": string,"name_en"?: string,"note"?: string,"note_en"?: string,"sort"?: number,"takes_seat"?: boolean
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"name"?: string,"note"?: string,"sort"?: number,"takes_seat"?: boolean
+                    "created_at"?: string,"id"?: string,"name"?: string,"name_en"?: string,"note"?: string,"note_en"?: string,"sort"?: number,"takes_seat"?: boolean
                   }
                   Relationships: [
                     

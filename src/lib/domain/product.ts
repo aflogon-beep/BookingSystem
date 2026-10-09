@@ -127,6 +127,25 @@ export const productInputSchema = z
       .trim()
       .max(PRODUCT_LIMITS.meetingPoint, { error: "El punto de encuentro es demasiado largo." }),
     place: z.string().trim().max(PRODUCT_LIMITS.place, { error: "La zona del recorrido es demasiado larga." }),
+    // En inglés, para la web /en (opcionales: vacíos, la web muestra el español).
+    nameEn: z
+      .string()
+      .trim()
+      .max(PRODUCT_LIMITS.name, { error: `El nombre en inglés admite ${PRODUCT_LIMITS.name} caracteres como máximo.` })
+      .optional()
+      .default(""),
+    descriptionEn: z
+      .string()
+      .trim()
+      .max(PRODUCT_LIMITS.description, { error: "La descripción en inglés es demasiado larga." })
+      .optional()
+      .default(""),
+    meetingPointEn: z
+      .string()
+      .trim()
+      .max(PRODUCT_LIMITS.meetingPoint, { error: "El punto de encuentro en inglés es demasiado largo." })
+      .optional()
+      .default(""),
     durationMin: intIn(PRODUCT_LIMITS.duration.min, PRODUCT_LIMITS.duration.max, "Duración"),
     capacity: intIn(PRODUCT_LIMITS.capacity.min, PRODUCT_LIMITS.capacity.max, "Aforo por salida"),
     minPax: intIn(1, PRODUCT_LIMITS.capacity.max, "Mínimo para salir"),

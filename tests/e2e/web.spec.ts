@@ -91,10 +91,13 @@ test("la web en inglés, de la portada a la confirmación", async ({ page }, tes
   await expect(page).toHaveURL(/\/en$/);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page).toHaveTitle("Experiences in Tenerife · Volcán Tours");
-  await expect(page.getByRole("link", { name: /Teide al atardecer y estrellas/ })).toContainText(/From\s€45/);
+  await expect(page.getByRole("link", { name: /Teide sunset and stars/ })).toContainText(/From\s€45/);
+  // Sin textos en inglés, el producto se ve en español.
+  await expect(page.getByRole("link", { name: /La Laguna, ciudad Patrimonio/ })).toBeVisible();
 
   const day = sundayFor(testInfo.project.name);
   await page.goto(`/en/experiencias/teide-atardecer-estrellas?fecha=${day}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Teide sunset and stars" })).toBeVisible();
   const booking = page.getByRole("complementary", { name: "Book" });
   await expect(booking.locator('[aria-current="date"]')).toHaveAttribute(
     "aria-label",
@@ -102,7 +105,8 @@ test("la web en inglés, de la portada a la confirmación", async ({ page }, tes
   );
   await booking.getByRole("link", { name: /16:30/ }).click();
   await expect(booking.getByRole("link", { name: /16:30/ })).toHaveAttribute("aria-current", "true");
-  await booking.getByRole("button", { name: "Add Adulto" }).click();
+  await expect(booking).toContainText("13 years and over");
+  await booking.getByRole("button", { name: "Add Adult" }).click();
   await booking.getByRole("link", { name: "Continue" }).click();
 
   await expect(page).toHaveURL(/\/en\/experiencias\/teide-atardecer-estrellas\/reservar\?/);
@@ -114,7 +118,10 @@ test("la web en inglés, de la portada a la confirmación", async ({ page }, tes
 
   await expect(page.getByRole("heading", { level: 1, name: "Booking confirmed!" })).toBeVisible();
   await expect(page).toHaveURL(/\/en\/reserva\/VT[0-9A-Z]{6}$/);
-  await expect(page.getByRole("region", { name: "Your booking" })).toContainText("Pay there");
+  const ticket = page.getByRole("region", { name: "Your booking" });
+  await expect(ticket).toContainText("Pay there");
+  await expect(ticket).toContainText("1 Adult");
+  await expect(ticket).toContainText("Teide sunset and stars");
 
   // Misma reserva en español con el selector de idioma.
   await page.getByRole("link", { name: /^ES/ }).click();

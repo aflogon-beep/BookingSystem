@@ -80,7 +80,7 @@ test("crea, edita, retira de la venta y elimina un producto con foto", async ({ 
   await page.getByRole("link", { name: "Nuevo producto" }).first().click();
   await expect(page).toHaveURL(/\/panel\/productos\/nuevo$/);
   await page.getByLabel("Nombre del tour").fill(name);
-  await page.getByLabel("Descripción").fill("Ruta de prueba por Anaga.");
+  await page.getByLabel("Descripción", { exact: true }).fill("Ruta de prueba por Anaga.");
   await page.getByLabel("Foto del tour").setInputFiles({ name: "foto.png", mimeType: "image/png", buffer: PNG });
   await expect(page.getByRole("button", { name: "Quitar foto" })).toBeVisible();
 

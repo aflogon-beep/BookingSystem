@@ -30,7 +30,8 @@ const WEEKDAY_INITIALS_EN = ["M", "T", "W", "T", "F", "S", "S"] as const;
 
 export async function generateMetadata({ params }: PageProps<"/experiencias/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const [site, product] = await Promise.all([loadSite(), isSlug(slug) ? loadWebProduct(slug) : null]);
+  const locale = await getLocale();
+  const [site, product] = await Promise.all([loadSite(), isSlug(slug) ? loadWebProduct(slug, locale) : null]);
   if (!product) return { title: site.businessName };
   return { title: `${product.name} · ${site.businessName}`, description: product.description.slice(0, 160) || undefined };
 }
@@ -38,7 +39,8 @@ export async function generateMetadata({ params }: PageProps<"/experiencias/[slu
 export default async function ProductPage({ params, searchParams }: PageProps<"/experiencias/[slug]">) {
   const { slug } = await params;
   if (!isSlug(slug)) notFound();
-  const [site, product, locale] = await Promise.all([loadSite(), loadWebProduct(slug), getLocale()]);
+  const locale = await getLocale();
+  const [site, product] = await Promise.all([loadSite(), loadWebProduct(slug, locale)]);
   if (!product) notFound();
   const text = webText(locale);
   const href = (path: string) => localizedPath(locale, path);

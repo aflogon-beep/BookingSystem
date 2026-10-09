@@ -55,6 +55,22 @@ insert into public.schedule_rules (product_id, weekdays, times, language) values
   ('00000000-0000-4000-8000-000000000203', '{2,3,4,5,6,7}', '{10:30,17:30}', 'es'),
   ('00000000-0000-4000-8000-000000000203', '{1,3,5}', '{12:00}', 'en');
 
+-- Textos en inglés para la web /en (La Laguna se queda sin ellos: se ve en español).
+update public.ticket_types set name_en = 'Adult', note_en = '13 years and over' where id = '00000000-0000-4000-8000-000000000101';
+update public.ticket_types set name_en = 'Child', note_en = '4 to 12 years' where id = '00000000-0000-4000-8000-000000000102';
+update public.ticket_types set name_en = 'Infant', note_en = '0 to 3 years, on lap' where id = '00000000-0000-4000-8000-000000000103';
+update public.ticket_types set name_en = 'Canary Islands resident', note_en = 'With residence certificate' where id = '00000000-0000-4000-8000-000000000104';
+update public.products
+set name_en = 'Teide sunset and stars',
+    description_en = 'Trip up to Teide National Park, sunset over the sea of clouds and guided stargazing with a telescope. Warm clothing and hot chocolate included.',
+    meeting_point_en = 'Plaza del Cristo, La Laguna'
+where id = '00000000-0000-4000-8000-000000000201';
+update public.products
+set name_en = 'Anaga laurel forest',
+    description_en = 'Guided 9 km walk through the laurel forest of Anaga Rural Park, with a stop at a traditional hamlet and a goat cheese tasting.',
+    meeting_point_en = 'Cruz del Carmen visitor centre'
+where id = '00000000-0000-4000-8000-000000000202';
+
 -- Salidas de los próximos 120 días (la migración de salidas genera antes de que exista el seed).
 select public.generate_sessions(
   (now() at time zone 'Atlantic/Canary')::date,

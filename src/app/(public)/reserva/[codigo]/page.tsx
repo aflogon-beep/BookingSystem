@@ -11,7 +11,7 @@ import { Pill } from "@/components/ui/pill";
 import { createAdminClient } from "@/lib/db/admin";
 import { longDayLabel, toBusinessDateTime } from "@/lib/domain/calendar";
 import { formatCents } from "@/lib/domain/money";
-import { localizedPath } from "@/lib/domain/i18n";
+import { localizedPath, localizedText } from "@/lib/domain/i18n";
 import { hasRecentBooking, RECENT_BOOKINGS_COOKIE } from "@/lib/domain/web-checkout";
 import { languageName, webText } from "@/lib/domain/web-text";
 import { getLocale } from "@/lib/i18n";
@@ -38,7 +38,7 @@ export default async function ConfirmationPage({ params }: PageProps<"/reserva/[
     createAdminClient()
       .from("bookings")
       .select(
-        "id, code, status, payment_status, total_cents, hotel, sessions(starts_at, language, products(name, meeting_point, pickup)), booking_lines(qty, ticket_types(name, sort))",
+        "id, code, status, payment_status, total_cents, hotel, sessions(starts_at, language, products(name, meeting_point, name_en, meeting_point_en, pickup)), booking_lines(qty, ticket_types(name, name_en, sort))",
       )
       .eq("code", codigo)
       .eq("channel", "web")
@@ -56,7 +56,9 @@ export default async function ConfirmationPage({ params }: PageProps<"/reserva/[
   const language = languageName(session.language, locale);
   const lines = [...booking.booking_lines].sort((a, b) => (a.ticket_types?.sort ?? 0) - (b.ticket_types?.sort ?? 0));
   const cancelled = booking.status === "cancelled" || booking.status === "expired";
-  const place = product.pickup && booking.hotel ? text.pickupAt(booking.hotel) : product.meeting_point;
+  const productName = localizedText(locale, product.name, product.name_en);
+  const meetingPoint = localizedText(locale, product.meeting_point, product.meeting_point_en);
+  const place = product.pickup && booking.hotel ? text.pickupAt(booking.hotel) : meetingPoint;
 
   return (
     <div className="mx-auto flex w-full max-w-[520px] flex-col gap-3.5 px-4 py-[22px]">
@@ -90,7 +92,7 @@ export default async function ConfirmationPage({ params }: PageProps<"/reserva/[
           )}
         </div>
         <div>
-          <b className="font-semibold">{product.name}</b>
+          <b className="font-semibold">{productName}</b>
           <p className="text-[0.86rem]">
             <span className="inline-block first-letter:uppercase">{longDayLabel(date, locale)}</span> ·{" "}
             <span className="font-mono">{time}</span> · {language}
@@ -103,7 +105,9 @@ export default async function ConfirmationPage({ params }: PageProps<"/reserva/[
           ) : null}
         </div>
         <div className="flex justify-between gap-2.5">
-          <span>{lines.map((line) => `${line.qty} ${line.ticket_types?.name ?? ""}`).join(" · ")}</span>
+          <span>{lines
+              .map((line) => `${line.qty} ${line.ticket_types ? localizedText(locale, line.ticket_types.name, line.ticket_types.name_en) : ""}`)
+              .join(" · ")}</span>
           <b className="tabular-nums">{formatCents(booking.total_cents, locale)}</b>
         </div>
       </section>
