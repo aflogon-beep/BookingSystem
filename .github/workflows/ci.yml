@@ -35,7 +35,7 @@ jobs:
 
       # Supabase local en Docker: aplica migraciones y seed desde cero.
       - name: Arrancar Supabase
-        run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,supavisor,mailpit
+        run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor,mailpit
 
       - name: Exportar las claves de Supabase local
         run: |
