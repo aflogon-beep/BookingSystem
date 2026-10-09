@@ -61,7 +61,14 @@ test.describe("navegación del panel", () => {
   });
 
   test("ninguna sección desborda en horizontal", async ({ page }) => {
-    for (const path of ["/panel", "/panel/calendario", "/panel/ajustes"]) {
+    for (const path of [
+      "/panel",
+      "/panel/calendario",
+      "/panel/ajustes/empresa",
+      "/panel/ajustes/entradas",
+      "/panel/ajustes/politicas",
+      "/panel/ajustes/usuarios",
+    ]) {
       await page.goto(path);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, path).toBeLessThanOrEqual(0);

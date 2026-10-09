@@ -152,8 +152,19 @@ describe("Restricciones del catálogo", () => {
     expect(error?.code).toBe("23514");
   });
 
-  it("no deja borrar un tipo de entrada que algún producto vende", async () => {
-    const { error } = await adminDb.from("ticket_types").delete().eq("id", ADULT_ID);
-    expect(error?.code).toBe("23503");
+  it("al borrar un tipo de entrada se borran sus precios: deja de venderse en todos los productos", async () => {
+    const ticketType = await adminDb.from("ticket_types").insert({ name: "Temporal" }).select("id").single();
+    expect(ticketType.error).toBeNull();
+    const ticketTypeId = ticketType.data!.id;
+    const price = await adminDb.from("product_prices").insert({ product_id: TEIDE_ID, ticket_type_id: ticketTypeId, price_cents: 1000 });
+    expect(price.error).toBeNull();
+
+    const { error } = await admin.db.from("ticket_types").delete().eq("id", ticketTypeId);
+    expect(error).toBeNull();
+
+    const left = await adminDb.from("product_prices").select("product_id").eq("ticket_type_id", ticketTypeId);
+    expect(left.data).toEqual([]);
+    const adultPrice = await adminDb.from("product_prices").select("price_cents").eq("ticket_type_id", ADULT_ID).eq("product_id", TEIDE_ID);
+    expect(adultPrice.data).toEqual([{ price_cents: 6900 }]);
   });
 });

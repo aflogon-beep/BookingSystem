@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { NavSub } from "@/components/panel/nav-sub";
 import { TabBar } from "@/components/panel/tab-bar";
 import { TopBar } from "@/components/panel/top-bar";
+import { Toaster } from "@/components/ui/sonner";
 import { requireStaff } from "@/lib/auth";
 
 // Backoffice del equipo: solo miembros de staff (el proxy redirige antes, pero la comprobación real es esta).
@@ -28,6 +29,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
         {children}
       </main>
       <TabBar role={staff.role} name={staff.name} />
+      <Toaster />
     </div>
   );
 }

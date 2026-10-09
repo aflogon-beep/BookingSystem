@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { createClient } from "@/lib/db/server";
-import { safeNextPath } from "@/lib/domain/auth";
+import { PASSWORD_ERROR_MESSAGES, safeNextPath, validateNewPassword } from "@/lib/domain/auth";
+import { inviteTokenSchema } from "@/lib/domain/team";
 
 export type LoginState = { error: string | null; email: string };
 
@@ -47,4 +48,38 @@ export async function logout(): Promise<void> {
   // Solo este dispositivo: en la oficina se comparten equipos y no queremos cerrar las demás sesiones.
   await supabase.auth.signOut({ scope: "local" });
   redirect("/login");
+}
+
+export type AcceptInviteState = { error: string | null };
+
+const INVALID_INVITE = "El enlace no es válido, ya se ha usado o ha caducado. Pide uno nuevo a un administrador.";
+
+/** Acepta una invitación: valida el token de un solo uso y guarda la contraseña elegida. */
+export async function acceptInvite(_prev: AcceptInviteState, formData: FormData): Promise<AcceptInviteState> {
+  const token = inviteTokenSchema.safeParse(formData.get("token"));
+  if (!token.success) return { error: INVALID_INVITE };
+
+  // La contraseña se valida antes de gastar el token: si no cumple, puede corregirla con el mismo enlace.
+  const password = String(formData.get("password") ?? "");
+  const check = validateNewPassword(password, String(formData.get("confirmation") ?? ""));
+  if (!check.ok) return { error: check.errors.map((error) => PASSWORD_ERROR_MESSAGES[error]).join(" ") };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.verifyOtp({ type: "invite", token_hash: token.data });
+  if (error || !data.user) return { error: INVALID_INVITE };
+
+  const { error: passwordError } = await supabase.auth.updateUser({ password });
+  if (passwordError) {
+    await supabase.auth.signOut({ scope: "local" });
+    return { error: "No se pudo guardar la contraseña. Pide a un administrador que te dé de alta otra vez." };
+  }
+
+  // Dado de baja mientras la invitación seguía abierta: tiene cuenta pero no acceso.
+  const { data: staff } = await supabase.from("staff").select("user_id").eq("user_id", data.user.id).maybeSingle();
+  if (!staff) {
+    await supabase.auth.signOut({ scope: "local" });
+    return { error: "Tu cuenta no tiene acceso al panel. Pide a un administrador que te dé de alta." };
+  }
+
+  redirect("/panel");
 }
