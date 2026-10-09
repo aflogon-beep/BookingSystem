@@ -7,7 +7,8 @@ import { parseEmailConfig } from "@/lib/env";
 import { sendEmails, type OutgoingEmail } from "./resend";
 
 // Los emails de reserva se leen y marcan con service role: los manda el servidor (tras una
-// reserva, al cancelar una salida o desde el cron), no la persona que está en el panel.
+// reserva, al cancelar o cambiar de fecha desde el panel o desde el cron), no la persona que
+// está en el panel.
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -29,7 +30,12 @@ async function loadBusiness(admin: Admin): Promise<BookingEmailData["business"]>
 }
 
 /** Lee las reservas y prepara un email por cada una que tenga email de cliente. */
-async function prepare(admin: Admin, kind: BookingEmailKind, ids: readonly string[]): Promise<(OutgoingEmail & { bookingId: string })[]> {
+async function prepare(
+  admin: Admin,
+  kind: BookingEmailKind,
+  ids: readonly string[],
+  keySuffix: string,
+): Promise<(OutgoingEmail & { bookingId: string })[]> {
   if (!ids.length) return [];
   const [business, { data, error }] = await Promise.all([
     loadBusiness(admin),
@@ -64,17 +70,18 @@ async function prepare(admin: Admin, kind: BookingEmailKind, ids: readonly strin
         bookingId: booking.id,
         to: customer.email,
         replyTo: business.email || undefined,
-        idempotencyKey: `${kind}/${booking.id}`,
+        // Con la fecha de la salida: tras un cambio de fecha vuelve a haber recordatorio.
+        idempotencyKey: `${kind}/${booking.id}/${session.starts_at}${keySuffix}`,
       },
     ];
   });
 }
 
 /** Envía y apunta en el historial de cada reserva los que salieron. Devuelve los ids enviados. */
-async function deliver(admin: Admin, kind: BookingEmailKind, ids: readonly string[]): Promise<Set<string>> {
+async function deliver(admin: Admin, kind: BookingEmailKind, ids: readonly string[], keySuffix = ""): Promise<Set<string>> {
   const sentIds = new Set<string>();
   for (let start = 0; start < ids.length; start += CHUNK) {
-    const emails = await prepare(admin, kind, ids.slice(start, start + CHUNK));
+    const emails = await prepare(admin, kind, ids.slice(start, start + CHUNK), keySuffix);
     const accepted = await sendEmails(emails);
     for (const email of emails) if (accepted.has(email.idempotencyKey)) sentIds.add(email.bookingId);
   }
@@ -87,17 +94,40 @@ async function deliver(admin: Admin, kind: BookingEmailKind, ids: readonly strin
   return sentIds;
 }
 
-/** Email de confirmación de una reserva recién creada (web o panel). Nunca lanza. */
-export async function sendBookingConfirmation(bookingId: string): Promise<void> {
+export type ResendResult = "sent" | "disabled" | "not_confirmed" | "no_email" | "failed";
+
+/**
+ * Email de una reserva confirmada: la confirmación al crearla (web o panel), el aviso de cambio
+ * de fecha o la confirmación reenviada a mano (`again`, que no la frena la idempotencia de
+ * Resend). Nunca lanza.
+ */
+export async function sendBookingEmail(
+  kind: "confirmation" | "change",
+  bookingId: string,
+  { again = false }: { again?: boolean } = {},
+): Promise<ResendResult> {
   try {
-    if (!emailsEnabled()) return;
+    if (!emailsEnabled()) return "disabled";
     const admin = createAdminClient();
-    const { data, error } = await admin.from("bookings").select("id").eq("id", bookingId).eq("status", "confirmed");
+    const { data, error } = await admin
+      .from("bookings")
+      .select("id, customers(email)")
+      .eq("id", bookingId)
+      .eq("status", "confirmed");
     if (error) throw new Error(error.code);
-    await deliver(admin, "confirmation", data.map((row) => row.id));
+    const booking = data[0];
+    if (!booking) return "not_confirmed";
+    if (!booking.customers?.email) return "no_email";
+    const sent = await deliver(admin, kind, [booking.id], again ? `/${Date.now()}` : "");
+    return sent.size ? "sent" : "failed";
   } catch (error) {
-    console.error("No se pudo enviar la confirmación", error instanceof Error ? error.message : "");
+    console.error("No se pudo enviar el email de la reserva", error instanceof Error ? error.message : "");
+    return "failed";
   }
+}
+
+export async function sendBookingConfirmation(bookingId: string): Promise<void> {
+  await sendBookingEmail("confirmation", bookingId);
 }
 
 /**
@@ -142,18 +172,17 @@ async function claimAndDeliver(
 }
 
 /**
- * Aviso de cancelación a las reservas que estaban confirmadas antes de cancelar la salida (las lee
- * quien cancela, antes de llamar a session_set_status): las web pendientes de pago nunca llegaron
- * a confirmarse y no se avisan. Nunca lanza.
+ * Aviso de cancelación a reservas que estaban confirmadas antes de cancelarlas (las lee quien
+ * cancela, antes de llamar a session_set_status o booking_cancel): las web pendientes de pago
+ * nunca llegaron a confirmarse y no se avisan. Nunca lanza.
  */
-export async function sendSessionCancellations(sessionId: string, confirmedIds: readonly string[]): Promise<void> {
+export async function sendCancellations(confirmedIds: readonly string[]): Promise<void> {
   try {
     if (!confirmedIds.length || !emailsEnabled()) return;
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("bookings")
       .select("id")
-      .eq("session_id", sessionId)
       .eq("status", "cancelled")
       .is("cancellation_sent_at", null)
       .in("id", [...confirmedIds]);

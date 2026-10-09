@@ -44,7 +44,8 @@ test("filtra por producto y navega entre semanas", async ({ page }) => {
 test("el mes muestra la ocupación y lleva a la semana del día pulsado", async ({ page }) => {
   await page.goto(`/panel/calendario?vista=mes&fecha=${WEDNESDAY}`);
   await expect(page.getByRole("heading", { level: 2, name: calendarTitle("mes", WEDNESDAY) })).toBeVisible();
-  await expect(page.getByText(/\d+ salidas · 0\/\d+ plazas \(0%\)/)).toBeVisible();
+  // Otros e2e reservan en este mes (ficha.spec.ts, lunes y martes): el total no tiene por qué ser 0.
+  await expect(page.getByText(/\d+ salidas · \d+\/\d+ plazas \(\d+%\)/)).toBeVisible();
   await page.getByRole("link", { name: new RegExp(`^${longDayLabel(WEDNESDAY)}: \\d+ salidas, 0 de \\d+ plazas$`) }).click();
   await expect(page).toHaveURL(new RegExp(`fecha=${WEDNESDAY}`));
   await expect(page.getByRole("heading", { level: 2, name: calendarTitle("semana", WEDNESDAY) })).toBeVisible();

@@ -39,6 +39,13 @@ afterAll(async () => {
 
 /** Producto de prueba (adulto 50 €) con una salida el día DAY a las 10:00. */
 async function createSession(capacity = 10): Promise<string> {
+  const [id] = await createSessions(capacity, ["10:00"]);
+  if (!id) throw new Error("Sin salida");
+  return id;
+}
+
+/** Producto de prueba con salidas el día DAY a esas horas, en orden. */
+async function createSessions(capacity: number, times: string[]): Promise<string[]> {
   const { data, error } = await member.db.rpc("save_product", {
     p_product: {
       slug: `manifiesto-${randomUUID()}`,
@@ -55,16 +62,20 @@ async function createSession(capacity = 10): Promise<string> {
       active: true,
     },
     p_prices: [{ ticket_type_id: ADULT_ID, price_cents: 5000 }],
-    p_rules: [{ weekdays: [1, 2, 3, 4, 5, 6, 7], times: ["10:00"], language: "es", valid_from: null, valid_to: null }],
+    p_rules: [{ weekdays: [1, 2, 3, 4, 5, 6, 7], times, language: "es", valid_from: null, valid_to: null }],
   });
   if (error) throw error;
   const { id: productId } = data as { id: string };
   productIds.push(productId);
   const generated = await member.db.rpc("generate_sessions", { p_from: DAY, p_to: DAY, p_product_id: productId });
   if (generated.error) throw generated.error;
-  const { data: session, error: sessionError } = await adminDb.from("sessions").select("id").eq("product_id", productId).single();
+  const { data: sessions, error: sessionError } = await adminDb
+    .from("sessions")
+    .select("id")
+    .eq("product_id", productId)
+    .order("starts_at");
   if (sessionError) throw sessionError;
-  return session.id;
+  return sessions.map((session) => session.id);
 }
 
 async function book(sessionId: string, qty: number, paymentMethod: string | null = null): Promise<string> {
@@ -166,8 +177,9 @@ describe("estado de la salida", () => {
     expect(error).toBeNull();
     expect(data).toBe(2);
     expect((await bookingRow(a)).status).toBe("cancelled");
-    // Lo cobrado sigue como pagado: el reembolso llega con la tarea 2.4.
-    expect(await bookingRow(b)).toMatchObject({ status: "cancelled", payment_status: "paid" });
+    // Lo cobrado queda reembolsado.
+    expect(await bookingRow(b)).toMatchObject({ status: "cancelled", payment_status: "refunded" });
+    expect((await events(b)).at(-1)).toBe("Marta Guía: Reembolsado 50,00 € · Efectivo");
     expect((await events(a)).at(-1)).toBe("Marta Guía: Reserva cancelada: salida cancelada por la empresa");
     expect((await member.db.rpc("booking_set_checked_in", { p_booking_id: a, p_checked: true })).error?.code).toBe("RB004");
     expect((await member.db.rpc("booking_collect_payment", { p_booking_id: a, p_method: "cash" })).error?.code).toBe("RB005");
@@ -204,6 +216,70 @@ describe("estado de la salida", () => {
   });
 });
 
+describe("cancelar una reserva", () => {
+  it("cancela, reembolsa lo cobrado si se pide y libera las plazas", async () => {
+    const sessionId = await createSession(3);
+    const paid = await book(sessionId, 2, "cash");
+    const kept = await book(sessionId, 1, "card_terminal");
+
+    const refund = await member.db.rpc("booking_cancel", { p_booking_id: paid });
+    expect(refund.error).toBeNull();
+    expect(refund.data).toBe(10000);
+    expect(await bookingRow(paid)).toMatchObject({ status: "cancelled", payment_status: "refunded", checked_in: false });
+    expect((await events(paid)).slice(-2)).toEqual(["Marta Guía: Reserva cancelada", "Marta Guía: Reembolsado 100,00 € · Efectivo"]);
+
+    // Sin reembolso (fuera de plazo): lo cobrado sigue como pagado.
+    const none = await member.db.rpc("booking_cancel", { p_booking_id: kept, p_refund: false });
+    expect(none.data).toBe(0);
+    expect(await bookingRow(kept)).toMatchObject({ status: "cancelled", payment_status: "paid" });
+
+    expect((await member.db.rpc("booking_cancel", { p_booking_id: kept })).error?.code).toBe("RB009");
+    // Las plazas vuelven a estar a la venta.
+    await book(sessionId, 3);
+  });
+
+  it("no cancela una reserva cuya salida ya ha empezado", async () => {
+    const sessionId = await createSession();
+    const id = await book(sessionId, 1);
+    await adminDb.from("sessions").update({ starts_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", sessionId);
+    expect((await member.db.rpc("booking_cancel", { p_booking_id: id })).error?.code).toBe("RB007");
+    expect((await bookingRow(id)).status).toBe("confirmed");
+  });
+});
+
+describe("cambiar de fecha", () => {
+  it("mueve la reserva a otra salida con plazas del mismo producto", async () => {
+    const [from, to, full] = await createSessions(2, ["10:00", "12:00", "16:00"]);
+    if (!from || !to || !full) throw new Error("Faltan salidas");
+    const id = await book(from, 2);
+    await member.db.rpc("booking_set_checked_in", { p_booking_id: id, p_checked: true });
+    await book(full, 1);
+
+    expect((await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: full })).error).toMatchObject({ code: "RB001", hint: "1" });
+    expect((await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: from })).error?.code).toBe("22023");
+    const otherProduct = await createSession();
+    expect((await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: otherProduct })).error?.code).toBe("22023");
+
+    expect((await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: to })).error).toBeNull();
+    const { data: moved } = await adminDb.from("bookings").select("session_id, checked_in, total_cents").eq("id", id).single();
+    expect(moved).toMatchObject({ session_id: to, checked_in: false, total_cents: 10000 });
+    expect((await events(id)).at(-1)).toMatch(/^Marta Guía: Cambio de fecha: del 16\/04\/2031 10:00 al 16\/04\/2031 12:00$/);
+    // La salida de origen queda libre.
+    await book(from, 2);
+  });
+
+  it("no mueve reservas canceladas ni a salidas cerradas", async () => {
+    const [from, to] = await createSessions(10, ["10:00", "12:00"]);
+    if (!from || !to) throw new Error("Faltan salidas");
+    const id = await book(from, 1);
+    await member.db.rpc("session_set_status", { p_session_id: to, p_status: "closed" });
+    expect((await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: to })).error?.code).toBe("RB002");
+    await member.db.rpc("booking_cancel", { p_booking_id: id });
+    await member.db.rpc("session_set_status", { p_session_id: to, p_status: "open" });
+    expect((await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: to })).error?.code).toBe("RB009");
+  });
+});
+
 describe("permisos", () => {
   it("solo el equipo usa las funciones del manifiesto", async () => {
     const sessionId = await createSession();
@@ -213,10 +289,16 @@ describe("permisos", () => {
       expect((await db.rpc("session_check_in_all", { p_session_id: sessionId })).error).not.toBeNull();
       expect((await db.rpc("booking_collect_payment", { p_booking_id: id, p_method: "cash" })).error).not.toBeNull();
       expect((await db.rpc("session_set_status", { p_session_id: sessionId, p_status: "cancelled" })).error).not.toBeNull();
+      expect((await db.rpc("booking_cancel", { p_booking_id: id })).error).not.toBeNull();
+      expect((await db.rpc("booking_move", { p_booking_id: id, p_session_id: sessionId })).error).not.toBeNull();
     }
     expect(await bookingRow(id)).toMatchObject({ status: "confirmed", payment_status: "pending", checked_in: false });
     // Las funciones auxiliares no se exponen.
     expect((await member.db.rpc("staff_actor")).error).not.toBeNull();
     expect((await member.db.rpc("format_cents", { p_cents: 100 })).error).not.toBeNull();
+    expect((await member.db.rpc("payment_method_label", { p_method: "cash" })).error).not.toBeNull();
+    expect((await member.db.rpc("cancel_locked_booking", { p_booking_id: id, p_reason: "x", p_refund: true })).error).not.toBeNull();
+    expect((await member.db.rpc("lock_booking_with_session", { p_booking_id: id })).error).not.toBeNull();
+    expect((await bookingRow(id)).status).toBe("confirmed");
   });
 });

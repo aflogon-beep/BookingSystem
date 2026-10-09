@@ -5,7 +5,7 @@ import { formatCents } from "./money";
 import { businessToday } from "./schedule";
 import { isLanguageCode, LANGUAGES } from "./settings";
 
-export type BookingEmailKind = "confirmation" | "reminder" | "cancellation";
+export type BookingEmailKind = "confirmation" | "reminder" | "cancellation" | "change";
 
 /** Lo que necesita un email de reserva, ya leído de la BD. */
 export type BookingEmailData = {
@@ -30,6 +30,7 @@ export const EMAIL_EVENT_TEXT: Record<BookingEmailKind, string> = {
   confirmation: "Email de confirmación enviado",
   reminder: "Recordatorio enviado",
   cancellation: "Aviso de cancelación enviado",
+  change: "Aviso de cambio de fecha enviado",
 };
 
 const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -101,12 +102,18 @@ export function bookingEmail(kind: BookingEmailKind, data: BookingEmailData): Em
       intro = [`Te recordamos que mañana, ${when}, tienes ${data.productName}.`];
       outro = ["Llega unos minutos antes y ten a mano el código de reserva."];
       break;
+    case "change":
+      subject = `Cambio de fecha · ${data.productName} · ${data.code}`;
+      title = "Tu reserva ha cambiado de fecha";
+      intro = [`Hemos cambiado tu reserva de ${data.productName}. La nueva fecha es el ${when}.`];
+      outro = ["Las entradas y el importe no cambian."];
+      break;
     case "cancellation":
       subject = `Reserva cancelada · ${data.productName} · ${data.code}`;
       title = "Reserva cancelada";
       intro = [`Tu reserva para ${data.productName} del ${when} está cancelada.`];
       outro = [
-        data.paymentStatus === "paid" ? "Te devolveremos lo que pagaste." : "",
+        data.paymentStatus === "refunded" ? "Te devolvemos lo que pagaste." : "",
         "Sentimos las molestias. Si quieres, puedes reservar otra fecha en nuestra web.",
       ];
       break;

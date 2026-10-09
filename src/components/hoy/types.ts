@@ -16,6 +16,7 @@ export type TodaySession = {
 
 export type ActivityItem = {
   id: string;
+  code: string;
   at: string;
   text: string;
   customerName: string;

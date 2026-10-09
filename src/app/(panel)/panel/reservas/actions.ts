@@ -7,9 +7,11 @@ import { z } from "zod";
 import type { DaySession } from "@/components/reservas/types";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
-import { sendBookingConfirmation } from "@/lib/email/booking-emails";
+import { sendBookingConfirmation, sendBookingEmail, sendCancellations } from "@/lib/email/booking-emails";
 import { bookingErrorMessage, isPaymentAllowed, paymentMethodFor, type PaymentOption } from "@/lib/domain/booking-form";
+import { bookingChangeError } from "@/lib/domain/booking-detail";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
+import { formatCents } from "@/lib/domain/money";
 
 const dateSchema = z.iso.date();
 
@@ -118,4 +120,75 @@ const OWN_MESSAGES = new Set(["name", "email", "payment", "lines"]);
 
 function validationMessage(issue: z.core.$ZodIssue | undefined): string {
   return issue && issue.path.length === 1 && OWN_MESSAGES.has(String(issue.path[0])) ? issue.message : "Revisa los datos de la reserva.";
+}
+
+// Ficha de reserva ----------------------------------------------------------------------------
+
+export type BookingActionResult = { ok: true; message: string } | { ok: false; error: string };
+
+const uuid = z.uuid();
+
+function changed(message: string): BookingActionResult {
+  revalidatePath("/panel", "layout");
+  return { ok: true, message };
+}
+
+/** Cancela una reserva; con `refund`, lo cobrado queda reembolsado. Avisa al cliente por email. */
+export async function cancelBooking(bookingId: string, refund: boolean): Promise<BookingActionResult> {
+  await requireAccess("reservas");
+  if (!uuid.safeParse(bookingId).success || typeof refund !== "boolean") return { ok: false, error: bookingChangeError(undefined, undefined) };
+  const supabase = await createClient();
+  // Solo se avisa a quien tenía la reserva confirmada (no a un pago web a medias).
+  const { data: before } = await supabase.from("bookings").select("status").eq("id", bookingId).maybeSingle();
+  const { data, error } = await supabase.rpc("booking_cancel", { p_booking_id: bookingId, p_refund: refund });
+  if (error) return { ok: false, error: bookingChangeError(error.code, error.hint) };
+  if (before?.status === "confirmed") after(() => sendCancellations([bookingId]));
+  return changed(data ? `Reserva cancelada · reembolsados ${formatCents(data)}` : "Reserva cancelada");
+}
+
+/** Cambia la reserva a otra salida del mismo producto. Avisa al cliente por email. */
+export async function moveBooking(bookingId: string, sessionId: string): Promise<BookingActionResult> {
+  await requireAccess("reservas");
+  if (!uuid.safeParse(bookingId).success || !uuid.safeParse(sessionId).success) {
+    return { ok: false, error: "Elige la nueva salida." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("booking_move", { p_booking_id: bookingId, p_session_id: sessionId });
+  if (error) return { ok: false, error: bookingChangeError(error.code, error.hint) };
+  after(() => sendBookingEmail("change", bookingId));
+  return changed("Reserva cambiada de fecha");
+}
+
+const notesSchema = z.string().trim().max(2000, "Las notas no pueden pasar de 2000 caracteres.");
+
+export async function saveBookingNotes(bookingId: string, notes: string): Promise<BookingActionResult> {
+  await requireAccess("reservas");
+  const parsed = notesSchema.safeParse(notes);
+  if (!uuid.safeParse(bookingId).success) return { ok: false, error: bookingChangeError(undefined, undefined) };
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Notas no válidas." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("bookings").update({ notes: parsed.data }).eq("id", bookingId).select("id");
+  if (error) return { ok: false, error: bookingChangeError(error.code, error.hint) };
+  if (!data.length) return { ok: false, error: bookingChangeError("P0002", undefined) };
+  return changed("Notas guardadas");
+}
+
+const RESEND_MESSAGES = {
+  disabled: "Los emails aún no están configurados (falta la clave de Resend).",
+  not_confirmed: "La reserva ya no está confirmada. Recarga la página.",
+  no_email: "Esta reserva no tiene email de cliente.",
+  failed: "No se pudo enviar el email. Inténtalo de nuevo en unos minutos.",
+} as const;
+
+/** Reenvía la confirmación al cliente. */
+export async function resendBookingConfirmation(bookingId: string): Promise<BookingActionResult> {
+  await requireAccess("reservas");
+  if (!uuid.safeParse(bookingId).success) return { ok: false, error: bookingChangeError(undefined, undefined) };
+  // Con la sesión del equipo (RLS): que exista y se pueda ver antes de enviar con service role.
+  const supabase = await createClient();
+  const { data: booking } = await supabase.from("bookings").select("id").eq("id", bookingId).maybeSingle();
+  if (!booking) return { ok: false, error: bookingChangeError("P0002", undefined) };
+  const result = await sendBookingEmail("confirmation", bookingId, { again: true });
+  if (result !== "sent") return { ok: false, error: RESEND_MESSAGES[result] };
+  return changed("Confirmación reenviada");
 }

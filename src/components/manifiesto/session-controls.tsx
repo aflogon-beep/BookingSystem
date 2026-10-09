@@ -125,8 +125,8 @@ export function SessionControls({
               {booked > 0
                 ? `Se cancelarán sus reservas (${booked} ${booked === 1 ? "plaza" : "plazas"}). `
                 : "No tiene reservas. "}
-              Una salida cancelada no se puede volver a abrir. El reembolso de lo cobrado y el aviso por email a los
-              clientes llegarán en una próxima versión.
+              Lo cobrado queda reembolsado (devuélvelo en efectivo o por TPV) y cada cliente recibe un email. Una
+              salida cancelada no se puede volver a abrir.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -101,7 +101,7 @@ async function loadActivity(supabase: Supabase): Promise<ActivityItem[]> {
   const { data, error } = await supabase
     .from("booking_events")
     .select(
-      "id, text, created_at, bookings!inner(status, channel, total_cents, customers!inner(name), sessions!inner(products!inner(name)), booking_lines(qty))",
+      "id, text, created_at, bookings!inner(code, status, channel, total_cents, customers!inner(name), sessions!inner(products!inner(name)), booking_lines(qty))",
     )
     .order("created_at", { ascending: false })
     .order("id")
@@ -112,6 +112,7 @@ async function loadActivity(supabase: Supabase): Promise<ActivityItem[]> {
     id: String(row.id),
     at: row.created_at,
     text: row.text,
+    code: row.bookings.code,
     customerName: row.bookings.customers.name,
     productName: row.bookings.sessions.products.name,
     pax: row.bookings.booking_lines.reduce((sum, line) => sum + line.qty, 0),
