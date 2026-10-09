@@ -28,7 +28,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [x] 2.5 i18n ES/EN de la web pública: inglés bajo `/en` con selector ES/EN, y textos de productos y entradas en inglés (opcionales; si faltan, en español). Pendiente: emails en el idioma de la reserva (cuando se activen los emails).
 
 ## Fase 3 — Operación avanzada
-- [ ] 3.1 Recursos: fichas, idiomas y asientos. Restricción de solapes en BD.
+- [x] 3.1 Recursos: fichas, idiomas y asientos. Restricción de solapes en BD.
 - [ ] 3.2 Asignación automática y manual en el manifiesto.
 - [ ] 3.3 Equipo · "Dónde están" (línea de tiempo) y planificación semanal.
 - [ ] 3.4 Reservas: listado con pestañas, filtros y CSV. Clientes.

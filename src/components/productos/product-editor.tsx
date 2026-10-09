@@ -40,6 +40,7 @@ import {
   type ProductInput,
   type ProductTab,
 } from "@/lib/domain/product";
+import { RESOURCE_LIMITS, RESOURCE_TYPES, RESOURCE_TYPE_TEXT, type ProductNeeds, type ResourceType } from "@/lib/domain/resources";
 import { LANGUAGES, isLanguageCode } from "@/lib/domain/settings";
 import { WEEKDAY_INITIALS, WEEKDAY_NAMES, parseTimes, previewSessions, shortDateLabel } from "@/lib/domain/schedule";
 import { getPublicEnv } from "@/lib/env";
@@ -65,6 +66,7 @@ export type EditorProduct = {
   active: boolean;
   prices: { ticketTypeId: string; priceCents: number }[];
   rules: { weekdays: number[]; times: string[]; language: string; validFrom: string | null; validTo: string | null }[];
+  needs: ProductNeeds;
 };
 
 type DraftRule = { key: number; weekdays: number[]; timesRaw: string; language: string; validFrom: string; validTo: string };
@@ -85,12 +87,14 @@ type Draft = {
   photoPath: string | null;
   prices: Record<string, { on: boolean; raw: string }>;
   rules: DraftRule[];
+  needs: Record<ResourceType, string>;
 };
 
 const TABS: { id: ProductTab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "precios", label: "Entradas y precios" },
   { id: "horarios", label: "Horarios" },
+  { id: "equipo", label: "Equipo" },
 ];
 
 const PREVIEW_DAYS = 14;
@@ -128,6 +132,7 @@ function toDraft(product: EditorProduct, ticketTypes: readonly EditorTicketType[
       validFrom: rule.validFrom ?? "",
       validTo: rule.validTo ?? "",
     })),
+    needs: { guide: String(product.needs.guide), vehicle: String(product.needs.vehicle), equipment: String(product.needs.equipment) },
   };
 }
 
@@ -173,6 +178,11 @@ function buildInput(draft: Draft, active: boolean, ticketTypes: readonly EditorT
         validFrom: rule.validFrom || null,
         validTo: rule.validTo || null,
       })),
+      needs: {
+        guide: toNumber(draft.needs.guide),
+        vehicle: toNumber(draft.needs.vehicle),
+        equipment: toNumber(draft.needs.equipment),
+      },
     },
   };
 }
@@ -182,10 +192,12 @@ type EditorProps = {
   ticketTypes: EditorTicketType[];
   languages: string[];
   currency: string;
+  /** Cuántos recursos hay de cada tipo en Equipo. */
+  available: Record<ResourceType, number>;
   today: string;
 };
 
-export function ProductEditor({ product, ticketTypes, languages, currency, today }: EditorProps) {
+export function ProductEditor({ product, ticketTypes, languages, currency, available, today }: EditorProps) {
   const router = useRouter();
   const isNew = product.id === null;
   const [draft, setDraft] = useState(() => toDraft(product, ticketTypes));
@@ -257,6 +269,7 @@ export function ProductEditor({ product, ticketTypes, languages, currency, today
               <PricesTab draft={draft} update={update} ticketTypes={ticketTypes} currency={currency} />
             ) : null}
             {tab === "horarios" ? <ScheduleTab draft={draft} setDraft={setDraft} languages={languages} today={today} /> : null}
+            {tab === "equipo" ? <EquipmentTab draft={draft} update={update} available={available} /> : null}
           </div>
         </div>
         <CustomerPreview draft={draft} seed={product.id ?? "nuevo"} ticketTypes={ticketTypes} />
@@ -785,6 +798,48 @@ function RuleRow({
         <Trash2 aria-hidden="true" />
       </Button>
     </li>
+  );
+}
+
+function EquipmentTab({ draft, update, available }: TabProps & { available: Record<ResourceType, number> }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[0.84rem] text-muted-foreground">
+        Qué necesita cada salida. Se asigna automáticamente con la primera reserva, respetando idiomas y sin solapes.
+      </p>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5">
+        {RESOURCE_TYPES.map((type) => {
+          const id = `pn-${type}`;
+          const count = available[type];
+          return (
+            <Field
+              key={type}
+              id={id}
+              label={RESOURCE_TYPE_TEXT[type].plural}
+              hint={`${count} ${count === 1 ? "disponible" : "disponibles"}`}
+            >
+              <Input
+                id={id}
+                type="number"
+                inputMode="numeric"
+                min={RESOURCE_LIMITS.need.min}
+                max={RESOURCE_LIMITS.need.max}
+                value={draft.needs[type]}
+                aria-describedby={`${id}-hint`}
+                onChange={(event) => update({ needs: { ...draft.needs, [type]: event.target.value } })}
+              />
+            </Field>
+          );
+        })}
+      </div>
+      <p className="text-[0.8rem] text-muted-foreground">
+        Las fichas de guías, vehículos y material están en{" "}
+        <Link href="/panel/equipo" className="text-primary underline-offset-4 hover:underline">
+          Equipo
+        </Link>
+        .
+      </p>
+    </div>
   );
 }
 

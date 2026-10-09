@@ -71,6 +71,25 @@ set name_en = 'Anaga laurel forest',
     meeting_point_en = 'Cruz del Carmen visitor centre'
 where id = '00000000-0000-4000-8000-000000000202';
 
+-- Equipo del prototipo y lo que necesita cada salida.
+insert into public.resources (id, name, type, seats, languages) values
+  ('00000000-0000-4000-8000-000000000301', 'Ana Pérez', 'guide', 1, '{es,en}'),
+  ('00000000-0000-4000-8000-000000000302', 'Lukas Weber', 'guide', 1, '{de,en}'),
+  ('00000000-0000-4000-8000-000000000303', 'Carmen Díaz', 'guide', 1, '{es}'),
+  ('00000000-0000-4000-8000-000000000304', 'Javier Hernández', 'guide', 1, '{es,en}'),
+  ('00000000-0000-4000-8000-000000000311', 'Minibús 01', 'vehicle', 16, '{}'),
+  ('00000000-0000-4000-8000-000000000312', 'Minibús 02', 'vehicle', 16, '{}'),
+  ('00000000-0000-4000-8000-000000000313', 'Furgoneta 08', 'vehicle', 8, '{}'),
+  ('00000000-0000-4000-8000-000000000321', 'Telescopio Dobson', 'equipment', 1, '{}');
+
+insert into public.product_needs (product_id, resource_type, qty) values
+  ('00000000-0000-4000-8000-000000000201', 'guide', 1),
+  ('00000000-0000-4000-8000-000000000201', 'vehicle', 1),
+  ('00000000-0000-4000-8000-000000000201', 'equipment', 1),
+  ('00000000-0000-4000-8000-000000000202', 'guide', 1),
+  ('00000000-0000-4000-8000-000000000202', 'vehicle', 1),
+  ('00000000-0000-4000-8000-000000000203', 'guide', 1);
+
 -- Salidas de los próximos 120 días (la migración de salidas genera antes de que exista el seed).
 select public.generate_sessions(
   (now() at time zone 'Atlantic/Canary')::date,

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { loadEditorContext } from "@/app/(panel)/panel/productos/editor-data";
 import { ProductEditor } from "@/components/productos/product-editor";
 import { requireAccess } from "@/lib/auth";
+import { needsFromRows } from "@/lib/domain/resources";
 
 export const metadata: Metadata = { title: "Editar producto" };
 
@@ -13,11 +14,11 @@ export default async function Page({ params }: PageProps<"/panel/productos/[id]"
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const { supabase, languages, currency, ticketTypes, today } = await loadEditorContext();
+  const { supabase, available, languages, currency, ticketTypes, today } = await loadEditorContext();
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, name, description, meeting_point, name_en, description_en, meeting_point_en, place, duration_min, capacity, min_pax, pickup, color, photo_path, active, product_prices(ticket_type_id, price_cents), schedule_rules(weekdays, times, language, valid_from, valid_to, created_at)",
+      "id, name, description, meeting_point, name_en, description_en, meeting_point_en, place, duration_min, capacity, min_pax, pickup, color, photo_path, active, product_prices(ticket_type_id, price_cents), schedule_rules(weekdays, times, language, valid_from, valid_to, created_at), product_needs(resource_type, qty)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -50,7 +51,17 @@ export default async function Page({ params }: PageProps<"/panel/productos/[id]"
         validFrom: rule.valid_from,
         validTo: rule.valid_to,
       })),
+    needs: needsFromRows(data.product_needs),
   };
 
-  return <ProductEditor product={product} ticketTypes={ticketTypes} languages={languages} currency={currency} today={today} />;
+  return (
+    <ProductEditor
+      product={product}
+      ticketTypes={ticketTypes}
+      languages={languages}
+      currency={currency}
+      available={available}
+      today={today}
+    />
+  );
 }

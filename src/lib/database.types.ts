@@ -115,6 +115,26 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"product_needs": {
+                  Row: {
+                    "product_id": string,"qty": number,"resource_type": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "product_id": string,"qty": number,"resource_type": string
+                  }
+                  Update: {
+                    "product_id"?: string,"qty"?: number,"resource_type"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "product_needs_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"product_prices": {
                   Row: {
                     "created_at": string,"price_cents": number,"product_id": string,"ticket_type_id": string
@@ -155,6 +175,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"resources": {
+                  Row: {
+                    "created_at": string,"id": string,"languages": (string)[],"name": string,"seats": number,"type": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"languages"?: (string)[],"name": string,"seats"?: number,"type": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"languages"?: (string)[],"name"?: string,"seats"?: number,"type"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"schedule_rules": {
                   Row: {
                     "created_at": string,"id": string,"language": string,"product_id": string,"times": (string)[],"valid_from": string | null,"valid_to": string | null,"weekdays": (number)[]
@@ -172,6 +206,32 @@ isOneToOne: false
       columns: ["product_id"]
 isOneToOne: false
       referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"session_resources": {
+                  Row: {
+                    "created_at": string,"period": unknown,"resource_id": string,"session_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"period"?: unknown,"resource_id": string,"session_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"period"?: unknown,"resource_id"?: string,"session_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "session_resources_resource_id_fkey"
+      columns: ["resource_id"]
+isOneToOne: false
+      referencedRelation: "resources"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "session_resources_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
+      referencedRelation: "sessions"
       referencedColumns: ["id"]
     }
                   ]

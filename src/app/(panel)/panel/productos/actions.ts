@@ -61,6 +61,7 @@ function rpcArgs(product: ProductData) {
       color: product.color,
       photo_path: product.photoPath,
       active: product.active,
+      ...(product.needs ? { needs: product.needs } : {}),
     },
     p_prices: product.prices.map((price) => ({ ticket_type_id: price.ticketTypeId, price_cents: price.priceCents })),
     p_rules: product.rules.map((rule) => ({
