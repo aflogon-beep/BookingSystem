@@ -199,6 +199,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"rate_limit_hits": {
+                  Row: {
+                    "hit_at": string,"key": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "hit_at"?: string,"key": string
+                  }
+                  Update: {
+                    "hit_at"?: string,"key"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"resources": {
                   Row: {
                     "created_at": string,"id": string,"languages": (string)[],"name": string,"seats": number,"type": string
@@ -463,6 +477,9 @@ isOneToOne: false
                            },
 "payment_method_label":
 { Args: { "p_method": string }; Returns: string
+                           },
+"rate_limit_hit":
+{ Args: { "p_key": string,"p_limit": number,"p_window_seconds": number }; Returns: boolean
                            },
 "report_summary":
 { Args: { "p_from": string,"p_to": string }; Returns: Json

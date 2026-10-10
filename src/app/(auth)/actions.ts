@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { createClient } from "@/lib/db/server";
+import { loginRules } from "@/lib/domain/rate-limits";
+import { requestIp, withinLimits } from "@/lib/rate-limit";
 import { PASSWORD_ERROR_MESSAGES, safeNextPath, validateNewPassword } from "@/lib/domain/auth";
 import { inviteTokenSchema } from "@/lib/domain/team";
 
@@ -25,6 +27,12 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   };
   const parsed = loginSchema.safeParse(raw);
   if (!parsed.success) return { error: INVALID_CREDENTIALS, email: raw.email };
+
+  // Supabase ve siempre la IP del servidor: el límite por IP y por cuenta se pone aquí.
+  const ip = await requestIp();
+  if (ip && !(await withinLimits(loginRules(ip, parsed.data.email)))) {
+    return { error: "Demasiados intentos. Espera unos minutos antes de volver a probar.", email: raw.email };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({

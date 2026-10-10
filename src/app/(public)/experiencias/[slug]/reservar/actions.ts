@@ -6,6 +6,7 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { createAdminClient } from "@/lib/db/admin";
+import { webBookingRules } from "@/lib/domain/rate-limits";
 import { sendBookingConfirmation } from "@/lib/email/booking-emails";
 import { DEFAULT_LOCALE, isLocale, localizedPath, type Locale } from "@/lib/domain/i18n";
 import { isSlug } from "@/lib/domain/storefront";
@@ -18,6 +19,7 @@ import {
   type WebCustomerInput,
 } from "@/lib/domain/web-checkout";
 import { webText } from "@/lib/domain/web-text";
+import { requestIp, withinLimits } from "@/lib/rate-limit";
 
 import { loadSite, loadWebProduct, loadWebSession } from "../../../data";
 
@@ -65,6 +67,9 @@ export async function createWebBooking(input: WebBookingInput): Promise<{ ok: fa
   if (cart.totalCents !== expectedTotalCents) return { ok: false, error: text.errors.priceChanged };
 
   const { name, email, phone, hotel } = customer.data;
+  // Sin pago, una reserva solo cuesta un envío: se limitan los intentos por IP y por email.
+  const ip = await requestIp();
+  if (ip && !(await withinLimits(webBookingRules(ip, email)))) return { ok: false, error: text.errors.tooMany };
   const { data, error } = await createAdminClient().rpc("create_booking_hold", {
     p_session_id: session.id,
     p_lines: lines.map((line) => ({ ticket_type_id: line.ticketTypeId, qty: line.qty })),

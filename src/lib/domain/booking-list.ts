@@ -152,8 +152,9 @@ const STATUS_LABELS: Record<string, string> = { confirmed: "Confirmada", cancell
 
 function csvCell(value: string | number): string {
   const text = String(value);
-  // Una celda que empieza por =, +, - o @ Excel la ejecuta como fórmula: se antepone un apóstrofo.
-  const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  // Una celda que empieza (aunque sea tras espacios) por =, +, -, @, | o % la hoja de cálculo puede
+  // ejecutarla como fórmula: se antepone un apóstrofo.
+  const safe = /^[\s]*[=+\-@|%]|^[\t\r]/.test(text) ? `'${text}` : text;
   return `"${safe.replace(/"/g, '""')}"`;
 }
 

@@ -40,8 +40,8 @@ export function safeNextPath(next: string | null | undefined): string {
   return next;
 }
 
-/** Secciones solo para admin (PRD: el staff opera, sin ajustes). */
-const ADMIN_ONLY: readonly NavId[] = ["ajustes"];
+/** Secciones solo para admin (PRD: el staff opera, sin ajustes ni informes de ingresos). */
+const ADMIN_ONLY: readonly NavId[] = ["ajustes", "informes"];
 
 export function canAccess(role: StaffRole, section: NavId): boolean {
   return role === "admin" || !ADMIN_ONLY.includes(section);

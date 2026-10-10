@@ -15,6 +15,7 @@ const NEXT_DAY = "2031-07-10";
 
 let member: TestUser;
 let outsider: TestUser;
+let boss: TestUser;
 let productId: string;
 const sessionIds: string[] = [];
 const testTag = randomUUID().slice(0, 8);
@@ -22,6 +23,7 @@ const testTag = randomUUID().slice(0, 8);
 beforeAll(async () => {
   member = await createTestUser({ name: "Rita Staff", role: "staff" });
   outsider = await createTestUser();
+  boss = await createTestUser({ name: "Rosa Admin", role: "admin" });
   const { data, error } = await member.db.rpc("save_product", {
     p_product: {
       slug: `informes-${randomUUID()}`,
@@ -56,7 +58,7 @@ afterAll(async () => {
   if (sessionIds.length) await adminDb.from("bookings").delete().in("session_id", sessionIds);
   await adminDb.from("products").delete().eq("id", productId);
   await adminDb.from("customers").delete().like("email", `%-${testTag}@example.test`);
-  await deleteTestUsers([outsider, member]);
+  await deleteTestUsers([outsider, member, boss]);
 });
 
 async function book(sessionId: string, qty: number, channel: string): Promise<string> {
@@ -87,7 +89,7 @@ describe("report_summary", () => {
     await book(nextEarly ?? "", 5, "phone");
     expect((await member.db.rpc("booking_cancel", { p_booking_id: cancelled })).error).toBeNull();
 
-    const { data, error } = await member.db.rpc("report_summary", { p_from: DAY, p_to: DAY });
+    const { data, error } = await boss.db.rpc("report_summary", { p_from: DAY, p_to: DAY });
     expect(error).toBeNull();
     const summary = reportSummarySchema.parse(data);
     expect(summary).toMatchObject({ bookings: 3, revenue_cents: 15_000, pax: 6, capacity: 30, booked_seats: 6 });
@@ -109,10 +111,15 @@ describe("report_summary", () => {
   });
 
   it("rechaza rangos de más de 3 meses o al revés", async () => {
-    const { error } = await member.db.rpc("report_summary", { p_from: "2031-01-01", p_to: "2031-12-31" });
+    const { error } = await boss.db.rpc("report_summary", { p_from: "2031-01-01", p_to: "2031-12-31" });
     expect(error?.code).toBe("22023");
-    const reversed = await member.db.rpc("report_summary", { p_from: NEXT_DAY, p_to: DAY });
+    const reversed = await boss.db.rpc("report_summary", { p_from: NEXT_DAY, p_to: DAY });
     expect(reversed.error?.code).toBe("22023");
+  });
+
+  it("solo lo ve un admin (el staff no ve ingresos)", async () => {
+    const { error } = await member.db.rpc("report_summary", { p_from: DAY, p_to: DAY });
+    expect(error?.code).toBe("42501");
   });
 
   it("quien no es del equipo no puede verlo", async () => {
