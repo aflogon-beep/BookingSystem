@@ -100,6 +100,13 @@ describe("línea de tiempo", () => {
     expect(minutesInDay("2030-12-01T23:00:00Z", DAY)).toBe(0);
   });
 
+  it("en verano usa la hora de Canarias (UTC+1)", () => {
+    expect(minutesInDay("2030-07-01T08:00:00Z", "2030-07-01")).toBe(540);
+    // 23:30 UTC del día 1 ya es la 00:30 del día 2 en Canarias.
+    expect(minutesInDay("2030-07-01T23:30:00Z", "2030-07-01")).toBe(1440);
+    expect(minutesInDay("2030-07-01T23:30:00Z", "2030-07-02")).toBe(30);
+  });
+
   it("va de 8 a 22 y se amplía con salidas más tempranas o tardías", () => {
     expect(timelineHours([morning, evening], DAY)).toEqual({ from: 8, to: 22 });
     expect(timelineHours([session("x", "06:30", "08:00"), session("y", "21:00", "23:15")], DAY)).toEqual({ from: 6, to: 24 });
@@ -130,10 +137,10 @@ describe("whereaboutsKpis", () => {
 
 describe("assignPendingMessage", () => {
   it("dice qué hizo «Asignar pendientes»", () => {
-    expect(assignPendingMessage({ sessions: 0, missing: 0 })).toEqual({ ok: true, text: "No había salidas pendientes" });
-    expect(assignPendingMessage({ sessions: 2, missing: 0 })).toEqual({ ok: true, text: "2 salidas con equipo asignado" });
+    expect(assignPendingMessage({ sessions: 0, missing: 0 })).toEqual({ level: "ok", text: "No había salidas pendientes" });
+    expect(assignPendingMessage({ sessions: 2, missing: 0 })).toEqual({ level: "ok", text: "2 salidas con equipo asignado" });
     expect(assignPendingMessage({ sessions: 1, missing: 1 })).toEqual({
-      ok: false,
+      level: "warn",
       text: "Asignado. Falta 1 recurso libre o con ese idioma",
     });
   });

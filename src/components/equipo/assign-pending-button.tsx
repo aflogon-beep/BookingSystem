@@ -17,7 +17,8 @@ export function AssignPendingButton({ day }: { day: string }) {
       onClick={() =>
         startTransition(async () => {
           const result = await assignPending(day);
-          if (result.ok) toast.success(result.message);
+          if (result.level === "ok") toast.success(result.message);
+          else if (result.level === "warn") toast.warning(result.message);
           else toast.error(result.message);
         })
       }

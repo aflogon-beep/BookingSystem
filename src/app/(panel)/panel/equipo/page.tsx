@@ -48,7 +48,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/equipo">)
               ? `Dónde está cada guía, vehículo y equipo ahora mismo · ${toBusinessDateTime(now.toISOString()).time}`
               : "Asignaciones del día"
           }
-          action={<AssignPendingButton day={day} />}
+          action={day >= today ? <AssignPendingButton day={day} /> : null}
         />
         <ViewNav view={view} />
         <div className="flex flex-wrap items-center gap-2">

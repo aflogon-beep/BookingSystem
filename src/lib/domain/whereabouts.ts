@@ -119,16 +119,16 @@ export function whereaboutsKpis(statuses: readonly ResourceStatus[], sessions: r
   };
 }
 
-/** Aviso tras «Asignar pendientes». */
-export function assignPendingMessage(result: { sessions: number; missing: number }): { ok: boolean; text: string } {
-  if (!result.sessions) return { ok: true, text: "No había salidas pendientes" };
+/** Aviso tras «Asignar pendientes»: aviso (no error) si quedan huecos, porque algo sí se asignó. */
+export function assignPendingMessage(result: { sessions: number; missing: number }): { level: "ok" | "warn"; text: string } {
+  if (!result.sessions) return { level: "ok", text: "No había salidas pendientes" };
   if (result.missing) {
     return {
-      ok: false,
+      level: "warn",
       text: `Asignado. ${result.missing === 1 ? "Falta 1 recurso libre" : `Faltan ${result.missing} recursos libres`} o con ese idioma`,
     };
   }
-  return { ok: true, text: `${result.sessions === 1 ? "1 salida" : `${result.sessions} salidas`} con equipo asignado` };
+  return { level: "ok", text: `${result.sessions === 1 ? "1 salida" : `${result.sessions} salidas`} con equipo asignado` };
 }
 
 /** Salida de la semana para la planificación de guías. */

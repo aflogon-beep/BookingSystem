@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { addDays, format, parseISO } from "date-fns";
+
+import { businessToday } from "@/lib/domain/schedule";
 
 // Los tests que cambian datos corren solo en escritorio (los proyectos van en paralelo contra la
 // misma BD) y dejan los datos como estaban.
@@ -92,8 +95,11 @@ test("Dónde están: estado del equipo por día", async ({ page }, testInfo) => 
   await expect(page.getByText("Asignaciones del día")).toBeVisible();
 
   if (testInfo.project.name === "escritorio") {
+    // Más allá de las salidas generadas por el seed: no hay nada que asignar y no cambia datos.
+    const farDay = format(addDays(parseISO(businessToday()), 200), "yyyy-MM-dd");
+    await page.goto(`/panel/equipo?fecha=${farDay}`);
     await page.getByRole("button", { name: "Asignar pendientes" }).click();
-    await expect(page.getByText(/con equipo asignado|No había salidas pendientes|Asignado\./)).toBeVisible();
+    await expect(page.getByText("No había salidas pendientes")).toBeVisible();
   }
 
   await vistas.getByRole("link", { name: "Fichas y planificación" }).click();

@@ -101,7 +101,7 @@ end;
 $$;
 
 -- «Asignar pendientes»: salidas no canceladas que empiezan en [p_from, p_to) (un día del panel),
--- con alguna reserva confirmada y equipo incompleto. Rellena sus huecos en orden de hora.
+-- con plazas ocupadas (lo mismo que cuenta «Salidas sin equipo») y equipo incompleto. Rellena sus huecos en orden de hora.
 -- Devuelve {"sessions": salidas que tenían huecos, "missing": recursos que siguen faltando}.
 create function public.sessions_assign_pending(p_from timestamptz, p_to timestamptz)
 returns jsonb
@@ -122,7 +122,9 @@ begin
     raise exception 'Rango no válido' using errcode = 'invalid_parameter_value';
   end if;
 
-  -- Mismo orden de bloqueos que el resto: filas de las salidas (por id) y después el cerrojo.
+  -- Mismo orden de bloqueos que el resto: cerrojo compartido de generate_sessions (que también
+  -- toca varias salidas), filas de las salidas por id y después el cerrojo de asignación.
+  perform pg_advisory_xact_lock_shared(hashtext('public.generate_sessions'));
   perform 1
   from public.sessions s
   where s.starts_at >= p_from and s.starts_at < p_to and s.status <> 'cancelled'
@@ -133,7 +135,7 @@ begin
   select coalesce(array_agg(s.id order by s.starts_at, s.id), '{}') into v_ids
   from public.sessions s
   where s.starts_at >= p_from and s.starts_at < p_to and s.status <> 'cancelled'
-    and exists (select 1 from public.bookings b where b.session_id = s.id and b.status = 'confirmed')
+    and public.session_occupied_seats(s.id) > 0
     and public.session_missing_resources(s.id) > 0;
 
   foreach v_id in array v_ids loop

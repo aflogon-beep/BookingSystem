@@ -96,13 +96,13 @@ export function Whereabouts({
                               key={session.id}
                               href={`/panel/salidas/${session.id}`}
                               className={cn(
-                                "inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-line bg-surface py-[3px] pr-2.5 pl-2 text-[0.74rem]",
+                                "inline-flex max-w-full items-center gap-1.5 overflow-hidden rounded-full border border-line bg-surface py-[3px] pr-2.5 pl-2 text-[0.74rem]",
                                 isToday && isPast(session, now) && "opacity-50",
                               )}
                             >
                               <i aria-hidden="true" className="size-2 flex-none rounded-full" style={{ background: session.color }} />
                               <b className="font-mono font-medium">{session.start}</b>
-                              {session.place}
+                              <span className="min-w-0 truncate">{session.place}</span>
                             </Link>
                           ))}
                         </div>
@@ -140,7 +140,11 @@ export function Whereabouts({
                 </div>
                 {groups.map((group) => (
                   <div key={group.type} role="rowgroup">
-                    <GroupTitle type={group.type} />
+                    <div role="row">
+                      <div role="cell">
+                        <GroupTitle type={group.type} />
+                      </div>
+                    </div>
                     {group.rows.map(({ resource, status }) => (
                       <div key={resource.id} role="row" aria-label={resource.name} className="grid grid-cols-[270px_minmax(0,1fr)] border-t border-line-2">
                         <div role="cell" className="flex min-w-0 items-center gap-2.5 border-r border-line-2 px-4 py-2.5">
