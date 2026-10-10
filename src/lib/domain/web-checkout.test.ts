@@ -60,6 +60,7 @@ describe("webBookingErrorMessage", () => {
     expect(webBookingErrorMessage("RB001", "2")).toMatch(/quedan 2 plazas/);
     expect(webBookingErrorMessage("RB001", undefined)).toMatch(/No quedan plazas/);
     expect(webBookingErrorMessage("RB002", undefined)).toMatch(/ya no admite reservas/);
+    expect(webBookingErrorMessage("RB012", "guide")).toMatch(/ya no admite reservas/);
     expect(webBookingErrorMessage("RB003", undefined)).toMatch(/entradas/);
     expect(webBookingErrorMessage("XX000", undefined)).toMatch(/Inténtalo de nuevo/);
   });

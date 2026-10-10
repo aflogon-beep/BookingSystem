@@ -92,11 +92,15 @@ test("crea, edita, retira de la venta y elimina un producto con foto", async ({ 
   await rule.getByLabel("Horas de salida").fill("9:00, 17:30");
   await rule.getByRole("button", { name: "sábado" }).click();
 
-  // Equipo: un guía por defecto; además, un vehículo.
+  // Equipo: un guía obligatorio por defecto; además, un vehículo no obligatorio.
   await tab(page, "Equipo").click();
-  await expect(page.getByLabel("Guías")).toHaveValue("1");
-  await expect(page.locator("#pn-vehicle-hint")).toHaveText("3 disponibles");
-  await page.getByLabel("Vehículos").fill("1");
+  await expect(page.getByRole("switch", { name: "Esta actividad necesita recursos" })).toBeChecked();
+  await expect(page.getByRole("spinbutton", { name: "Guías" })).toHaveValue("1");
+  await expect(page.locator("#pn-guide-required")).toBeChecked();
+  await expect(page.locator("#pn-vehicle-hint")).toHaveText("3 disponibles en Equipo");
+  await page.getByRole("spinbutton", { name: "Vehículos" }).fill("1");
+  await page.locator("#pn-vehicle-required").click();
+  await expect(page.locator("#pn-vehicle-required")).not.toBeChecked();
   await tab(page, "Horarios").click();
   await expect(page.getByText(/\d+ salidas · \d+ plazas a la venta en 14 días/)).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Así lo verá el cliente" }).getByText("25,50 €")).toBeVisible();
@@ -130,7 +134,9 @@ test("crea, edita, retira de la venta y elimina un producto con foto", async ({ 
   // Eliminar.
   await page.getByRole("listitem", { name }).getByRole("link", { name: `Editar ${name}` }).click();
   await tab(page, "Equipo").click();
-  await expect(page.getByLabel("Vehículos")).toHaveValue("1");
+  await expect(page.getByRole("spinbutton", { name: "Vehículos" })).toHaveValue("1");
+  await expect(page.locator("#pn-vehicle-required")).not.toBeChecked();
+  await expect(page.locator("#pn-guide-required")).toBeChecked();
   await page.getByRole("button", { name: "Eliminar" }).click();
   const dialog = page.getByRole("dialog", { name: `¿Eliminar «${name}»?` });
   await dialog.getByRole("button", { name: "Eliminar" }).click();

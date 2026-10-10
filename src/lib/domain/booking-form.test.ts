@@ -56,6 +56,7 @@ describe("errores al crear la reserva", () => {
 
   it("traduce el resto de códigos y da un mensaje genérico si no lo conoce", () => {
     expect(bookingErrorMessage("RB002", undefined)).toBe("Esta salida ya no admite reservas.");
+    expect(bookingErrorMessage("RB012", "guide")).toMatch(/No hay ningún guía libre a esa hora/);
     expect(bookingErrorMessage("42501", undefined)).toBe("No tienes permiso para crear reservas.");
     expect(bookingErrorMessage("XX000", undefined)).toBe("No se pudo crear la reserva. Inténtalo de nuevo.");
   });

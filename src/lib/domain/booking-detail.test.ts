@@ -98,6 +98,7 @@ describe("bookingChangeError", () => {
     expect(bookingChangeError("RB001", "1")).toBe("Esa salida ya solo tiene 1 plaza libre. Elige otra.");
     expect(bookingChangeError("RB001", "x")).toBe("Esa salida ya no tiene plazas suficientes. Elige otra.");
     expect(bookingChangeError("RB009", undefined)).toBe("La reserva ya está cancelada.");
+    expect(bookingChangeError("RB012", "vehicle")).toMatch(/ningún vehículo libre/);
     expect(bookingChangeError("RB007", undefined)).toMatch(/ya ha empezado/);
     expect(bookingChangeError(undefined, undefined)).toBe("No se pudo guardar. Inténtalo de nuevo.");
   });

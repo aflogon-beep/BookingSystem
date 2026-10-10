@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { productInputSchema, tabForIssue } from "./product";
 import {
+  blockingNeedLabel,
   countByResource,
   initials,
+  needsAnyResource,
   needsFromRows,
+  needsRequiredSchema,
   parseResourceField,
   productNeedsSchema,
+  requiredFromRows,
   resourceTypeFromSlug,
   toggleGuideLanguage,
   weeklySessionsLabel,
@@ -71,8 +75,27 @@ describe("lo que necesita cada salida", () => {
     });
   });
 
+  it("cada recurso es obligatorio salvo que su fila diga lo contrario", () => {
+    expect(requiredFromRows([{ resource_type: "vehicle", required: false }, { resource_type: "otro", required: false }])).toEqual({
+      guide: true,
+      vehicle: false,
+      equipment: true,
+    });
+    expect(needsRequiredSchema.safeParse({ guide: true, vehicle: false, equipment: true }).success).toBe(true);
+    expect(needsRequiredSchema.safeParse({ guide: "sí", vehicle: false, equipment: true }).success).toBe(false);
+  });
+
+  it("sabe si la actividad necesita algún recurso y nombra el que falta", () => {
+    expect(needsAnyResource({ guide: 0, vehicle: 0, equipment: 0 })).toBe(false);
+    expect(needsAnyResource({ guide: 0, vehicle: 1, equipment: 0 })).toBe(true);
+    expect(blockingNeedLabel("guide")).toBe("guía");
+    expect(blockingNeedLabel("vehicle")).toBe("vehículo");
+    expect(blockingNeedLabel(undefined)).toBe("recurso");
+  });
+
   it("los errores de necesidades llevan a la pestaña Equipo", () => {
     expect(tabForIssue(["needs", "guide"])).toBe("equipo");
+    expect(tabForIssue(["needsRequired", "guide"])).toBe("equipo");
     const base = {
       name: "Teide",
       description: "",

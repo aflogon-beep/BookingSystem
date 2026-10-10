@@ -121,6 +121,12 @@ isOneToOne: false
       foreignKeyName: "bookings_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_team_status"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     }
@@ -141,14 +147,14 @@ isOneToOne: false
                   ]
                 },"product_needs": {
                   Row: {
-                    "product_id": string,"qty": number,"resource_type": string
+                    "product_id": string,"qty": number,"required": boolean,"resource_type": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "product_id": string,"qty": number,"resource_type": string
+                    "product_id": string,"qty": number,"required"?: boolean,"resource_type": string
                   }
                   Update: {
-                    "product_id"?: string,"qty"?: number,"resource_type"?: string
+                    "product_id"?: string,"qty"?: number,"required"?: boolean,"resource_type"?: string
                   }
                   Relationships: [
                     {
@@ -281,6 +287,12 @@ isOneToOne: false
       foreignKeyName: "session_resources_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_team_status"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "session_resources_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     }
@@ -384,6 +396,12 @@ isOneToOne: false
       foreignKeyName: "bookings_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_team_status"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     },{
@@ -419,6 +437,20 @@ isOneToOne: false
                 },"session_staffing": {
                   Row: {
                     "missing": number | null,"missing_equipment": number | null,"missing_guides": number | null,"missing_vehicles": number | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "sessions_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"session_team_status": {
+                  Row: {
+                    "blocking_need": string | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null,"team_free": boolean | null
                   }
                   ComputedFields: never
                   Relationships: [
@@ -496,8 +528,14 @@ isOneToOne: false
 "session_auto_assign":
 { Args: { "p_session_id": string }; Returns: number
                            },
+"session_blocking_need":
+{ Args: { "p_session_id": string }; Returns: string
+                           },
 "session_check_in_all":
 { Args: { "p_session_id": string }; Returns: number
+                           },
+"session_missing_required":
+{ Args: { "p_session_id": string }; Returns: string
                            },
 "session_missing_resources":
 { Args: { "p_session_id": string }; Returns: number

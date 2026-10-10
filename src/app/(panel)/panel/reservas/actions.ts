@@ -12,19 +12,24 @@ import { bookingErrorMessage, isPaymentAllowed, paymentMethodFor, type PaymentOp
 import { bookingChangeError } from "@/lib/domain/booking-detail";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
 import { formatCents } from "@/lib/domain/money";
+import { isResourceType } from "@/lib/domain/resources";
 
 const dateSchema = z.iso.date();
 
 const STATUSES = new Set<DaySession["status"]>(["open", "closed", "cancelled"]);
 
-/** Salidas de un producto en un día (hora de Canarias), con sus plazas libres. */
+/** Salidas de un producto en un día (hora de Canarias), con sus plazas libres y si les falta un recurso obligatorio. */
 export async function loadDaySessions(productId: string, date: string): Promise<DaySession[]> {
   await requireAccess("reservas");
   if (!z.uuid().safeParse(productId).success || !dateSchema.safeParse(date).success) return [];
 
   const supabase = await createClient();
   const { from, to } = rangeForDays([date]);
-  const [{ data: sessions, error }, { data: availability, error: availabilityError }] = await Promise.all([
+  const [
+    { data: sessions, error },
+    { data: availability, error: availabilityError },
+    { data: team, error: teamError },
+  ] = await Promise.all([
     supabase
       .from("sessions")
       .select("id, starts_at, language, status")
@@ -38,10 +43,17 @@ export async function loadDaySessions(productId: string, date: string): Promise<
       .eq("product_id", productId)
       .gte("starts_at", from)
       .lt("starts_at", to),
+    supabase
+      .from("session_team_status")
+      .select("session_id, blocking_need")
+      .eq("product_id", productId)
+      .gte("starts_at", from)
+      .lt("starts_at", to),
   ]);
-  if (error || availabilityError) throw new Error("No se pudieron cargar las salidas.");
+  if (error || availabilityError || teamError) throw new Error("No se pudieron cargar las salidas.");
 
   const free = new Map(availability.map((row) => [row.session_id, row.free_seats ?? 0]));
+  const blocking = new Map(team.map((row) => [row.session_id, isResourceType(row.blocking_need) ? row.blocking_need : null]));
   const now = Date.now();
   return sessions.map((session) => ({
     id: session.id,
@@ -50,6 +62,7 @@ export async function loadDaySessions(productId: string, date: string): Promise<
     status: STATUSES.has(session.status as DaySession["status"]) ? (session.status as DaySession["status"]) : "closed",
     free: free.get(session.id) ?? 0,
     past: new Date(session.starts_at).getTime() <= now,
+    blockingNeed: blocking.get(session.id) ?? null,
   }));
 }
 

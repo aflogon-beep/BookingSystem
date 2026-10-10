@@ -103,7 +103,12 @@ describe("asignación automática", () => {
     // Lukas es el único guía en alemán; la furgoneta de 8 no llega a 10 plazas.
     expect(await assignedTo(first)).toEqual([LUKAS, MINIBUS_01].sort());
 
-    // A la vez, Lukas ya está ocupado: falta el guía, pero el otro minibús sí se asigna.
+    // A la vez, Lukas ya está ocupado. Con el guía no obligatorio, la reserva entra: falta el guía,
+    // pero el otro minibús sí se asigna. (Si fuera obligatorio, no admitiría la reserva.)
+    const productId = productIds.at(-1);
+    if (!productId) throw new Error("Sin producto");
+    const optional = await adminDb.from("product_needs").update({ required: false }).eq("product_id", productId).eq("resource_type", "guide");
+    expect(optional.error).toBeNull();
     await book(second);
     expect(await assignedTo(second)).toEqual([MINIBUS_02]);
     const { data: missing } = await member.db.rpc("session_missing_resources", { p_session_id: second });
