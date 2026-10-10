@@ -36,11 +36,11 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [x] 3.6 Avisos (sin equipo, bajo mínimo) y asistente de configuración inicial.
 
 ## Fase 4 — Producción
-- [ ] 4.1 `/revision-seguridad` completa + `npm audit` + revisión externa. Hecho: revisión de app y base de datos, límites de intentos, cabeceras, informes solo admin, `npm audit` (solo avisos de desarrollo). Falta: revisión externa (una persona) y comprobar los ajustes de Auth en el panel de Supabase cloud.
+- [ ] 4.1 `/revision-seguridad` completa + `npm audit` + revisión externa. Hecho: revisión de app y base de datos, límites de intentos, cabeceras, informes solo admin, `npm audit` (solo avisos de desarrollo), Dependabot. Falta: revisión externa (una persona) y comprobar los ajustes de Auth en el panel de Supabase cloud.
 - [ ] 4.2 Proyecto Supabase de producción, backups (PITR) y migraciones desde CI. Hecho: migraciones desde CI (workflow `Migraciones`, aplica `supabase/migrations` al fusionar en `main`). Falta: backups (PITR).
 - [ ] 4.3 Vercel producción, dominio, variables de entorno y Stripe en modo live con webhook.
 - [ ] 4.4 Monitorización (Sentry) y alertas de webhook fallido.
-- [ ] 4.5 Textos legales: privacidad, condiciones y cookies.
+- [ ] 4.5 Textos legales: privacidad, condiciones y cookies. RGPD: borrar o anonimizar los datos de un cliente desde su ficha y plazo de conservación de los datos de clientes.
 - [ ] 4.6 Piloto con un tour durante 2 semanas.
 
 ## Más adelante

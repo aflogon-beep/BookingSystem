@@ -139,5 +139,5 @@ Vista `session_availability`: aforo, plazas ocupadas (confirmadas + bloqueos vig
 - **Informes solo para admin.** `report_summary` comprueba `is_admin()` y `/panel/informes` es solo admin. Es una restricción de pantalla: el staff sigue viendo los importes de cada reserva (los necesita para cobrar en el lugar) y podría sumarlos.
 - **Salidas.** El equipo solo puede cambiar `capacity`, `capacity_custom`, `status`, `language` y `ends_at` de una salida; nunca su hora ni su producto.
 - **CSV.** Las celdas que empiezan por `= + - @ | %`, tabulador o retorno se escapan para que una hoja de cálculo no las ejecute.
-- **`npm audit`.** Los avisos altos que quedan vienen de dependencias de desarrollo (`eslint-config-next`) y no llegan a producción.
+- **`npm audit`.** Los avisos altos que quedan vienen de dependencias de desarrollo (`eslint-config-next`) y no llegan a producción. Dependabot (`.github/dependabot.yml`) propone cada semana PRs con actualizaciones.
 - **Fuera del repositorio.** Los ajustes de Auth de Supabase cloud (altas públicas cerradas, caducidad de enlaces, longitud mínima de contraseña) no se suben desde `config.toml`: se revisan en el panel de Supabase.
