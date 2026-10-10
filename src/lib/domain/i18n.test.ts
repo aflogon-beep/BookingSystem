@@ -25,6 +25,8 @@ describe("rutas por idioma", () => {
     expect(isPublicPath("/experiencias/teide")).toBe(true);
     expect(isPublicPath("/experiencias/teide/reservar")).toBe(true);
     expect(isPublicPath("/reserva/VT123456")).toBe(true);
+    expect(isPublicPath("/legal/privacidad")).toBe(true);
+    expect(isPublicPath("/legal")).toBe(false);
     expect(isPublicPath("/experiencias")).toBe(false);
     expect(isPublicPath("/experiencias/")).toBe(false);
     expect(isPublicPath("/panel")).toBe(false);

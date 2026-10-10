@@ -7,6 +7,7 @@ import { addDays, format, parseISO } from "date-fns";
 import { createAdminClient } from "@/lib/db/admin";
 import { toBusinessDateTime } from "@/lib/domain/calendar";
 import { localizedText, type Locale } from "@/lib/domain/i18n";
+import type { LegalInfo } from "@/lib/domain/legal";
 import { minPrice, productPhotoUrl } from "@/lib/domain/product";
 import { businessToday, GENERATION_DAYS, localToInstant } from "@/lib/domain/schedule";
 import { distinctLanguages, isWebBookable, type WebSession } from "@/lib/domain/storefront";
@@ -35,6 +36,29 @@ export const loadSite = cache(async (): Promise<SiteInfo> => {
     email: data.email,
     cutoffHours: data.cutoff_hours,
     cancelHours: data.cancel_hours,
+  };
+});
+
+/** Datos del titular para los textos legales (privacidad, condiciones). */
+export const loadLegalInfo = cache(async (): Promise<LegalInfo> => {
+  await connection();
+  const { data, error } = await createAdminClient()
+    .from("settings")
+    .select("business_name, legal_name, tax_id, address, registry_info, tourism_registry, email, phone, cancel_hours, customer_retention_months")
+    .eq("id", 1)
+    .single();
+  if (error) throw new Error("No se pudieron cargar los ajustes.");
+  return {
+    businessName: data.business_name,
+    legalName: data.legal_name,
+    taxId: data.tax_id,
+    address: data.address,
+    registryInfo: data.registry_info,
+    tourismRegistry: data.tourism_registry,
+    email: data.email,
+    phone: data.phone,
+    cancelHours: data.cancel_hours,
+    retentionMonths: data.customer_retention_months,
   };
 });
 

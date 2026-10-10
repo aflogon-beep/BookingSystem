@@ -27,6 +27,12 @@ export const SETTINGS_LIMITS = {
   phone: 40,
   capacity: { min: 1, max: 500 },
   hours: { min: 0, max: 720 },
+  legalName: 200,
+  taxId: 20,
+  address: 300,
+  registryInfo: 300,
+  tourismRegistry: 60,
+  retentionMonths: { min: 6, max: 120 },
 } as const;
 
 // Un campo vacío no cuenta como 0: es un error.
@@ -62,6 +68,35 @@ const settingsFieldSchemas = {
   default_capacity: integerIn(SETTINGS_LIMITS.capacity.min, SETTINGS_LIMITS.capacity.max, "Aforo por defecto"),
   cutoff_hours: integerIn(SETTINGS_LIMITS.hours.min, SETTINGS_LIMITS.hours.max, "Cierre de venta"),
   cancel_hours: integerIn(SETTINGS_LIMITS.hours.min, SETTINGS_LIMITS.hours.max, "Cancelación gratuita"),
+  legal_name: z
+    .string()
+    .trim()
+    .max(SETTINGS_LIMITS.legalName, { error: `La razón social admite ${SETTINGS_LIMITS.legalName} caracteres como máximo.` }),
+  tax_id: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .max(SETTINGS_LIMITS.taxId, { error: `El NIF admite ${SETTINGS_LIMITS.taxId} caracteres como máximo.` })
+    .refine((value) => /^[0-9A-Z-]*$/.test(value), { error: "El NIF solo puede tener letras, números y guiones." }),
+  address: z
+    .string()
+    .trim()
+    .max(SETTINGS_LIMITS.address, { error: `La dirección admite ${SETTINGS_LIMITS.address} caracteres como máximo.` }),
+  registry_info: z
+    .string()
+    .trim()
+    .max(SETTINGS_LIMITS.registryInfo, { error: `Los datos registrales admiten ${SETTINGS_LIMITS.registryInfo} caracteres como máximo.` }),
+  tourism_registry: z
+    .string()
+    .trim()
+    .max(SETTINGS_LIMITS.tourismRegistry, {
+      error: `El número de registro turístico admite ${SETTINGS_LIMITS.tourismRegistry} caracteres como máximo.`,
+    }),
+  customer_retention_months: integerIn(
+    SETTINGS_LIMITS.retentionMonths.min,
+    SETTINGS_LIMITS.retentionMonths.max,
+    "Conservación de datos",
+  ),
 };
 
 export type SettingsField = keyof typeof settingsFieldSchemas;
