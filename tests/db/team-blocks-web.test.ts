@@ -37,8 +37,8 @@ afterAll(async () => {
   await deleteTestUsers([member]);
 });
 
-/** Producto que necesita un guía, con una salida en alemán de 3 h ese día a esa hora. */
-async function createSession(day: string, time: string): Promise<string> {
+/** Producto que necesita un guía, con salidas en alemán de 3 h ese día a esas horas (en orden). */
+async function createSessions(day: string, times: string[]): Promise<string[]> {
   const { data, error } = await member.db.rpc("save_product", {
     p_product: {
       slug: `equipo-${randomUUID()}`,
@@ -56,20 +56,27 @@ async function createSession(day: string, time: string): Promise<string> {
       needs: { guide: 1, vehicle: 0, equipment: 0 },
     },
     p_prices: [{ ticket_type_id: ADULT_ID, price_cents: 5000 }],
-    p_rules: [{ weekdays: [1, 2, 3, 4, 5, 6, 7], times: [time], language: "de", valid_from: null, valid_to: null }],
+    p_rules: [{ weekdays: [1, 2, 3, 4, 5, 6, 7], times, language: "de", valid_from: null, valid_to: null }],
   });
   if (error) throw error;
   const { id: productId } = data as { id: string };
   productIds.push(productId);
   const generated = await member.db.rpc("generate_sessions", { p_from: day, p_to: day, p_product_id: productId });
   if (generated.error) throw generated.error;
-  const { data: session, error: sessionError } = await adminDb
+  const { data: sessions, error: sessionError } = await adminDb
     .from("sessions")
     .select("id")
     .eq("product_id", productId)
-    .single();
+    .order("starts_at");
   if (sessionError) throw sessionError;
-  return session.id;
+  return sessions.map((session) => session.id);
+}
+
+/** Un producto con una sola salida. */
+async function createSession(day: string, time: string): Promise<string> {
+  const [id] = await createSessions(day, [time]);
+  if (!id) throw new Error("Sin salida");
+  return id;
 }
 
 function book(sessionId: string, channel: "web" | "phone") {
@@ -146,8 +153,9 @@ describe("salidas con el único guía ocupado", () => {
   });
 
   it("al mover la única reserva a una salida que se solapa, el guía la acompaña", async () => {
-    const from = await createSession(DAYS[2], "18:00");
-    const to = await createSession(DAYS[2], "19:00");
+    // booking_move solo cambia a salidas del mismo producto.
+    const [from, to] = await createSessions(DAYS[2], ["18:00", "19:00"]);
+    if (!from || !to) throw new Error("Sin salidas");
     const id = await bookOk(from, "phone");
     expect((await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: to })).error).toBeNull();
     expect(await assignedTo(from)).toEqual([]);
