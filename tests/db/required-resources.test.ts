@@ -10,8 +10,8 @@ const ADULT_ID = "00000000-0000-4000-8000-000000000101";
 const LUKAS = "00000000-0000-4000-8000-000000000302";
 
 // Fechas lejanas que no usa ningún otro test (una por caso): así Lukas está libre.
-const DAYS = ["2031-07-14", "2031-07-15", "2031-07-16", "2031-07-17"] as const;
-const PRODUCT_NAME = "Tour de equipo ocupado (test)";
+const DAYS = ["2031-07-14", "2031-07-15", "2031-07-16", "2031-07-17", "2031-07-18", "2031-07-19"] as const;
+const PRODUCT_NAME = "Tour de recursos obligatorios (test)";
 
 let member: TestUser;
 const productIds: string[] = [];
@@ -37,8 +37,11 @@ afterAll(async () => {
   await deleteTestUsers([member]);
 });
 
-/** Producto que necesita un guía, con salidas en alemán de 3 h ese día a esas horas (en orden). */
-async function createSessions(day: string, times: string[]): Promise<string[]> {
+/**
+ * Producto que necesita un guía (obligatorio salvo que se diga), con salidas en alemán de 3 h ese
+ * día a esas horas (en orden).
+ */
+async function createSessions(day: string, times: string[], guideRequired = true): Promise<string[]> {
   const { data, error } = await member.db.rpc("save_product", {
     p_product: {
       slug: `equipo-${randomUUID()}`,
@@ -54,6 +57,7 @@ async function createSessions(day: string, times: string[]): Promise<string[]> {
       photo_path: null,
       active: true,
       needs: { guide: 1, vehicle: 0, equipment: 0 },
+      needs_required: { guide: guideRequired, vehicle: true, equipment: true },
     },
     p_prices: [{ ticket_type_id: ADULT_ID, price_cents: 5000 }],
     p_rules: [{ weekdays: [1, 2, 3, 4, 5, 6, 7], times, language: "de", valid_from: null, valid_to: null }],
@@ -73,8 +77,8 @@ async function createSessions(day: string, times: string[]): Promise<string[]> {
 }
 
 /** Un producto con una sola salida. */
-async function createSession(day: string, time: string): Promise<string> {
-  const [id] = await createSessions(day, [time]);
+async function createSession(day: string, time: string, guideRequired = true): Promise<string> {
+  const [id] = await createSessions(day, [time], guideRequired);
   if (!id) throw new Error("Sin salida");
   return id;
 }
@@ -94,19 +98,25 @@ async function bookOk(sessionId: string, channel: "web" | "phone"): Promise<stri
   return (data as { id: string }).id;
 }
 
-async function teamFree(sessionId: string): Promise<boolean | null> {
-  const { data, error } = await adminDb.from("session_team_status").select("team_free").eq("session_id", sessionId).single();
+async function teamStatus(sessionId: string) {
+  const { data, error } = await adminDb
+    .from("session_team_status")
+    .select("team_free, blocking_need")
+    .eq("session_id", sessionId)
+    .single();
   if (error) throw error;
-  return data.team_free;
+  return data;
 }
+
+const teamFree = async (sessionId: string) => (await teamStatus(sessionId)).team_free;
 
 const assignedTo = async (sessionId: string) => {
   const { data } = await adminDb.from("session_resources").select("resource_id").eq("session_id", sessionId);
   return (data ?? []).map((row) => row.resource_id);
 };
 
-describe("salidas con el único guía ocupado", () => {
-  it("la primera reserva se queda con el guía y la web deja de vender las salidas que se solapan", async () => {
+describe("recursos obligatorios", () => {
+  it("la primera reserva se queda con el guía y las salidas que se solapan dejan de admitir reservas", async () => {
     const hiking = await createSession(DAYS[0], "09:00");
     const volcanoes = await createSession(DAYS[0], "10:00");
     const afternoon = await createSession(DAYS[0], "12:00");
@@ -115,28 +125,37 @@ describe("salidas con el único guía ocupado", () => {
 
     await bookOk(hiking, "web");
     expect(await assignedTo(hiking)).toEqual([LUKAS]);
-    // 09:00–12:00 ocupa a Lukas: la de las 10:00 no se vende; la de las 12:00, ya libre, sí.
+    // 09:00–12:00 ocupa a Lukas: la de las 10:00 no admite reservas; la de las 12:00, ya libre, sí.
     expect(await teamFree(hiking)).toBe(true);
-    expect(await teamFree(volcanoes)).toBe(false);
+    expect(await teamStatus(volcanoes)).toEqual({ team_free: false, blocking_need: "guide" });
     expect(await teamFree(afternoon)).toBe(true);
-    const blocked = await book(volcanoes, "web");
-    expect(blocked.error?.code).toBe("RB002");
-    await bookOk(hiking, "web");
+    for (const channel of ["web", "phone"] as const) {
+      const blocked = await book(volcanoes, channel);
+      expect(blocked.error?.code).toBe("RB012");
+      expect(blocked.error?.hint).toBe("guide");
+    }
+    await bookOk(hiking, "phone");
     await bookOk(afternoon, "web");
     expect(await assignedTo(afternoon)).toEqual([LUKAS]);
-
-    // El panel sí puede reservar: la salida queda sin guía (aparece en avisos).
-    await bookOk(volcanoes, "phone");
-    expect(await assignedTo(volcanoes)).toEqual([]);
-    const { data: missing } = await member.db.rpc("session_missing_resources", { p_session_id: volcanoes });
-    expect(missing).toBe(1);
-    // Ya tiene reservas: la web sigue vendiéndola (el aviso ya existe y el equipo decide).
-    expect(await teamFree(volcanoes)).toBe(true);
   });
 
-  it("al cancelar la última reserva, el guía se libera y la otra salida vuelve a venderse", async () => {
-    const first = await createSession(DAYS[1], "14:00");
-    const second = await createSession(DAYS[1], "15:00");
+  it("un recurso no obligatorio no bloquea: la salida se vende y queda sin guía", async () => {
+    const first = await createSession(DAYS[1], "09:00");
+    const optional = await createSession(DAYS[1], "10:00", false);
+    const { data: need } = await adminDb.from("product_needs").select("required").eq("product_id", productIds.at(-1) ?? "").single();
+    expect(need?.required).toBe(false);
+
+    await bookOk(first, "phone");
+    expect(await teamFree(optional)).toBe(true);
+    await bookOk(optional, "web");
+    expect(await assignedTo(optional)).toEqual([]);
+    const { data: missing } = await member.db.rpc("session_missing_resources", { p_session_id: optional });
+    expect(missing).toBe(1);
+  });
+
+  it("al cancelar la última reserva, el guía se libera y la otra salida vuelve a admitir reservas", async () => {
+    const first = await createSession(DAYS[2], "14:00");
+    const second = await createSession(DAYS[2], "15:00");
     const a = await bookOk(first, "web");
     const b = await bookOk(first, "phone");
     expect(await teamFree(second)).toBe(false);
@@ -154,7 +173,7 @@ describe("salidas con el único guía ocupado", () => {
 
   it("al mover la única reserva a una salida que se solapa, el guía la acompaña", async () => {
     // booking_move solo cambia a salidas del mismo producto.
-    const [from, to] = await createSessions(DAYS[2], ["18:00", "19:00"]);
+    const [from, to] = await createSessions(DAYS[3], ["18:00", "19:00"]);
     if (!from || !to) throw new Error("Sin salidas");
     const id = await bookOk(from, "phone");
     expect((await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: to })).error).toBeNull();
@@ -162,11 +181,26 @@ describe("salidas con el único guía ocupado", () => {
     expect(await assignedTo(to)).toEqual([LUKAS]);
   });
 
-  it("si llegan a la vez reservas web a dos salidas que se solapan, solo una se acepta", async () => {
-    const first = await createSession(DAYS[3], "02:00");
-    const second = await createSession(DAYS[3], "03:00");
-    const results = await Promise.all([book(first, "web"), book(second, "web")]);
+  it("no mueve una reserva a una salida sin su guía obligatorio libre", async () => {
+    const [from, to, other] = await createSessions(DAYS[4], ["08:00", "16:00", "17:00"]);
+    if (!from || !to || !other) throw new Error("Sin salidas");
+    const id = await bookOk(from, "phone");
+    await bookOk(other, "phone");
+    expect(await assignedTo(other)).toEqual([LUKAS]);
+
+    const moved = await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: to });
+    expect(moved.error?.code).toBe("RB012");
+    // Se deshace todo: la reserva sigue donde estaba, con su guía.
+    const { data: booking } = await adminDb.from("bookings").select("session_id").eq("id", id).single();
+    expect(booking?.session_id).toBe(from);
+    expect(await assignedTo(from)).toEqual([LUKAS]);
+  });
+
+  it("si llegan a la vez reservas a dos salidas que se solapan, solo una se acepta", async () => {
+    const first = await createSession(DAYS[5], "02:00");
+    const second = await createSession(DAYS[5], "03:00");
+    const results = await Promise.all([book(first, "web"), book(second, "phone")]);
     const codes = results.map((result) => result.error?.code ?? "ok").sort();
-    expect(codes).toEqual(["RB002", "ok"]);
+    expect(codes).toEqual(["RB012", "ok"]);
   });
 });

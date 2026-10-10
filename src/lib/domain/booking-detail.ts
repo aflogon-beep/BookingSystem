@@ -3,6 +3,7 @@ import { es } from "date-fns/locale";
 import { TZDate } from "@date-fns/tz";
 
 import { formatCents } from "./money";
+import { blockingNeedLabel } from "./resources";
 import { BUSINESS_TIMEZONE } from "./schedule";
 
 // Ficha de reserva del panel (tarea 2.4): cancelar con o sin reembolso y cambiar de fecha.
@@ -105,6 +106,8 @@ export function bookingChangeError(code: string | undefined, hint: string | unde
     }
     case "RB002":
       return "Esa salida ya no está a la venta. Elige otra.";
+    case "RB012":
+      return `Esa salida no tiene ningún ${blockingNeedLabel(hint)} libre: está en otra salida que se solapa. Elige otra.`;
     case "RB007":
       return "La salida ya ha empezado: la reserva no se puede cambiar.";
     case "RB009":

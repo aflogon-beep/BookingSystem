@@ -124,3 +124,31 @@ export function needsFromRows(rows: readonly { resource_type: string; qty: numbe
   for (const row of rows) if (isResourceType(row.resource_type)) needs[row.resource_type] = row.qty;
   return needs;
 }
+
+/**
+ * Si cada recurso es obligatorio: sin él libre durante toda la visita, la salida no admite
+ * reservas (web y panel). Si no lo es, la salida se vende igual y sale en avisos.
+ */
+export type NeedsRequired = Record<ResourceType, boolean>;
+
+/** Por defecto, todo lo que necesita una salida es obligatorio. */
+export const DEFAULT_NEEDS_REQUIRED: NeedsRequired = { guide: true, vehicle: true, equipment: true };
+
+export const needsRequiredSchema = z.object({ guide: z.boolean(), vehicle: z.boolean(), equipment: z.boolean() });
+
+/** Filas de product_needs → si cada tipo es obligatorio (los tipos sin fila, obligatorios). */
+export function requiredFromRows(rows: readonly { resource_type: string; required: boolean }[]): NeedsRequired {
+  const required: NeedsRequired = { ...DEFAULT_NEEDS_REQUIRED };
+  for (const row of rows) if (isResourceType(row.resource_type)) required[row.resource_type] = row.required;
+  return required;
+}
+
+/** ¿La actividad necesita algún recurso? */
+export function needsAnyResource(needs: ProductNeeds): boolean {
+  return RESOURCE_TYPES.some((type) => needs[type] > 0);
+}
+
+/** Recurso obligatorio que impide reservar (hint de RB012) → texto para el equipo y la web. */
+export function blockingNeedLabel(hint: string | undefined): string {
+  return isResourceType(hint) ? RESOURCE_TYPE_TEXT[hint].singular : "recurso";
+}

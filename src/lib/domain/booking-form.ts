@@ -1,4 +1,5 @@
 import type { PaymentMethod } from "@/lib/domain/pricing";
+import { blockingNeedLabel } from "@/lib/domain/resources";
 
 /** Formulario de nueva reserva interna (panel), como el prototipo. */
 
@@ -87,6 +88,8 @@ export function bookingErrorMessage(code: string | undefined, hint: string | und
     }
     case "RB002":
       return "Esta salida ya no admite reservas.";
+    case "RB012":
+      return `No hay ningún ${blockingNeedLabel(hint)} libre a esa hora: está en otra salida que se solapa. Elige otra salida.`;
     case "RB003":
       return "Revisa las entradas: alguna ya no se vende en este producto.";
     case "P0002":

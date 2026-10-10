@@ -37,6 +37,7 @@ import {
 import { calendarHref, longDayLabel } from "@/lib/domain/calendar";
 import { formatCents } from "@/lib/domain/money";
 import { bookingTotal } from "@/lib/domain/pricing";
+import { blockingNeedLabel } from "@/lib/domain/resources";
 import { cn } from "@/lib/utils";
 
 import type { DaySession, NewBookingInitial, NewBookingProduct } from "./types";
@@ -58,7 +59,7 @@ function firstTicket(product: NewBookingProduct | undefined): Record<string, num
 }
 
 function isBookable(session: DaySession): boolean {
-  return session.status === "open" && !session.past && session.free > 0;
+  return session.status === "open" && !session.past && session.free > 0 && session.blockingNeed === null;
 }
 
 function sessionNote(session: DaySession): string {
@@ -66,6 +67,7 @@ function sessionNote(session: DaySession): string {
   if (session.status === "cancelled") return `${language} · Cancelada`;
   if (session.status === "closed") return `${language} · Cerrada`;
   if (session.past) return `${language} · Ya salió`;
+  if (session.blockingNeed) return `${language} · Sin ${blockingNeedLabel(session.blockingNeed)} libre`;
   return `${language} · ${session.free > 0 ? `${session.free} libres` : "Completa"}`;
 }
 

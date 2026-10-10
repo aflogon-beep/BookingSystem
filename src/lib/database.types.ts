@@ -147,14 +147,14 @@ isOneToOne: false
                   ]
                 },"product_needs": {
                   Row: {
-                    "product_id": string,"qty": number,"resource_type": string
+                    "product_id": string,"qty": number,"required": boolean,"resource_type": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "product_id": string,"qty": number,"resource_type": string
+                    "product_id": string,"qty": number,"required"?: boolean,"resource_type": string
                   }
                   Update: {
-                    "product_id"?: string,"qty"?: number,"resource_type"?: string
+                    "product_id"?: string,"qty"?: number,"required"?: boolean,"resource_type"?: string
                   }
                   Relationships: [
                     {
@@ -450,16 +450,10 @@ isOneToOne: false
                   ]
                 },"session_team_status": {
                   Row: {
-                    "product_id": string | null,"session_id": string | null,"starts_at": string | null,"team_free": boolean | null
+                    "blocking_need": string | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null,"team_free": boolean | null
                   }
                   ComputedFields: never
-                  Insert: {
-                           "product_id"?: string | null,"session_id"?: string | null,"starts_at"?: string | null,"team_free"?: never
-                         }
-                        Update: {
-                           "product_id"?: string | null,"session_id"?: string | null,"starts_at"?: string | null,"team_free"?: never
-                         }
-                        Relationships: [
+                  Relationships: [
                     {
       foreignKeyName: "sessions_product_id_fkey"
       columns: ["product_id"]
@@ -534,8 +528,14 @@ isOneToOne: false
 "session_auto_assign":
 { Args: { "p_session_id": string }; Returns: number
                            },
+"session_blocking_need":
+{ Args: { "p_session_id": string }; Returns: string
+                           },
 "session_check_in_all":
 { Args: { "p_session_id": string }; Returns: number
+                           },
+"session_missing_required":
+{ Args: { "p_session_id": string }; Returns: string
                            },
 "session_missing_resources":
 { Args: { "p_session_id": string }; Returns: number
@@ -548,9 +548,6 @@ isOneToOne: false
                            },
 "session_set_status":
 { Args: { "p_session_id": string,"p_status": string }; Returns: number
-                           },
-"session_team_free":
-{ Args: { "p_session_id": string }; Returns: boolean
                            },
 "sessions_assign_pending":
 { Args: { "p_from": string,"p_to": string }; Returns: Json

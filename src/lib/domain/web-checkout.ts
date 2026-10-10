@@ -80,6 +80,7 @@ export function webBookingErrorMessage(code: string | undefined, hint: string | 
       return Number.isInteger(free) && free > 0 ? text.errors.removeSome(free) : text.errors.notEnoughSeats;
     }
     case "RB002":
+    case "RB012":
     case "P0002":
       return text.errors.notBookable;
     case "RB003":

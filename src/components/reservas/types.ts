@@ -1,3 +1,5 @@
+import type { ResourceType } from "@/lib/domain/resources";
+
 /** Datos del formulario de nueva reserva que prepara el servidor. */
 
 export type NewBookingTicket = { id: string; name: string; takesSeat: boolean; priceCents: number };
@@ -19,6 +21,8 @@ export type DaySession = {
   free: number;
   /** Ya empezó: no admite reservas. */
   past: boolean;
+  /** Recurso obligatorio que no está libre a esa hora (no admite reservas), o null. */
+  blockingNeed: ResourceType | null;
 };
 
 export type NewBookingInitial = { productId: string; date: string; sessionId: string | null };

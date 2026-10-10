@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { productNeedsSchema } from "@/lib/domain/resources";
+import { needsRequiredSchema, productNeedsSchema } from "@/lib/domain/resources";
 import { parseTimes } from "@/lib/domain/schedule";
 
 /** Colores de producto del prototipo. */
@@ -163,6 +163,7 @@ export const productInputSchema = z
     rules: z.array(ruleSchema).max(50, { error: "Demasiadas reglas de horario." }),
     // Si no llega, save_product deja como estaba lo que necesita cada salida.
     needs: productNeedsSchema.optional(),
+    needsRequired: needsRequiredSchema.optional(),
   })
   .refine((product) => product.minPax <= product.capacity, {
     error: "El mínimo para salir no puede ser mayor que el aforo.",
@@ -179,7 +180,7 @@ export function tabForIssue(path: readonly PropertyKey[]): ProductTab {
   const field = path[0];
   if (field === "prices") return "precios";
   if (field === "rules") return "horarios";
-  if (field === "needs") return "equipo";
+  if (field === "needs" || field === "needsRequired") return "equipo";
   return "general";
 }
 
