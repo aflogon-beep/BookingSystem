@@ -31,6 +31,14 @@ describe("parseSettingsField", () => {
     expect(parseSettingsField("phone", "llámame").ok).toBe(false);
   });
 
+  it("datos del titular: NIF en mayúsculas y plazo de conservación entre 6 y 120 meses", () => {
+    expect(parseSettingsField("tax_id", " b12345678 ")).toEqual({ ok: true, value: "B12345678" });
+    expect(parseSettingsField("tax_id", "B 1234").ok).toBe(false);
+    expect(parseSettingsField("legal_name", "  Volcán Tours S.L. ")).toEqual({ ok: true, value: "Volcán Tours S.L." });
+    expect(parseSettingsField("customer_retention_months", "24")).toEqual({ ok: true, value: 24 });
+    expect(parseSettingsField("customer_retention_months", "3").ok).toBe(false);
+  });
+
   it("solo admite las monedas de la lista", () => {
     expect(parseSettingsField("currency", "GBP")).toEqual({ ok: true, value: "GBP" });
     expect(parseSettingsField("currency", "JPY")).toEqual({ ok: false, error: "Moneda no admitida." });
@@ -57,6 +65,7 @@ describe("parseSettingsField", () => {
 describe("isSettingsField", () => {
   it("solo reconoce los campos editables (nunca id ni timezone)", () => {
     expect(isSettingsField("business_name")).toBe(true);
+    expect(isSettingsField("customer_retention_months")).toBe(true);
     expect(isSettingsField("id")).toBe(false);
     expect(isSettingsField("timezone")).toBe(false);
     expect(isSettingsField("languages")).toBe(false);

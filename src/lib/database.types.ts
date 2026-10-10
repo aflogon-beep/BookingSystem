@@ -127,14 +127,14 @@ isOneToOne: false
                   ]
                 },"customers": {
                   Row: {
-                    "created_at": string,"email": string | null,"id": string,"name": string,"phone": string | null
+                    "anonymized_at": string | null,"created_at": string,"email": string | null,"id": string,"name": string,"phone": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"email"?: string | null,"id"?: string,"name": string,"phone"?: string | null
+                    "anonymized_at"?: string | null,"created_at"?: string,"email"?: string | null,"id"?: string,"name": string,"phone"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"email"?: string | null,"id"?: string,"name"?: string,"phone"?: string | null
+                    "anonymized_at"?: string | null,"created_at"?: string,"email"?: string | null,"id"?: string,"name"?: string,"phone"?: string | null
                   }
                   Relationships: [
                     
@@ -307,14 +307,14 @@ isOneToOne: false
                   ]
                 },"settings": {
                   Row: {
-                    "business_name": string,"cancel_hours": number,"created_at": string,"currency": string,"cutoff_hours": number,"default_capacity": number,"email": string,"id": number,"languages": (string)[],"phone": string,"setup_done_at": string | null,"timezone": string
+                    "address": string,"business_name": string,"cancel_hours": number,"created_at": string,"currency": string,"customer_retention_months": number,"cutoff_hours": number,"default_capacity": number,"email": string,"id": number,"languages": (string)[],"legal_name": string,"phone": string,"setup_done_at": string | null,"tax_id": string,"timezone": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"phone"?: string,"setup_done_at"?: string | null,"timezone"?: string
+                    "address"?: string,"business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"customer_retention_months"?: number,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"legal_name"?: string,"phone"?: string,"setup_done_at"?: string | null,"tax_id"?: string,"timezone"?: string
                   }
                   Update: {
-                    "business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"phone"?: string,"setup_done_at"?: string | null,"timezone"?: string
+                    "address"?: string,"business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"customer_retention_months"?: number,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"legal_name"?: string,"phone"?: string,"setup_done_at"?: string | null,"tax_id"?: string,"timezone"?: string
                   }
                   Relationships: [
                     
@@ -433,7 +433,13 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "assign_session_resources":
+            "anonymize_customer":
+{ Args: { "p_customer_id": string }; Returns: undefined
+                           },
+"anonymize_expired_customers":
+{ Args: { "p_as_of"?: string }; Returns: number
+                           },
+"assign_session_resources":
 { Args: { "p_replace": boolean,"p_session_id": string }; Returns: number
                            },
 "booking_cancel":

@@ -28,9 +28,9 @@ export function splitLocale(pathname: string): { locale: Locale; path: string } 
   return { locale: DEFAULT_LOCALE, path: pathname };
 }
 
-/** Rutas de la web pública: el listado, las fichas con su pago y la confirmación. */
+/** Rutas de la web pública: el listado, las fichas con su pago, la confirmación y los textos legales. */
 export function isPublicPath(path: string): boolean {
-  return path === "/" || /^\/(experiencias|reserva)\/[^/]/.test(path);
+  return path === "/" || /^\/(experiencias|reserva|legal)\/[^/]/.test(path);
 }
 
 /** Texto del catálogo en el idioma de la web: el inglés si lo hay; si no, el español. */

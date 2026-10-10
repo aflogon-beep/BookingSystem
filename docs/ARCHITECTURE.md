@@ -132,6 +132,13 @@ Vista `session_availability`: aforo, plazas ocupadas (confirmadas + bloqueos vig
 | Fotos subidas desde el navegador a Storage | No pasan por el servidor de Vercel (límite de tamaño de las Server Actions). Una foto subida y descartada sin guardar puede quedar huérfana en el bucket. |
 | Un solo negocio | Simplicidad. Multi-tenant posible más adelante añadiendo `org_id` y RLS. |
 
+## RGPD y textos legales (4.5)
+
+- **Borrado a petición.** Un admin pulsa «Borrar datos personales» en la ficha del cliente: `anonymize_customer` cambia el nombre por «Cliente anonimizado», borra email y teléfono, vacía el hotel y las notas de sus reservas y apunta `customers.anonymized_at`. Las reservas se quedan (plazas, importes, informes). No se puede con reservas por venir: antes hay que cancelarlas (RB010).
+- **Plazo de conservación.** `settings.customer_retention_months` (24 por defecto, de 6 a 120, en Ajustes → Venta y cancelación). El job diario `/api/cron/generar-salidas` llama a `anonymize_expired_customers`, que anonimiza a quien no tiene salidas desde hace ese plazo (o, sin reservas, se dio de alta antes).
+- **Textos legales.** `/legal/privacidad`, `/legal/condiciones` (aviso legal y condiciones) y `/legal/cookies`, en español y en inglés (`/en/legal/…`), enlazados en el pie de la web y en el formulario de reserva. Se generan en `lib/domain/legal.ts` con los datos del titular de Ajustes → Empresa (razón social, NIF, dirección) y los plazos de Ajustes. Son una base: conviene que los revise un profesional antes de abrir al público.
+- **Cookies.** Solo técnicas (`reservas_web` en la web, la sesión en el panel): no hace falta banner. Si se añade analítica, habrá que pedir consentimiento.
+
 ## Seguridad (revisión 4.1)
 
 - **Límite de intentos.** Sin pasarela de pago, una reserva web solo cuesta un envío. `rate_limit_hit` (tabla `rate_limit_hits`, solo service role) limita la reserva web a 5 por IP cada 10 minutos y 5 por email al día, y el login a 20 por IP y 8 por IP y cuenta cada 15 minutos (no solo por cuenta: si no, cualquiera podría bloquear a un admin sabiendo su email). Con IPv6 se cuenta el bloque /64. Si el contador falla, deja pasar (no se bloquean ventas). La IP sale del primer valor de `x-forwarded-for` (Vercel); en local y en los tests no hay IP y no se aplica ninguna regla (tampoco la del email); fuera de Vercel habría que revisar de dónde sale la IP. Si hiciera falta más, el siguiente paso es Cloudflare Turnstile en el formulario (necesita claves).

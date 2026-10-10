@@ -3,6 +3,7 @@ import { Languages, Phone } from "lucide-react";
 
 import { LanguageSwitch } from "@/components/web/language-switch";
 import { LOCALES, localizedPath } from "@/lib/domain/i18n";
+import { LEGAL_DOCS, LEGAL_TITLES } from "@/lib/domain/legal";
 import { webText } from "@/lib/domain/web-text";
 import { getLocale, getPublicPath } from "@/lib/i18n";
 
@@ -50,11 +51,18 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
           <span>
             © {new Date().getFullYear()} {site.businessName}
           </span>
-          {site.email ? (
-            <a href={`mailto:${site.email}`} className="hover:text-foreground">
-              {site.email}
-            </a>
-          ) : null}
+          <nav aria-label={text.legalLabel} className="flex flex-wrap gap-x-3 gap-y-1">
+            {LEGAL_DOCS.map((doc) => (
+              <Link key={doc} href={localizedPath(locale, `/legal/${doc}`)} className="hover:text-foreground">
+                {LEGAL_TITLES[locale][doc]}
+              </Link>
+            ))}
+            {site.email ? (
+              <a href={`mailto:${site.email}`} className="hover:text-foreground">
+                {site.email}
+              </a>
+            ) : null}
+          </nav>
         </div>
       </footer>
     </div>

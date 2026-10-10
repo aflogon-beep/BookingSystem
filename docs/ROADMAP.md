@@ -40,7 +40,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [ ] 4.2 Proyecto Supabase de producción, backups (PITR) y migraciones desde CI. Hecho: migraciones desde CI (workflow `Migraciones`, aplica `supabase/migrations` al fusionar en `main`). Falta: backups (PITR).
 - [ ] 4.3 Vercel producción, dominio, variables de entorno y Stripe en modo live con webhook.
 - [ ] 4.4 Monitorización (Sentry) y alertas de webhook fallido.
-- [ ] 4.5 Textos legales: privacidad, condiciones y cookies. RGPD: borrar o anonimizar los datos de un cliente desde su ficha y plazo de conservación de los datos de clientes.
+- [x] 4.5 Textos legales: privacidad, condiciones y cookies. RGPD: borrar o anonimizar los datos de un cliente desde su ficha y plazo de conservación de los datos de clientes. Pendiente fuera del código: rellenar los datos del titular en Ajustes → Empresa y que un profesional revise los textos.
 - [ ] 4.6 Piloto con un tour durante 2 semanas.
 
 ## Más adelante

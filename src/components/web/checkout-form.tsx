@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
+import Link from "next/link";
 import { Check, Wallet } from "lucide-react";
 
 import { unstable_rethrow } from "next/navigation";
@@ -9,7 +10,7 @@ import { createWebBooking } from "@/app/(public)/experiencias/[slug]/reservar/ac
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { Locale } from "@/lib/domain/i18n";
+import { localizedPath, type Locale } from "@/lib/domain/i18n";
 import { webText } from "@/lib/domain/web-text";
 import { cn } from "@/lib/utils";
 
@@ -116,7 +117,15 @@ export function WebCheckoutForm({
         {pending ? text.booking : text.confirmBooking(totalLabel)}
       </Button>
       <p className="text-[0.75rem] text-faint">
-        {text.privacy}
+        {text.privacy} {text.acceptTerms}{" "}
+        <Link href={localizedPath(locale, "/legal/condiciones")} target="_blank" className="underline underline-offset-2">
+          {text.termsLink}
+        </Link>{" "}
+        {text.andThe}{" "}
+        <Link href={localizedPath(locale, "/legal/privacidad")} target="_blank" className="underline underline-offset-2">
+          {text.privacyLink}
+        </Link>
+        .
       </p>
     </form>
   );

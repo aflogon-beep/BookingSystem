@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
 import { Box } from "@/components/ajustes/box";
+import { AnonymizeCustomerButton } from "@/components/clientes/anonymize-customer-button";
 import { BookingStatusPill } from "@/components/reservas/booking-pills";
 import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
@@ -17,12 +18,12 @@ import { initials } from "@/lib/domain/resources";
 export const metadata: Metadata = { title: "Cliente" };
 
 export default async function Page({ params }: PageProps<"/panel/clientes/[id]">) {
-  await requireAccess("clientes");
+  const staff = await requireAccess("clientes");
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
   const supabase = await createClient();
-  const [{ data: customer, error }, { data: bookings, error: bookingsError }] = await Promise.all([
+  const [{ data: customer, error }, { data: bookings, error: bookingsError }, { data: privacy }] = await Promise.all([
     supabase.from("customer_list").select("id, name, email, phone, bookings, pax, spent_cents").eq("id", id).maybeSingle(),
     supabase
       .from("booking_list")
@@ -30,10 +31,12 @@ export default async function Page({ params }: PageProps<"/panel/clientes/[id]">
       .eq("customer_id", id)
       .order("starts_at", { ascending: false })
       .limit(200),
+    supabase.from("customers").select("anonymized_at").eq("id", id).maybeSingle(),
   ]);
   if (error || bookingsError) throw new Error("No se pudo cargar el cliente.");
   if (!customer) notFound();
   const name = customer.name ?? "";
+  const anonymizedAt = privacy?.anonymized_at ?? null;
 
   return (
     <section className="flex max-w-[720px] flex-col gap-4 tablet:gap-5">
@@ -119,6 +122,22 @@ export default async function Page({ params }: PageProps<"/panel/clientes/[id]">
           })}
         </ul>
       </Box>
+
+      {anonymizedAt ? (
+        <p className="text-[0.8rem] text-muted-foreground">
+          Datos personales borrados el {toBusinessDateTime(anonymizedAt).date.split("-").reverse().join("/")}.
+        </p>
+      ) : staff.role === "admin" ? (
+        <Box title="Datos personales" action={<AnonymizeCustomerButton customerId={customer.id ?? id} name={name} />}>
+          <p className="p-4 text-[0.84rem] text-muted-foreground">
+            Si el cliente pide que borremos sus datos (RGPD), bórralos aquí. Se borran solos{" "}
+            <Link href="/panel/ajustes/politicas" className="underline underline-offset-2">
+              pasado el plazo de conservación
+            </Link>
+            .
+          </p>
+        </Box>
+      ) : null}
     </section>
   );
 }

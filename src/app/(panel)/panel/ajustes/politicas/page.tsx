@@ -13,7 +13,7 @@ export default async function Page() {
   const supabase = await createClient();
   const { data: settings, error } = await supabase
     .from("settings")
-    .select("cutoff_hours, cancel_hours")
+    .select("cutoff_hours, cancel_hours, customer_retention_months")
     .eq("id", 1)
     .single();
   if (error) throw new Error("No se pudieron cargar los ajustes.");
@@ -38,6 +38,17 @@ export default async function Page() {
           defaultValue={settings.cancel_hours}
           hint="Se muestra al cliente al reservar y en la confirmación."
           {...hours}
+        />
+        <SettingInput
+          field="customer_retention_months"
+          label="Conservación de datos de clientes"
+          suffix="meses"
+          type="number"
+          inputMode="numeric"
+          min={SETTINGS_LIMITS.retentionMonths.min}
+          max={SETTINGS_LIMITS.retentionMonths.max}
+          defaultValue={settings.customer_retention_months}
+          hint="Pasado este tiempo desde su última salida, se borran solos el nombre, el email y el teléfono del cliente."
         />
       </div>
     </Box>

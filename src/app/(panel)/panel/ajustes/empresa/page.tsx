@@ -17,7 +17,7 @@ export default async function Page() {
   const supabase = await createClient();
   const { data: settings, error } = await supabase
     .from("settings")
-    .select("business_name, email, phone, currency, default_capacity, languages")
+    .select("business_name, email, phone, currency, default_capacity, languages, legal_name, tax_id, address")
     .eq("id", 1)
     .single();
   if (error) throw new Error("No se pudieron cargar los ajustes.");
@@ -78,6 +78,27 @@ export default async function Page() {
           <LanguageChips active={settings.languages} />
           <FieldHint id="cf-languages-hint">Cada salida tiene un idioma, y solo se le asignan guías que lo hablan.</FieldHint>
         </div>
+      </div>
+      <div className="grid gap-3.5 border-t border-line-2 p-4 tablet:grid-cols-2">
+        <p className="text-[0.8rem] text-muted-foreground tablet:col-span-2">
+          Datos del titular. Salen en la política de privacidad y en las condiciones de la web.
+        </p>
+        <SettingInput
+          field="legal_name"
+          label="Razón social"
+          defaultValue={settings.legal_name}
+          maxLength={SETTINGS_LIMITS.legalName}
+          placeholder="Volcán Tours S.L."
+        />
+        <SettingInput field="tax_id" label="NIF / CIF" defaultValue={settings.tax_id} maxLength={SETTINGS_LIMITS.taxId} />
+        <SettingInput
+          field="address"
+          label="Dirección"
+          autoComplete="street-address"
+          defaultValue={settings.address}
+          maxLength={SETTINGS_LIMITS.address}
+          className="tablet:col-span-2"
+        />
       </div>
     </Box>
   );
