@@ -3,6 +3,7 @@ import { LogOut, Plus, Settings, Store } from "lucide-react";
 
 import { logout } from "@/app/(auth)/actions";
 
+import { AlertsBell } from "@/components/panel/alerts-bell";
 import { NavTop } from "@/components/panel/nav-top";
 import { focusRing } from "@/components/panel/styles";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function TopBar({ staff }: { staff: StaffMember }) {
             Nueva reserva
           </Link>
         </Button>
+        <AlertsBell />
         <Button asChild variant="ghost" size="icon" className="hidden text-foreground tablet:inline-flex">
           <Link href="/" aria-label="Web de reservas" title="Web de reservas">
             <Store aria-hidden="true" />

@@ -384,6 +384,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"session_staffing": {
+                  Row: {
+                    "missing": number | null,"missing_equipment": number | null,"missing_guides": number | null,"missing_vehicles": number | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "sessions_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Functions: {

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarX2, ChevronLeft, ChevronRight, CircleCheck, Handshake, Globe, Phone, Plus, Store, UserMinus, type LucideIcon } from "lucide-react";
+import { CalendarX2, ChevronLeft, ChevronRight, Handshake, Globe, Phone, Plus, Store, type LucideIcon } from "lucide-react";
 
+import { AttentionList } from "@/components/hoy/attention-list";
 import { DayPicker } from "@/components/hoy/day-picker";
+import { FeedItem } from "@/components/hoy/feed-item";
 import { SessionRow } from "@/components/hoy/session-row";
-import type { ActivityItem, TodaySession } from "@/components/hoy/types";
+import type { ActivityItem } from "@/components/hoy/types";
 import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
 import { longDayLabel } from "@/lib/domain/calendar";
@@ -102,25 +104,7 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
               </span>
             }
           >
-            <ul>
-              {attention.length ? (
-                attention.slice(0, 5).map(({ session, text }) => (
-                  <FeedItem key={session.id} icon={UserMinus} tone="warn">
-                    <Link href={`/panel/salidas/${session.id}`} className="block truncate font-bold hover:underline">
-                      {session.product.name}
-                    </Link>
-                    <span className="text-muted-foreground">
-                      <AttentionWhen session={session} today={today} /> · {text}
-                    </span>
-                  </FeedItem>
-                ))
-              ) : (
-                <FeedItem icon={CircleCheck} tone="ok">
-                  <b>Todo en orden</b>
-                  <div className="text-muted-foreground">Las salidas de las próximas 48 h llegan al mínimo de pasajeros.</div>
-                </FeedItem>
-              )}
-            </ul>
+            <AttentionList items={attention} today={today} limit={5} />
           </Box>
 
           <Box title="Actividad reciente">
@@ -197,41 +181,6 @@ function Box({ title, aside, children }: { title: string; aside?: React.ReactNod
       </div>
       {children}
     </section>
-  );
-}
-
-const FEED_TONES = {
-  accent: "bg-primary-soft text-primary",
-  ok: "bg-ok-soft text-ok",
-  warn: "bg-warn-soft text-warn",
-  danger: "bg-danger-soft text-danger",
-};
-
-function FeedItem({
-  icon: Icon,
-  tone,
-  children,
-}: {
-  icon: LucideIcon;
-  tone: keyof typeof FEED_TONES;
-  children: React.ReactNode;
-}) {
-  return (
-    <li className="flex gap-2.5 border-b border-line-2 px-4 py-[11px] text-[0.82rem] last:border-b-0">
-      <span aria-hidden="true" className={cn("grid size-7 flex-none place-items-center rounded-lg [&_svg]:size-[17px]", FEED_TONES[tone])}>
-        <Icon />
-      </span>
-      <div className="min-w-0 flex-1">{children}</div>
-    </li>
-  );
-}
-
-function AttentionWhen({ session, today }: { session: TodaySession; today: string }) {
-  const when = session.date === today ? "Hoy" : session.date === shiftDay(today, 1) ? "Mañana" : longDayLabel(session.date);
-  return (
-    <span className="first-letter:uppercase">
-      {when} · {session.time}
-    </span>
   );
 }
 

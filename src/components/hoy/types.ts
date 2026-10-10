@@ -1,3 +1,5 @@
+import type { MissingByType } from "@/lib/domain/today";
+
 export type TodaySession = {
   id: string;
   startsAt: string;
@@ -9,6 +11,8 @@ export type TodaySession = {
   capacity: number;
   booked: number;
   minPax: number;
+  /** Equipo que le falta (vista session_staffing). */
+  missing: MissingByType;
   started: boolean;
   past: boolean;
   product: { name: string; color: string };
