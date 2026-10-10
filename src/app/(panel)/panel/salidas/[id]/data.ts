@@ -4,7 +4,9 @@ import { createClient } from "@/lib/db/server";
 import type { AssignableResource } from "@/lib/domain/assignment";
 import { toBusinessDateTime } from "@/lib/domain/calendar";
 import type { ManifestBooking } from "@/lib/domain/manifest";
-import { isResourceType, needsFromRows, type ProductNeeds } from "@/lib/domain/resources";
+import { isResourceType, needsFromRows, type ProductNeeds, type ResourceType } from "@/lib/domain/resources";
+
+import { loadBlockedNeed } from "../../team-status";
 
 export type ManifestSession = {
   id: string;
@@ -17,6 +19,8 @@ export type ManifestSession = {
   capacity: number;
   booked: number;
   started: boolean;
+  /** Recurso obligatorio que no está libre a esa hora: no admite reservas. */
+  blockingNeed: ResourceType | null;
   product: { name: string; color: string; minPax: number; meetingPoint: string; pickup: boolean };
 };
 
@@ -36,7 +40,7 @@ const STATUSES = new Set<ManifestSession["status"]>(["open", "closed", "cancelle
 /** Salida con su ocupación y sus reservas (sin las web caducadas, que nunca llegaron a confirmarse). */
 export async function loadManifest(sessionId: string, now: Date): Promise<{ session: ManifestSession; bookings: ManifestRow[]; equipment: ManifestEquipment } | null> {
   const supabase = await createClient();
-  const [{ data: row, error }, { data: availability, error: availabilityError }, { data: bookings, error: bookingsError }] =
+  const [{ data: row, error }, { data: availability, error: availabilityError }, { data: bookings, error: bookingsError }, blockingNeed] =
     await Promise.all([
       supabase
         .from("sessions")
@@ -51,6 +55,7 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
         )
         .eq("session_id", sessionId)
         .in("status", ["confirmed", "cancelled"]),
+      loadBlockedNeed(supabase, sessionId),
     ]);
   if (error || availabilityError || bookingsError) throw new Error("No se pudo cargar el manifiesto.");
   if (!row) return null;
@@ -82,6 +87,7 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
       capacity: row.capacity,
       booked: availability?.booked_seats ?? 0,
       started: new Date(row.starts_at) <= now,
+      blockingNeed,
       product: {
         name: row.products.name,
         color: row.products.color,

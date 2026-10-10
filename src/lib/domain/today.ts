@@ -77,10 +77,23 @@ export function missingText(missing: MissingByType): string {
   return `Sin ${types.join("/")} asignado`;
 }
 
-export type FlaggableSession = { status: string; booked: number; capacity: number; minPax: number; missing: MissingByType };
+export type FlaggableSession = {
+  status: string;
+  booked: number;
+  capacity: number;
+  minPax: number;
+  missing: MissingByType;
+  /** Recurso obligatorio que no está libre a esa hora (vista session_team_status): no admite reservas. */
+  blockingNeed?: ResourceType | null;
+};
+
+/** «Sin guía libre»: la salida no admite reservas porque su recurso obligatorio está en otra salida. */
+export function blockedText(need: ResourceType): `Sin ${string} libre` {
+  return `Sin ${RESOURCE_TYPE_TEXT[need].singular} libre`;
+}
 
 export type SessionFlag = {
-  label: "Cerrada" | "Cancelada" | "Sin equipo" | "Bajo mínimo" | "Completa";
+  label: "Cerrada" | "Cancelada" | "Sin equipo" | "Bajo mínimo" | "Completa" | `Sin ${string} libre`;
   tone: "neutral" | "danger" | "warn" | "blue";
 };
 
@@ -96,12 +109,22 @@ export function sessionFlags(session: FlaggableSession): SessionFlag[] {
     flags.push({ label: "Bajo mínimo", tone: "warn" });
   }
   if (session.status === "open" && session.booked >= session.capacity) flags.push({ label: "Completa", tone: "blue" });
+  if (session.status === "open" && session.blockingNeed) flags.push({ label: blockedText(session.blockingNeed), tone: "warn" });
   return flags;
 }
 
-/** Se puede reservar desde el panel: abierta, sin haber salido aún (como create_booking_hold) y con plazas. */
-export function canBookSession(session: { status: string; started: boolean; booked: number; capacity: number }): boolean {
-  return session.status === "open" && !session.started && session.booked < session.capacity;
+/**
+ * Se puede reservar desde el panel: abierta, sin haber salido aún, con plazas y con sus recursos
+ * obligatorios libres (como create_booking_hold).
+ */
+export function canBookSession(session: {
+  status: string;
+  started: boolean;
+  booked: number;
+  capacity: number;
+  blockingNeed?: ResourceType | null;
+}): boolean {
+  return session.status === "open" && !session.started && session.booked < session.capacity && !session.blockingNeed;
 }
 
 export type AttentionSession = FlaggableSession & { id: string; startsAt: string };

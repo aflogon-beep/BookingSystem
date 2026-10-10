@@ -3,6 +3,7 @@ import { parseISO } from "date-fns";
 
 import { cn } from "@/lib/utils";
 import { calendarHref, groupByDate, longDayLabel, occupancyLevel, occupancyTotals } from "@/lib/domain/calendar";
+import { blockedText } from "@/lib/domain/today";
 
 import type { CalendarSession } from "./types";
 
@@ -96,7 +97,13 @@ export function MonthView({
                       "hidden min-w-0 items-center gap-[5px] rounded-[4px] px-1 py-px text-[0.72rem] leading-[1.3] tablet:flex",
                       session.status !== "cancelled" && session.capacity > 0 && session.booked >= session.capacity ? "bg-warn-soft" : "bg-surface-2",
                       session.status === "cancelled" && "line-through opacity-45",
+                      session.status === "open" && !session.past && session.blockingNeed && "opacity-45",
                     )}
+                    title={
+                      session.status === "open" && !session.past && session.blockingNeed
+                        ? `${blockedText(session.blockingNeed)}: no admite reservas`
+                        : undefined
+                    }
                   >
                     <span aria-hidden="true" className="size-[7px] flex-none rounded-[3px]" style={{ background: session.product.color }} />
                     <span className="flex-none font-mono text-muted-foreground">{session.time}</span>

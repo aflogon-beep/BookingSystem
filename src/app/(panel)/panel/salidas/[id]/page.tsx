@@ -16,7 +16,7 @@ import { canCollect, isLive, manifestSummary, manifestText, paxOf, sortManifest,
 import { formatCents } from "@/lib/domain/money";
 import { businessToday } from "@/lib/domain/schedule";
 import { isLanguageCode, LANGUAGES } from "@/lib/domain/settings";
-import { canBookSession } from "@/lib/domain/today";
+import { blockedText, canBookSession } from "@/lib/domain/today";
 import { cn } from "@/lib/utils";
 
 import { loadManifest, type ManifestRow, type ManifestSession } from "./data";
@@ -84,6 +84,12 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
               </li>
             ) : null}
           </ul>
+          {session.status === "open" && !session.started && session.blockingNeed ? (
+            <p className="mt-2 text-[0.84rem] text-warn">
+              {blockedText(session.blockingNeed)}: está en otra salida a esa hora y es obligatorio, así que esta salida no
+              admite reservas hasta que quede libre.
+            </p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <CopyManifestButton text={copyText} />

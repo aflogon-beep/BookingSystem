@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   NOTHING_MISSING,
   attentionItems,
+  blockedText,
   canBookSession,
   dayKpis,
   dayLabel,
@@ -96,6 +97,12 @@ describe("avisos de salida", () => {
     expect(sessionFlags({ ...base, booked: 2 }).map((flag) => flag.label)).toEqual(["Bajo mínimo"]);
   });
 
+  it("marca las salidas sin su recurso obligatorio libre", () => {
+    expect(blockedText("guide")).toBe("Sin guía libre");
+    expect(sessionFlags({ ...base, blockingNeed: "guide" }).map((flag) => flag.label)).toEqual(["Sin guía libre"]);
+    expect(sessionFlags({ ...base, status: "cancelled", blockingNeed: "guide" }).map((flag) => flag.label)).toEqual(["Cancelada"]);
+  });
+
   it("marca completa, cerrada y cancelada", () => {
     expect(sessionFlags({ ...base, booked: 16 }).map((flag) => flag.label)).toEqual(["Completa"]);
     expect(sessionFlags({ ...base, booked: 18 }).map((flag) => flag.label)).toEqual(["Completa"]);
@@ -111,6 +118,11 @@ describe("reservar desde el panel", () => {
     expect(canBookSession({ ...base, started: true })).toBe(false);
     expect(canBookSession({ ...base, booked: 16 })).toBe(false);
     expect(canBookSession({ ...base, status: "closed" })).toBe(false);
+  });
+
+  it("no, si su recurso obligatorio está en otra salida a esa hora", () => {
+    expect(canBookSession({ ...base, blockingNeed: null })).toBe(true);
+    expect(canBookSession({ ...base, blockingNeed: "guide" })).toBe(false);
   });
 });
 

@@ -3,7 +3,7 @@ import { ClipboardList, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
-import { canBookSession, sessionFlags, type SessionFlag } from "@/lib/domain/today";
+import { blockedText, canBookSession, sessionFlags, type SessionFlag } from "@/lib/domain/today";
 import { cn } from "@/lib/utils";
 
 import type { TodaySession } from "./types";
@@ -21,6 +21,8 @@ export function SessionRow({ session }: { session: TodaySession }) {
   const percent = session.capacity ? Math.min(100, (session.booked / session.capacity) * 100) : 0;
   const cancelled = session.status === "cancelled";
   const bookable = canBookSession(session);
+  // Su recurso obligatorio (p. ej. el único guía) está en otra salida a esa hora.
+  const blocked = session.status === "open" && !session.started && session.blockingNeed !== null;
   const label = `${session.time} ${session.product.name}`;
   const labelId = `slot-${session.id}`;
 
@@ -59,7 +61,7 @@ export function SessionRow({ session }: { session: TodaySession }) {
           <span>
             <b className="font-semibold text-foreground tabular-nums">{session.booked}</b> / {session.capacity} plazas
           </span>
-          <span>{free > 0 ? `${free} libres` : "Lleno"}</span>
+          <span>{blocked ? "No admite reservas" : free > 0 ? `${free} libres` : "Lleno"}</span>
         </div>
         <div
           role="progressbar"
@@ -81,7 +83,13 @@ export function SessionRow({ session }: { session: TodaySession }) {
             </Link>
           </Button>
         ) : (
-          <Button variant="outline" size="sm" disabled aria-label={`Reservar ${label}`}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            aria-label={`Reservar ${label}`}
+            title={blocked && session.blockingNeed ? `${blockedText(session.blockingNeed)}: está en otra salida a esa hora` : undefined}
+          >
             <Plus aria-hidden="true" />
             Reservar
           </Button>

@@ -19,8 +19,11 @@ import {
   visibleDays,
   type CalendarView,
 } from "@/lib/domain/calendar";
+import type { ResourceType } from "@/lib/domain/resources";
 import { businessToday } from "@/lib/domain/schedule";
 import { cn } from "@/lib/utils";
+
+import { loadBlockedNeeds } from "../team-status";
 
 export const metadata: Metadata = { title: "Calendario" };
 
@@ -43,12 +46,13 @@ export default async function Page({ searchParams }: PageProps<"/panel/calendari
   // Un producto que ya no existe en la URL cuenta como «Todos los productos».
   const productId = products.some((product) => product.id === requestedProductId) ? requestedProductId : null;
 
-  const [rows, booked, unstaffed] = await Promise.all([
+  const [rows, booked, unstaffed, blocked] = await Promise.all([
     loadSessionRows(supabase, from, to, productId),
     loadBookedSeats(supabase, from, to, productId),
     loadUnstaffed(supabase, from, to, productId),
+    loadBlockedNeeds(supabase, { from, to }, productId),
   ]);
-  const sessions = toCalendarSessions(rows, booked, unstaffed, new Date());
+  const sessions = toCalendarSessions(rows, booked, unstaffed, blocked, new Date());
 
   return (
     <section className="flex flex-col gap-4 tablet:gap-5">
@@ -187,6 +191,7 @@ function toCalendarSessions(
   rows: readonly SessionRow[],
   booked: ReadonlyMap<string, number>,
   unstaffed: ReadonlySet<string>,
+  blocked: ReadonlyMap<string, ResourceType>,
   now: Date,
 ): CalendarSession[] {
   return rows.map((row) => {
@@ -200,6 +205,7 @@ function toCalendarSessions(
       booked: booked.get(row.id) ?? 0,
       status: STATUSES.has(row.status as CalendarSession["status"]) ? (row.status as CalendarSession["status"]) : "open",
       unstaffed: unstaffed.has(row.id),
+      blockingNeed: blocked.get(row.id) ?? null,
       past: new Date(row.starts_at) < now,
       product: { name: row.products.name, color: row.products.color, minPax: row.products.min_pax },
     };
