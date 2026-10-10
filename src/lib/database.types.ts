@@ -39,6 +39,12 @@ export type Database = {
       foreignKeyName: "booking_events_booking_id_fkey"
       columns: ["booking_id"]
 isOneToOne: false
+      referencedRelation: "booking_list"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "booking_events_booking_id_fkey"
+      columns: ["booking_id"]
+isOneToOne: false
       referencedRelation: "bookings"
       referencedColumns: ["id"]
     }
@@ -56,6 +62,12 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
+      foreignKeyName: "booking_lines_booking_id_fkey"
+      columns: ["booking_id"]
+isOneToOne: false
+      referencedRelation: "booking_list"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "booking_lines_booking_id_fkey"
       columns: ["booking_id"]
 isOneToOne: false
@@ -82,6 +94,12 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
+      foreignKeyName: "bookings_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customer_list"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "bookings_customer_id_fkey"
       columns: ["customer_id"]
 isOneToOne: false
@@ -306,7 +324,53 @@ isOneToOne: false
                 }
           }
           Views: {
-            "session_availability": {
+            "booking_list": {
+                  Row: {
+                    "agent": string | null,"channel": string | null,"checked_in": boolean | null,"code": string | null,"created_at": string | null,"customer_email": string | null,"customer_id": string | null,"customer_name": string | null,"customer_phone": string | null,"hotel": string | null,"id": string | null,"language": string | null,"lines": Json | null,"paid_cents": number | null,"pax": number | null,"payment_method": string | null,"payment_status": string | null,"product_color": string | null,"product_id": string | null,"product_name": string | null,"search_text": string | null,"session_id": string | null,"starts_at": string | null,"status": string | null,"total_cents": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "bookings_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customer_list"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "bookings_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
+      referencedRelation: "session_availability"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
+      referencedRelation: "sessions"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sessions_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"customer_list": {
+                  Row: {
+                    "bookings": number | null,"email": string | null,"id": string | null,"last_starts_at": string | null,"name": string | null,"pax": number | null,"phone": string | null,"search_text": string | null,"spent_cents": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
+                  ]
+                },"session_availability": {
                   Row: {
                     "booked_seats": number | null,"capacity": number | null,"free_seats": number | null,"pax": number | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null
                   }

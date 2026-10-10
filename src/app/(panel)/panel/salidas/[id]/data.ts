@@ -47,16 +47,23 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
       supabase
         .from("bookings")
         .select(
-          "id, code, status, payment_status, total_cents, checked_in, hotel, notes, channel, agent, customers!inner(name, phone, email), booking_lines(qty, ticket_types!inner(name, sort))",
+          "id, code, status, payment_status, payment_method, total_cents, checked_in, hotel, notes, channel, agent, customers!inner(name, phone, email), booking_lines(qty, ticket_types!inner(name, sort))",
         )
         .eq("session_id", sessionId)
         .in("status", ["confirmed", "cancelled"]),
     ]);
   if (error || availabilityError || bookingsError) throw new Error("No se pudo cargar el manifiesto.");
   if (!row) return null;
-  // Las web que nunca se pagaron (bloqueo caducado o salida cancelada) no son pasajeros.
+  // Las web con tarjeta que nunca se pagaron (bloqueo caducado o salida cancelada) no son
+  // pasajeros. Las de «paga allí» (sin método) sí, aunque luego se cancelen.
   const passengers = bookings.filter(
-    (booking) => !(booking.channel === "web" && booking.status === "cancelled" && booking.payment_status === "pending"),
+    (booking) =>
+      !(
+        booking.channel === "web" &&
+        booking.status === "cancelled" &&
+        booking.payment_status === "pending" &&
+        booking.payment_method === "card_online"
+      ),
   );
 
   const equipment = await loadEquipment(row);
