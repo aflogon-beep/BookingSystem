@@ -52,9 +52,9 @@ export async function sendEmails(emails: readonly OutgoingEmail[]): Promise<Set<
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) {
-        // Solo el estado y el mensaje de Resend: nunca la clave ni las direcciones.
-        const error = (await response.json().catch(() => null)) as { message?: unknown } | null;
-        console.error("Resend rechazó el envío", response.status, typeof error?.message === "string" ? error.message : "");
+        // Solo el estado y el tipo de error: el mensaje de Resend puede incluir la dirección.
+        const error = (await response.json().catch(() => null)) as { name?: unknown } | null;
+        console.error("Resend rechazó el envío", response.status, typeof error?.name === "string" ? error.name : "");
       }
       return response.status;
     } catch (error) {

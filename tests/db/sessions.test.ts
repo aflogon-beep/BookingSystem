@@ -207,6 +207,15 @@ describe("RLS de sessions", () => {
     expect(data).toEqual([{ capacity: 6 }]);
   });
 
+  it("el equipo no puede mover una salida a otra hora ni a otro producto", async () => {
+    const id = await saveProduct([everyDay(["12:30"])]);
+    await generate(id, "2030-10-25", "2030-10-25");
+    const moved = await member.db.from("sessions").update({ starts_at: "2030-10-25T15:00:00Z" }).eq("product_id", id);
+    expect(moved.error?.code).toBe("42501");
+    const other = await member.db.from("sessions").update({ product_id: randomUUID() }).eq("product_id", id);
+    expect(other.error?.code).toBe("42501");
+  });
+
   it("no admite estados ni aforos fuera de rango", async () => {
     const id = await saveProduct([everyDay(["13:00"])]);
     await generate(id, "2030-10-25", "2030-10-25");

@@ -131,3 +131,13 @@ Vista `session_availability`: aforo, plazas ocupadas (confirmadas + bloqueos vig
 | Borrar un tipo de entrada borra sus precios | Como en el prototipo: deja de venderse en todos los productos. Las reservas (1.6) lo impedirán con `restrict`. |
 | Fotos subidas desde el navegador a Storage | No pasan por el servidor de Vercel (límite de tamaño de las Server Actions). Una foto subida y descartada sin guardar puede quedar huérfana en el bucket. |
 | Un solo negocio | Simplicidad. Multi-tenant posible más adelante añadiendo `org_id` y RLS. |
+
+## Seguridad (revisión 4.1)
+
+- **Límite de intentos.** Sin pasarela de pago, una reserva web solo cuesta un envío. `rate_limit_hit` (tabla `rate_limit_hits`, solo service role) limita la reserva web a 5 por IP cada 10 minutos y 5 por email al día, y el login a 20 por IP y 8 por cuenta cada 15 minutos. Si el contador falla, deja pasar (no se bloquean ventas). La IP sale del primer valor de `x-forwarded-for` (Vercel); en local no hay IP y no se limita. Si hiciera falta más, el siguiente paso es Cloudflare Turnstile en el formulario (necesita claves).
+- **Cabeceras.** `next.config.ts` añade `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y HSTS, y quita `X-Powered-By`.
+- **Informes solo para admin.** `report_summary` comprueba `is_admin()` y `/panel/informes` es solo admin. Es una restricción de pantalla: el staff sigue viendo los importes de cada reserva (los necesita para cobrar en el lugar) y podría sumarlos.
+- **Salidas.** El equipo solo puede cambiar `capacity`, `capacity_custom`, `status`, `language` y `ends_at` de una salida; nunca su hora ni su producto.
+- **CSV.** Las celdas que empiezan por `= + - @ | %`, tabulador o retorno se escapan para que una hoja de cálculo no las ejecute.
+- **`npm audit`.** Los avisos altos que quedan vienen de dependencias de desarrollo (`eslint-config-next`) y no llegan a producción.
+- **Fuera del repositorio.** Los ajustes de Auth de Supabase cloud (altas públicas cerradas, caducidad de enlaces, longitud mínima de contraseña) no se suben desde `config.toml`: se revisan en el panel de Supabase.

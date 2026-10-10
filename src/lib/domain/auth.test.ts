@@ -60,9 +60,10 @@ describe("canAccess", () => {
     expect(canAccess("admin", "hoy")).toBe(true);
   });
 
-  it("el staff opera pero no entra en ajustes", () => {
+  it("el staff opera pero no entra en ajustes ni en informes", () => {
     expect(canAccess("staff", "hoy")).toBe(true);
     expect(canAccess("staff", "reservas")).toBe(true);
     expect(canAccess("staff", "ajustes")).toBe(false);
+    expect(canAccess("staff", "informes")).toBe(false);
   });
 });
