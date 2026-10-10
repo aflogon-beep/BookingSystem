@@ -141,6 +141,36 @@ describe("bookingsCsv", () => {
     );
   });
 
+  it("escapa las celdas que una hoja de cálculo ejecutaría, también con espacios delante", () => {
+    const cell = (customerName: string) =>
+      bookingsCsv([
+        {
+          code: "X",
+          date: "2030-12-02",
+          time: "16:30",
+          productName: "Teide",
+          language: "es",
+          customerName,
+          email: "",
+          phone: "",
+          tickets: "",
+          pax: 1,
+          totalCents: 0,
+          paymentStatus: "paid",
+          channel: "phone",
+          status: "confirmed",
+        },
+      ])
+        .split("\r\n")[1]
+        ?.split(";")[5];
+    expect(cell(" =1+1")).toBe(`"' =1+1"`);
+    expect(cell("|cmd")).toBe(`"'|cmd"`);
+    expect(cell("%x")).toBe(`"'%x"`);
+    expect(cell("@SUM(A1)")).toBe(`"'@SUM(A1)"`);
+    expect(cell("Ana García")).toBe(`"Ana García"`);
+    expect(cell("  Ana")).toBe(`"  Ana"`);
+  });
+
   it("sin reservas, solo la cabecera", () => {
     expect(bookingsCsv([]).split("\r\n")).toHaveLength(2);
   });

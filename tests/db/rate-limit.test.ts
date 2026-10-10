@@ -27,6 +27,16 @@ describe("rate_limit_hit", () => {
     expect(results).toEqual([true, true, true, false]);
   });
 
+  it("cada clave lleva su propia cuenta y rechaza parámetros no válidos", async () => {
+    const other = `${key}:otra`;
+    const { data, error } = await adminDb.rpc("rate_limit_hit", { p_key: other, p_limit: 3, p_window_seconds: 60 });
+    expect(error).toBeNull();
+    expect(data).toBe(true);
+    await adminDb.from("rate_limit_hits").delete().eq("key", other);
+    const bad = await adminDb.rpc("rate_limit_hit", { p_key: key, p_limit: 0, p_window_seconds: 60 });
+    expect(bad.error?.code).toBe("22023");
+  });
+
   it("solo lo usa el servidor: ni anon ni el equipo pueden llamarlo ni leer la tabla", async () => {
     for (const db of [anonDb(), member.db]) {
       const { error } = await db.rpc("rate_limit_hit", { p_key: key, p_limit: 100, p_window_seconds: 60 });

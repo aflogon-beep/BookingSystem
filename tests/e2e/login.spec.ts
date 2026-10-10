@@ -35,16 +35,19 @@ test("una cuenta sin fila en staff no entra al panel", async ({ page }) => {
   await expect(page).toHaveURL(/\/login/);
 });
 
-test("el rol staff no ve Ajustes ni puede abrirlo", async ({ page }, testInfo) => {
+test("el rol staff no ve Ajustes ni Informes ni puede abrirlos", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "escritorio", "solo en escritorio");
   await page.goto("/login");
   await login(page, E2E_USERS.staff.email);
   await expect(page).toHaveURL(/\/panel$/);
   await expect(page.getByRole("link", { name: "Ajustes" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Informes" })).toHaveCount(0);
 
   await page.goto("/panel/ajustes");
   await expect(page).toHaveURL(/\/panel$/);
   await page.goto("/panel/asistente");
+  await expect(page).toHaveURL(/\/panel$/);
+  await page.goto("/panel/informes");
   await expect(page).toHaveURL(/\/panel$/);
 });
 

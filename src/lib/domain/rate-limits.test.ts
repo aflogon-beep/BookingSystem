@@ -5,7 +5,14 @@ import { clientIpFrom, loginRules, webBookingRules } from "./rate-limits";
 describe("límites de intentos", () => {
   it("toma la IP del cliente del primer valor de x-forwarded-for", () => {
     expect(clientIpFrom("203.0.113.7, 10.0.0.1")).toBe("203.0.113.7");
-    expect(clientIpFrom(" 2001:DB8::1 ")).toBe("2001:db8::1");
+  });
+
+  it("con IPv6 limita por el bloque /64, que una conexión puede recorrer entero", () => {
+    expect(clientIpFrom(" 2001:DB8::1 ")).toBe("2001:db8:0:0::/64");
+    expect(clientIpFrom("2001:db8:aa:bb:1:2:3:4")).toBe("2001:db8:aa:bb::/64");
+    expect(clientIpFrom("2001:db8:aa:bb:ffff::9")).toBe("2001:db8:aa:bb::/64");
+    expect(clientIpFrom("2001:0db8:00aa::")).toBe("2001:db8:aa:0::/64");
+    expect(clientIpFrom("::ffff:203.0.113.7")).toBe("203.0.113.7");
   });
 
   it("sin IP pública (local o tests) no limita", () => {
@@ -23,7 +30,7 @@ describe("límites de intentos", () => {
     ]);
     expect(loginRules("203.0.113.7", "Ana@Example.com").map((rule) => rule.key)).toEqual([
       "login:ip:203.0.113.7",
-      "login:email:ana@example.com",
+      "login:ip-email:203.0.113.7:ana@example.com",
     ]);
   });
 });
