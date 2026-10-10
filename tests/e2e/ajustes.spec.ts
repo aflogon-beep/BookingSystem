@@ -134,7 +134,8 @@ test("el asistente valida cada paso y crea el primer tour con salidas", async ({
 
     await expect(page.getByRole("heading", { level: 1, name: "Tu primer tour" })).toBeVisible();
     await next.click();
-    await expect(page.getByRole("alert")).toHaveText("Ponle nombre al tour.");
+    // (Next añade otro role=alert para anunciar la ruta.)
+    await expect(page.getByRole("alert").filter({ hasText: "Ponle nombre al tour." })).toBeVisible();
     await page.getByLabel("Nombre del tour").fill(name);
     await page.getByLabel("Precio de Adulto").fill("30");
     await page.getByLabel("Precio de Niño").fill("15");
