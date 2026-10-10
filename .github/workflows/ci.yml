@@ -16,7 +16,7 @@ jobs:
           if grep -rEn "sk_live_|sk_test_[A-Za-z0-9]{10,}|whsec_[A-Za-z0-9]{10,}|service_role\"?\s*[:=]\s*\"ey" --include=*.{ts,tsx,js,json,sql,md} . --exclude-dir=node_modules --exclude-dir=.git; then
             echo "Posible secreto en el código"; exit 1; fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
