@@ -50,7 +50,9 @@ jobs:
 
       - name: Comprobar que los tipos de la BD están al día
         run: |
-          npx supabase gen types typescript --local > "$RUNNER_TEMP/database.types.ts"
+          npx supabase gen types typescript --local > "$RUNNER_TEMP/raw.types.ts"
+          # Mismo formato que npm run db:types (Prettier), para comparar contenido y no espacios.
+          npx prettier --stdin-filepath src/lib/database.types.ts < "$RUNNER_TEMP/raw.types.ts" > "$RUNNER_TEMP/database.types.ts"
           if ! diff -u src/lib/database.types.ts "$RUNNER_TEMP/database.types.ts"; then
             echo "::error::src/lib/database.types.ts no coincide con el esquema. Ejecuta npm run db:types y súbelo."
             exit 1

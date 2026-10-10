@@ -32,7 +32,7 @@ npm run test:db      # tests de RLS y SQL contra Supabase local
 npm run build        # build de producción
 npx supabase start   # Supabase local (Docker)
 npx supabase migration new <nombre>
-npx supabase gen types typescript --local > src/lib/database.types.ts   # = npm run db:types
+npm run db:types     # regenera src/lib/database.types.ts (supabase gen types + Prettier)
 npm run staff:create -- --email … --name … --role admin   # alta en el equipo
 npm run staff:password -- --email …                       # cambiar contraseña
 ```
