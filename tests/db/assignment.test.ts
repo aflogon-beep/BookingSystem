@@ -44,7 +44,7 @@ afterAll(async () => {
 });
 
 /** Producto que necesita un guía y un vehículo, con salidas el día DAY a esas horas (3 h), en orden. */
-async function createSessions(language: string, capacity: number, times: string[]): Promise<string[]> {
+async function createSessions(language: string, capacity: number, times: string[], day = DAY): Promise<string[]> {
   const { data, error } = await member.db.rpc("save_product", {
     p_product: {
       slug: `asignacion-${randomUUID()}`,
@@ -67,7 +67,7 @@ async function createSessions(language: string, capacity: number, times: string[
   if (error) throw error;
   const { id: productId } = data as { id: string };
   productIds.push(productId);
-  const generated = await member.db.rpc("generate_sessions", { p_from: DAY, p_to: DAY, p_product_id: productId });
+  const generated = await member.db.rpc("generate_sessions", { p_from: day, p_to: day, p_product_id: productId });
   if (generated.error) throw generated.error;
   const { data: sessions, error: sessionError } = await adminDb
     .from("sessions")
@@ -201,5 +201,34 @@ describe("asignación manual", () => {
     expect(await assignedTo(first)).toEqual([]);
     expect((await outsider.db.rpc("session_set_resources", { p_session_id: first, p_resource_ids: [ANA] })).error).not.toBeNull();
     expect(await assignedTo(first)).toEqual([]);
+  });
+});
+
+describe("asignar pendientes de un día", () => {
+  // Otro día, para no mezclarse con las salidas de los demás tests.
+  const OTHER_DAY = "2031-05-22";
+  // 2031-05-22 en Canarias (UTC+1 en mayo).
+  const range = { p_from: "2031-05-21T23:00:00Z", p_to: "2031-05-22T23:00:00Z" };
+
+  it("rellena los huecos de las salidas con reservas sin quitar lo elegido a mano", async () => {
+    const [booked, empty] = await createSessions("es", 6, ["09:00", "15:00"], OTHER_DAY);
+    if (!booked || !empty) throw new Error("Sin salidas");
+    // Con un guía elegido a mano, la reserva no asigna nada más: falta el vehículo.
+    expect((await member.db.rpc("session_set_resources", { p_session_id: booked, p_resource_ids: [CARMEN] })).error).toBeNull();
+    await book(booked);
+    expect(await assignedTo(booked)).toEqual([CARMEN]);
+
+    const { data, error } = await member.db.rpc("sessions_assign_pending", range);
+    expect(error).toBeNull();
+    expect(data).toEqual({ sessions: 1, missing: 0 });
+    expect(await assignedTo(booked)).toEqual([CARMEN, VAN_08].sort());
+    // Sin reservas, la salida no se toca.
+    expect(await assignedTo(empty)).toEqual([]);
+  });
+
+  it("solo el equipo, y como mucho dos días", async () => {
+    expect((await outsider.db.rpc("sessions_assign_pending", range)).error?.code).toBe("42501");
+    const wide = await member.db.rpc("sessions_assign_pending", { p_from: range.p_from, p_to: "2031-05-30T00:00:00Z" });
+    expect(wide.error?.code).toBe("22023");
   });
 });
