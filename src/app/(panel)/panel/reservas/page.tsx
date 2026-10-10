@@ -9,7 +9,7 @@ import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
 import { initials } from "@/lib/domain/resources";
 import { CHANNEL_LABELS } from "@/lib/domain/booking-detail";
-import { BOOKING_TABS, PAGE_SIZE, bookingListHref, bookingListSummary, listDateLabel, parseBookingListParams } from "@/lib/domain/booking-list";
+import { BOOKING_TABS, MAX_LIMIT, PAGE_SIZE, bookingListHref, bookingListSummary, listDateLabel, parseBookingListParams } from "@/lib/domain/booking-list";
 import { formatCents } from "@/lib/domain/money";
 import { cn } from "@/lib/utils";
 
@@ -117,7 +117,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
                 </tbody>
               </table>
             </div>
-            {count > rows.length ? (
+            {count > rows.length && params.limit < MAX_LIMIT ? (
               <div className="border-t border-line-2 p-3 text-center">
                 <Button asChild variant="outline" size="sm">
                   <Link href={bookingListHref({ ...params, limit: params.limit + PAGE_SIZE })} scroll={false}>
@@ -125,6 +125,10 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
                   </Link>
                 </Button>
               </div>
+            ) : count > rows.length ? (
+              <p className="border-t border-line-2 p-3 text-center text-[0.84rem] text-muted-foreground">
+                Se muestran {rows.length} de {count}. Afina los filtros o exporta el CSV para verlas todas.
+              </p>
             ) : null}
           </>
         ) : (

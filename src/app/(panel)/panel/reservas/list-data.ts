@@ -2,9 +2,8 @@ import "server-only";
 
 import { createClient } from "@/lib/db/server";
 import { bookingListQuery, type BookingListParams, type ListFilter } from "@/lib/domain/booking-list";
-import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
+import { toBusinessDateTime } from "@/lib/domain/calendar";
 import { ticketsLabel, type ManifestLine } from "@/lib/domain/manifest";
-import { businessToday } from "@/lib/domain/schedule";
 
 export type BookingListRow = {
   id: string;
@@ -36,6 +35,7 @@ const COLUMNS =
 // Supabase devuelve como mucho 1000 filas por petición: totales y CSV se leen por tandas.
 const BATCH = 1000;
 const MAX_ROWS = 20_000;
+const TOO_MANY = "Hay demasiadas reservas con estos filtros: afina la búsqueda.";
 
 // Sin async: el constructor de consultas es «thenable» y un await lo ejecutaría.
 function filteredQuery(
@@ -45,7 +45,7 @@ function filteredQuery(
   now: Date,
   count?: "exact",
 ) {
-  const { filters, ascending } = bookingListQuery(params, now, rangeForDays([businessToday(now)]));
+  const { filters, ascending } = bookingListQuery(params, now);
   let query = supabase.from("booking_list").select(columns, count ? { count } : undefined);
   for (const filter of filters satisfies ListFilter[]) query = query.filter(filter.column, filter.operator, filter.value);
   return query.order("starts_at", { ascending }).order("code");
@@ -129,9 +129,9 @@ export async function loadBookingTotals(
     if (error) throw new Error("No se pudieron cargar las reservas.");
     const batch = data as unknown as Pick<ViewRow, "status" | "pax" | "total_cents">[];
     rows.push(...batch.map((row) => ({ status: row.status ?? "", pax: row.pax ?? 0, totalCents: row.total_cents ?? 0 })));
-    if (batch.length < BATCH) break;
+    if (batch.length < BATCH) return rows;
   }
-  return rows;
+  throw new Error(TOO_MANY);
 }
 
 /** Todas las reservas con esos filtros (para totales y CSV), por tandas. */
@@ -142,7 +142,7 @@ export async function loadAllBookings(params: BookingListParams, now: Date): Pro
     const { data, error } = await filteredQuery(supabase, COLUMNS, params, now).range(from, from + BATCH - 1);
     if (error) throw new Error("No se pudieron cargar las reservas.");
     rows.push(...(data as unknown as ViewRow[]).map(toRow));
-    if (data.length < BATCH) break;
+    if (data.length < BATCH) return rows;
   }
-  return rows;
+  throw new Error(TOO_MANY);
 }

@@ -1,8 +1,9 @@
 -- Tarea 3.4: listado de reservas (con filtros y CSV) y clientes.
 
 -- Reservas tal y como se listan en el panel: las confirmadas y las canceladas, con salida,
--- producto, cliente, pasajeros y entradas. Igual que el manifiesto, no salen las web que nunca
--- llegaron a confirmarse (bloqueo vigente, caducadas o canceladas sin pagar).
+-- producto, cliente, pasajeros y entradas. Igual que el manifiesto, no salen las web con tarjeta
+-- que nunca llegaron a confirmarse (bloqueo vigente, caducadas o canceladas sin pagar). Las web
+-- de «paga allí» (sin método de pago) sí salen, también si luego se cancelan.
 -- security_invoker: RLS de cada tabla decide quién la ve (solo el equipo).
 create view public.booking_list with (security_invoker = true) as
 select
@@ -45,7 +46,8 @@ left join lateral (
   where bl.booking_id = b.id
 ) l on true
 where b.status in ('confirmed', 'cancelled')
-  and not (b.channel = 'web' and b.status = 'cancelled' and b.payment_status = 'pending');
+  and not (b.channel = 'web' and b.status = 'cancelled' and b.payment_status = 'pending'
+           and b.payment_method is not distinct from 'card_online');
 
 revoke all on table public.booking_list from anon, authenticated;
 grant select on table public.booking_list to authenticated;

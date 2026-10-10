@@ -57,13 +57,13 @@ afterAll(async () => {
   await deleteTestUsers([outsider, member]);
 });
 
-async function book(qty: number, channel = "phone"): Promise<string> {
+async function book(qty: number, channel = "phone", payment?: "on_site"): Promise<string> {
   const db = channel === "web" ? adminDb : member.db;
   const { data, error } = await db.rpc("create_booking_hold", {
     p_session_id: sessionId,
     p_lines: [{ ticket_type_id: ADULT_ID, qty }],
     p_customer: { name: "Marta Listado", email },
-    p_booking: { channel },
+    p_booking: payment ? { channel, payment } : { channel },
   });
   if (error) throw error;
   return (data as { id: string }).id;
@@ -75,6 +75,9 @@ describe("listado de reservas y clientes", () => {
     const cancelled = await book(1);
     expect((await member.db.rpc("booking_cancel", { p_booking_id: cancelled })).error).toBeNull();
     const webHold = await book(1, "web");
+    // Web de «paga allí» que luego se cancela: sí es una reserva de verdad y sale.
+    const payOnSite = await book(1, "web", "on_site");
+    expect((await member.db.rpc("booking_cancel", { p_booking_id: payOnSite })).error).toBeNull();
 
     const { data, error } = await member.db
       .from("booking_list")
@@ -82,16 +85,16 @@ describe("listado de reservas y clientes", () => {
       .eq("session_id", sessionId)
       .order("status");
     expect(error).toBeNull();
-    expect(data?.map((row) => row.id).sort()).toEqual([confirmed, cancelled].sort());
+    expect(data?.map((row) => row.id).sort()).toEqual([confirmed, cancelled, payOnSite].sort());
     expect(data?.map((row) => row.id)).not.toContain(webHold);
     const row = data?.find((item) => item.id === confirmed);
     expect(row).toMatchObject({ status: "confirmed", pax: 2, product_name: PRODUCT_NAME, customer_email: email });
     expect(row?.lines).toEqual([{ ticketName: "Adulto", qty: 2 }]);
     expect(row?.search_text).toContain("marta listado");
 
-    // Cliente: 2 reservas, pero pasajeros y gasto solo de la confirmada.
+    // Cliente: 3 reservas, pero pasajeros y gasto solo de la confirmada.
     const { data: customer } = await member.db.from("customer_list").select("bookings, pax, spent_cents").eq("email", email).single();
-    expect(customer).toEqual({ bookings: 2, pax: 2, spent_cents: 5000 });
+    expect(customer).toEqual({ bookings: 3, pax: 2, spent_cents: 5000 });
   });
 
   it("quien no es del equipo no ve nada", async () => {

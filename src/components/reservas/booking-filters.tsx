@@ -14,14 +14,38 @@ export function BookingFilters({ params, products }: { params: BookingListParams
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [q, setQ] = useState(params.q);
+  // Si la URL cambia desde fuera (atrás, un enlace), la caja de búsqueda se pone al día. Si el
+  // cambio es la búsqueda que mandó esta caja, no se toca: el usuario puede seguir escribiendo.
+  const [urlQ, setUrlQ] = useState(params.q);
+  const [sentQ, setSentQ] = useState(params.q);
+  if (urlQ !== params.q) {
+    setUrlQ(params.q);
+    if (params.q !== sentQ) {
+      setQ(params.q);
+      setSentQ(params.q);
+    }
+  }
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Los filtros de la URL más recientes: el temporizador de la búsqueda no debe usar los de un render viejo.
+  const latest = useRef(params);
+  useEffect(() => {
+    latest.current = params;
+  }, [params]);
 
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
   }, []);
 
   function go(next: Partial<BookingListParams>) {
-    startTransition(() => router.replace(bookingListHref({ ...params, ...next, limit: PAGE_SIZE }), { scroll: false }));
+    if (next.q !== undefined) setSentQ(next.q);
+    const href = bookingListHref({ ...latest.current, ...next, limit: PAGE_SIZE });
+    startTransition(() => router.replace(href, { scroll: false }));
+  }
+
+  // Un desplegable lleva también lo que haya escrito en la búsqueda y anula el temporizador.
+  function goNow(next: Partial<BookingListParams>) {
+    if (timer.current) clearTimeout(timer.current);
+    go({ q: q.trim(), ...next });
   }
 
   return (
@@ -43,7 +67,7 @@ export function BookingFilters({ params, products }: { params: BookingListParams
           }}
         />
       </div>
-      <NativeSelect aria-label="Producto" value={params.productId ?? ""} onChange={(event) => go({ productId: event.target.value || null })} className="w-auto">
+      <NativeSelect aria-label="Producto" value={params.productId ?? ""} onChange={(event) => goNow({ productId: event.target.value || null })} className="w-auto">
         <option value="">Todos los productos</option>
         {products.map((product) => (
           <option key={product.id} value={product.id}>
@@ -54,7 +78,7 @@ export function BookingFilters({ params, products }: { params: BookingListParams
       <NativeSelect
         aria-label="Canal"
         value={params.channel ?? ""}
-        onChange={(event) => go({ channel: BOOKING_CHANNELS.find((channel) => channel === event.target.value) ?? null })}
+        onChange={(event) => goNow({ channel: BOOKING_CHANNELS.find((channel) => channel === event.target.value) ?? null })}
         className="w-auto"
       >
         <option value="">Todos los canales</option>

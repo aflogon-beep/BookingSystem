@@ -3,6 +3,8 @@ import { es } from "date-fns/locale";
 import { z } from "zod";
 
 import { CHANNEL_LABELS } from "@/lib/domain/booking-detail";
+import { rangeForDays } from "@/lib/domain/calendar";
+import { businessToday } from "@/lib/domain/schedule";
 
 /** Pestañas del listado de reservas, en el orden del prototipo. */
 export const BOOKING_TABS = [
@@ -21,7 +23,8 @@ export type BookingChannel = (typeof BOOKING_CHANNELS)[number];
 
 /** Reservas por página y «Mostrar más». */
 export const PAGE_SIZE = 60;
-const MAX_LIMIT = 600;
+/** Hasta aquí llega «Mostrar más»; para ver más hay que afinar los filtros o exportar el CSV. */
+export const MAX_LIMIT = 600;
 
 export type BookingListParams = {
   tab: BookingTab;
@@ -65,22 +68,22 @@ export function bookingListHref(params: BookingListParams, base = "/panel/reserv
 
 export type ListFilter = { column: string; operator: "eq" | "neq" | "gte" | "lt" | "ilike"; value: string };
 
-/** Escapa un texto para buscarlo con ilike (los comodines del usuario se buscan tal cual). */
+/**
+ * Escapa un texto para buscarlo con ilike (los comodines del usuario se buscan tal cual).
+ * PostgREST convierte «*» en «%»: se cambia por «_» (un carácter cualquiera, incluido el «*»).
+ */
 export function ilikePattern(text: string): string {
-  return `%${text.toLocaleLowerCase("es").replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+  return `%${text.toLocaleLowerCase("es").replace(/[\\%_]/g, (char) => `\\${char}`).replaceAll("*", "_")}%`;
 }
 
 /**
  * Filtros y orden de la vista booking_list para unos parámetros. Próximas y pasadas no incluyen
- * canceladas; las pasadas y canceladas van de la más reciente a la más antigua.
- * today: inicio y fin del día de hoy en la hora del negocio.
+ * canceladas; las pasadas y canceladas van de la más reciente a la más antigua. «Hoy» es el día
+ * de now en la hora del negocio (Atlantic/Canary).
  */
-export function bookingListQuery(
-  params: BookingListParams,
-  now: Date,
-  today: { from: string; to: string },
-): { filters: ListFilter[]; ascending: boolean } {
+export function bookingListQuery(params: BookingListParams, now: Date): { filters: ListFilter[]; ascending: boolean } {
   const filters: ListFilter[] = [];
+  const today = rangeForDays([businessToday(now)]);
   const nowIso = now.toISOString();
   switch (params.tab) {
     case "proximas":

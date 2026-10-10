@@ -16,7 +16,6 @@ import {
 const PRODUCT = "00000000-0000-4000-8000-000000000201";
 const base: BookingListParams = { tab: "proximas", q: "", productId: null, channel: null, limit: PAGE_SIZE };
 const now = new Date("2030-12-02T10:00:00Z");
-const today = { from: "2030-12-02T00:00:00.000Z", to: "2030-12-03T00:00:00.000Z" };
 
 describe("parseBookingListParams", () => {
   it("por defecto, próximas sin filtros", () => {
@@ -47,6 +46,7 @@ describe("ilikePattern", () => {
   it("busca en minúsculas y sin comodines del usuario", () => {
     expect(ilikePattern("Ana")).toBe("%ana%");
     expect(ilikePattern("50%_a\\b")).toBe("%50\\%\\_a\\\\b%");
+    expect(ilikePattern("a*b")).toBe("%a_b%");
   });
 });
 
@@ -54,7 +54,7 @@ describe("bookingListQuery", () => {
   const nowIso = now.toISOString();
 
   it("próximas: desde ahora y sin canceladas, de la más cercana a la más lejana", () => {
-    expect(bookingListQuery(base, now, today)).toEqual({
+    expect(bookingListQuery(base, now)).toEqual({
       filters: [
         { column: "starts_at", operator: "gte", value: nowIso },
         { column: "status", operator: "neq", value: "cancelled" },
@@ -64,28 +64,35 @@ describe("bookingListQuery", () => {
   });
 
   it("hoy: las salidas del día en la hora del negocio, también canceladas", () => {
-    expect(bookingListQuery({ ...base, tab: "hoy" }, now, today).filters).toEqual([
-      { column: "starts_at", operator: "gte", value: today.from },
-      { column: "starts_at", operator: "lt", value: today.to },
+    // En invierno Canarias va en UTC+0.
+    expect(bookingListQuery({ ...base, tab: "hoy" }, now).filters).toEqual([
+      { column: "starts_at", operator: "gte", value: "2030-12-02T00:00:00.000Z" },
+      { column: "starts_at", operator: "lt", value: "2030-12-03T00:00:00.000Z" },
+    ]);
+  });
+
+  it("hoy en verano: a las 00:30 de Canarias (23:30 UTC) ya es el día siguiente", () => {
+    expect(bookingListQuery({ ...base, tab: "hoy" }, new Date("2030-07-01T23:30:00Z")).filters).toEqual([
+      { column: "starts_at", operator: "gte", value: "2030-07-01T23:00:00.000Z" },
+      { column: "starts_at", operator: "lt", value: "2030-07-02T23:00:00.000Z" },
     ]);
   });
 
   it("pago pendiente, pasadas, canceladas y todas", () => {
-    expect(bookingListQuery({ ...base, tab: "pendientes" }, now, today).filters).toContainEqual({
-      column: "payment_status",
-      operator: "eq",
-      value: "pending",
-    });
-    expect(bookingListQuery({ ...base, tab: "pasadas" }, now, today)).toMatchObject({ ascending: false });
-    expect(bookingListQuery({ ...base, tab: "canceladas" }, now, today)).toEqual({
+    expect(bookingListQuery({ ...base, tab: "pendientes" }, now).filters).toEqual([
+      { column: "status", operator: "neq", value: "cancelled" },
+      { column: "payment_status", operator: "eq", value: "pending" },
+    ]);
+    expect(bookingListQuery({ ...base, tab: "pasadas" }, now)).toMatchObject({ ascending: false });
+    expect(bookingListQuery({ ...base, tab: "canceladas" }, now)).toEqual({
       filters: [{ column: "status", operator: "eq", value: "cancelled" }],
       ascending: false,
     });
-    expect(bookingListQuery({ ...base, tab: "todas" }, now, today)).toEqual({ filters: [], ascending: true });
+    expect(bookingListQuery({ ...base, tab: "todas" }, now)).toEqual({ filters: [], ascending: true });
   });
 
   it("añade producto, canal y búsqueda", () => {
-    const { filters } = bookingListQuery({ ...base, tab: "todas", productId: PRODUCT, channel: "phone", q: "VT12" }, now, today);
+    const { filters } = bookingListQuery({ ...base, tab: "todas", productId: PRODUCT, channel: "phone", q: "VT12" }, now);
     expect(filters).toEqual([
       { column: "product_id", operator: "eq", value: PRODUCT },
       { column: "channel", operator: "eq", value: "phone" },
