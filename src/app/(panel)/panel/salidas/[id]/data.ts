@@ -109,7 +109,7 @@ async function loadEquipment(session: { id: string; product_id: string; starts_a
   const period = `[${session.starts_at},${session.ends_at})`;
   const [needs, assigned, resources, busy] = await Promise.all([
     supabase.from("product_needs").select("resource_type, qty").eq("product_id", session.product_id),
-    supabase.from("session_resources").select("resource_id").eq("session_id", session.id).order("created_at"),
+    supabase.from("session_resources").select("resource_id").eq("session_id", session.id).order("created_at").order("resource_id"),
     supabase.from("resources").select("id, name, type, seats, languages").order("created_at").order("id"),
     supabase.from("session_resources").select("resource_id").neq("session_id", session.id).overlaps("period", period),
   ]);

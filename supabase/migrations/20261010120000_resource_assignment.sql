@@ -13,7 +13,9 @@
 -- nada (primera reserva), como en el prototipo. Las salidas canceladas no se tocan.
 -- Devuelve cuántos recursos faltan por asignar. Un cerrojo evita que dos asignaciones a la vez
 -- elijan el mismo recurso; si aun así choca con una asignación manual, ese hueco queda sin
--- asignar (nunca falla la reserva que la provocó).
+-- asignar (nunca falla la reserva que la provocó). Orden de bloqueos, igual en todas las
+-- funciones de asignación: primero la fila de la salida (la reserva ya la tiene) y después el
+-- cerrojo; al revés, una reserva y «Auto» en la misma salida se bloquearían mutuamente.
 -- Interna: la llaman session_auto_assign y el trigger de reservas.
 create function public.assign_session_resources(p_session_id uuid, p_replace boolean)
 returns integer
@@ -29,18 +31,19 @@ declare
   v_resource uuid;
   v_missing integer := 0;
 begin
-  perform pg_advisory_xact_lock(hashtext('public.assign_session_resources'));
-
-  select * into v_session from public.sessions where id = p_session_id;
+  select * into v_session from public.sessions where id = p_session_id for update;
   if not found or v_session.status = 'cancelled' then
     return 0;
   end if;
-  v_period := tstzrange(v_session.starts_at, v_session.ends_at, '[)');
+  -- Lo habitual (reservas después de la primera): ya tiene equipo y no hace falta el cerrojo.
+  if not p_replace and exists (select 1 from public.session_resources where session_id = p_session_id) then
+    return public.session_missing_resources(p_session_id);
+  end if;
 
+  perform pg_advisory_xact_lock(hashtext('public.assign_session_resources'));
+  v_period := tstzrange(v_session.starts_at, v_session.ends_at, '[)');
   if p_replace then
     delete from public.session_resources where session_id = p_session_id;
-  elsif exists (select 1 from public.session_resources where session_id = p_session_id) then
-    return public.session_missing_resources(p_session_id);
   end if;
 
   for v_need in
@@ -166,7 +169,8 @@ create trigger bookings_auto_assign
 
 -- Sustituye el equipo de una salida por el elegido en el manifiesto, en una sola transacción.
 -- Un recurso ocupado en otra salida a la vez falla con 23P01 (restricción de exclusión) y una
--- salida cancelada con 23514. security invoker: RLS decide (solo el equipo).
+-- salida cancelada con 23514. security invoker: RLS decide (solo el equipo). Guarda el orden
+-- elegido (Guía 1, Guía 2…) en created_at.
 create function public.session_set_resources(p_session_id uuid, p_resource_ids uuid[])
 returns void
 language plpgsql
@@ -174,14 +178,19 @@ security invoker
 set search_path = ''
 as $$
 begin
-  perform pg_advisory_xact_lock(hashtext('public.assign_session_resources'));
-  if not exists (select 1 from public.sessions where id = p_session_id) then
+  if not public.is_staff() then
+    raise exception 'Sin permiso' using errcode = 'insufficient_privilege';
+  end if;
+  perform 1 from public.sessions where id = p_session_id for update;
+  if not found then
     raise exception 'Salida no encontrada' using errcode = 'no_data_found';
   end if;
+  perform pg_advisory_xact_lock(hashtext('public.assign_session_resources'));
   delete from public.session_resources where session_id = p_session_id;
-  insert into public.session_resources (session_id, resource_id)
-  select p_session_id, resource_id
-  from (select distinct unnest(coalesce(p_resource_ids, '{}')) as resource_id) ids;
+  insert into public.session_resources (session_id, resource_id, created_at)
+  select p_session_id, ids.resource_id, now() + make_interval(secs => min(ids.position) / 1000000.0)
+  from unnest(coalesce(p_resource_ids, '{}')) with ordinality as ids (resource_id, position)
+  group by ids.resource_id;
 end;
 $$;
 

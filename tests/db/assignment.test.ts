@@ -8,6 +8,7 @@ import { adminDb, createTestUser, deleteTestUsers, type TestUser } from "./helpe
 const ADULT_ID = "00000000-0000-4000-8000-000000000101";
 const ANA = "00000000-0000-4000-8000-000000000301";
 const LUKAS = "00000000-0000-4000-8000-000000000302";
+const CARMEN = "00000000-0000-4000-8000-000000000303";
 const MINIBUS_01 = "00000000-0000-4000-8000-000000000311";
 const MINIBUS_02 = "00000000-0000-4000-8000-000000000312";
 const VAN_08 = "00000000-0000-4000-8000-000000000313";
@@ -125,6 +126,45 @@ describe("asignación automática", () => {
     expect(assigned).toHaveLength(2);
   });
 
+  it("si ningún vehículo llega al aforo, asigna el más grande libre", async () => {
+    const [session] = await createSessions("es", 20, ["03:00"]);
+    if (!session) throw new Error("Sin salida");
+    await book(session);
+    expect(await assignedTo(session)).toContain(MINIBUS_01);
+  });
+
+  it("una reserva web pendiente no asigna; al confirmarse, sí", async () => {
+    const [session] = await createSessions("es", 6, ["22:00"]);
+    if (!session) throw new Error("Sin salida");
+    const { data, error } = await adminDb.rpc("create_booking_hold", {
+      p_session_id: session,
+      p_lines: [{ ticket_type_id: ADULT_ID, qty: 2 }],
+      p_customer: { name: "Lucía Pérez", email: `web-${randomUUID().slice(0, 8)}-${testTag}@example.test` },
+      p_booking: { channel: "web" },
+    });
+    expect(error).toBeNull();
+    expect(await assignedTo(session)).toEqual([]);
+    const { id } = data as { id: string };
+    expect((await adminDb.from("bookings").update({ status: "confirmed" }).eq("id", id)).error).toBeNull();
+    expect(await assignedTo(session)).toHaveLength(2);
+  });
+
+  it("mover una reserva a una salida sin equipo se lo asigna", async () => {
+    const [from, to] = await createSessions("de", 6, ["02:00", "19:00"]);
+    if (!from || !to) throw new Error("Sin salidas");
+    const id = await book(from);
+    expect((await member.db.rpc("booking_move", { p_booking_id: id, p_session_id: to })).error).toBeNull();
+    expect(await assignedTo(to)).toEqual([LUKAS, VAN_08].sort());
+  });
+
+  it("«Auto» no actúa sobre una salida cancelada", async () => {
+    const [session] = await createSessions("es", 6, ["23:00"]);
+    if (!session) throw new Error("Sin salida");
+    expect((await member.db.rpc("session_set_status", { p_session_id: session, p_status: "cancelled" })).error).toBeNull();
+    const { error } = await member.db.rpc("session_auto_assign", { p_session_id: session });
+    expect(error?.code).toBe("23514");
+  });
+
   it("quien no es del equipo no puede pedir la asignación automática", async () => {
     const [session] = await createSessions("es", 6, ["19:00"]);
     if (!session) throw new Error("Sin salida");
@@ -144,6 +184,16 @@ describe("asignación manual", () => {
 
     expect((await set(first, [ANA, VAN_08, ANA])).error).toBeNull();
     expect(await assignedTo(first)).toEqual([ANA, VAN_08].sort());
+
+    // Guarda el orden elegido, para que «Guía 1» y «Guía 2» no se intercambien al recargar.
+    expect((await set(first, [VAN_08, CARMEN, ANA])).error).toBeNull();
+    const { data: ordered } = await member.db
+      .from("session_resources")
+      .select("resource_id")
+      .eq("session_id", first)
+      .order("created_at");
+    expect(ordered?.map((row) => row.resource_id)).toEqual([VAN_08, CARMEN, ANA]);
+    expect((await set(first, [ANA, VAN_08])).error).toBeNull();
     expect((await set(second, [ANA])).error?.code).toBe("23P01");
     expect(await assignedTo(second)).toEqual([]);
 

@@ -103,7 +103,9 @@ export function EquipmentBox({
                   {resources
                     .filter((resource) => resource.type === slot.type)
                     .map((resource) => (
-                      <option key={resource.id} value={resource.id} disabled={takenElsewhere.has(resource.id)}>
+                      <option key={resource.id} value={resource.id} disabled={
+                          resource.id !== slot.resourceId && (takenElsewhere.has(resource.id) || context.busyIds.has(resource.id))
+                        }>
                         {optionLabel(resource, context)}
                       </option>
                     ))}
