@@ -39,6 +39,12 @@ export type Database = {
       foreignKeyName: "booking_events_booking_id_fkey"
       columns: ["booking_id"]
 isOneToOne: false
+      referencedRelation: "booking_list"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "booking_events_booking_id_fkey"
+      columns: ["booking_id"]
+isOneToOne: false
       referencedRelation: "bookings"
       referencedColumns: ["id"]
     }
@@ -56,6 +62,12 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
+      foreignKeyName: "booking_lines_booking_id_fkey"
+      columns: ["booking_id"]
+isOneToOne: false
+      referencedRelation: "booking_list"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "booking_lines_booking_id_fkey"
       columns: ["booking_id"]
 isOneToOne: false
@@ -82,6 +94,12 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
+      foreignKeyName: "bookings_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customer_list"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "bookings_customer_id_fkey"
       columns: ["customer_id"]
 isOneToOne: false
@@ -349,7 +367,9 @@ isOneToOne: false
                     "bookings": number | null,"email": string | null,"id": string | null,"last_starts_at": string | null,"name": string | null,"pax": number | null,"phone": string | null,"search_text": string | null,"spent_cents": number | null
                   }
                   ComputedFields: never
-                  Relationships: []
+                  Relationships: [
+                    
+                  ]
                 },"session_availability": {
                   Row: {
                     "booked_seats": number | null,"capacity": number | null,"free_seats": number | null,"pax": number | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null
