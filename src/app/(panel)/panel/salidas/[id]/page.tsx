@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, Clock, Languages, MapPin, Plus, SearchX, Stick
 import { z } from "zod";
 
 import { Box } from "@/components/ajustes/box";
+import { EquipmentBox } from "@/components/manifiesto/equipment-box";
 import { CheckAllButton, CheckInToggle, CollectButton, CopyManifestButton } from "@/components/manifiesto/passenger-actions";
 import { SessionControls } from "@/components/manifiesto/session-controls";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
   const manifest = await loadManifest(id, now);
   if (!manifest) notFound();
 
-  const { session, bookings } = manifest;
+  const { session, bookings, equipment } = manifest;
   const rows = sortManifest(bookings);
   const live = rows.filter(isLive);
   const summary = manifestSummary(rows);
@@ -182,16 +183,25 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
           )}
         </Box>
 
-        <Box title="Salida" action={<StatusPill status={session.status} />}>
-          <div className="p-4">
-            <SessionControls
-              sessionId={session.id}
-              status={session.status}
-              capacity={session.capacity}
-              booked={session.booked}
-            />
-          </div>
-        </Box>
+        <div className="flex flex-col gap-[18px]">
+          <Box title="Salida" action={<StatusPill status={session.status} />}>
+            <div className="p-4">
+              <SessionControls
+                sessionId={session.id}
+                status={session.status}
+                capacity={session.capacity}
+                booked={session.booked}
+              />
+            </div>
+          </Box>
+          <EquipmentBox
+            sessionId={session.id}
+            cancelled={session.status === "cancelled"}
+            language={session.language}
+            capacity={session.capacity}
+            {...equipment}
+          />
+        </div>
       </div>
     </section>
   );

@@ -35,6 +35,16 @@ test("del día al manifiesto: reserva, check-in, cobro, aforo y estado de la sal
   const row = page.getByRole("row", { name });
   await expect(row).toBeVisible();
 
+  // Con la primera reserva se asigna el equipo solo; se puede quitar a mano y volver a pedirlo.
+  const guide = page.getByLabel("Guía 1", { exact: true });
+  await expect(guide).not.toHaveValue("");
+  await expect(page.getByLabel("Vehículo 1", { exact: true })).not.toHaveValue("");
+  await guide.selectOption("");
+  await expect(page.getByText("Equipo actualizado")).toBeVisible();
+  await expect(guide).toHaveValue("");
+  await page.getByRole("button", { name: "Auto" }).click();
+  await expect(guide).not.toHaveValue("");
+
   // Check-in.
   const checkIn = row.getByRole("button", { name: `Check-in ${name}` });
   await expect(checkIn).toHaveAttribute("aria-pressed", "false");

@@ -323,7 +323,10 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "booking_cancel":
+            "assign_session_resources":
+{ Args: { "p_replace": boolean,"p_session_id": string }; Returns: number
+                           },
+"booking_cancel":
 { Args: { "p_booking_id": string,"p_refund"?: boolean }; Returns: number
                            },
 "booking_collect_payment":
@@ -362,11 +365,20 @@ isOneToOne: false
 "save_product":
 { Args: { "p_id"?: string,"p_prices": Json,"p_product": Json,"p_rules": Json }; Returns: Json
                            },
+"session_auto_assign":
+{ Args: { "p_session_id": string }; Returns: number
+                           },
 "session_check_in_all":
+{ Args: { "p_session_id": string }; Returns: number
+                           },
+"session_missing_resources":
 { Args: { "p_session_id": string }; Returns: number
                            },
 "session_occupied_seats":
 { Args: { "p_session_id": string }; Returns: number
+                           },
+"session_set_resources":
+{ Args: { "p_resource_ids": (string)[],"p_session_id": string }; Returns: undefined
                            },
 "session_set_status":
 { Args: { "p_session_id": string,"p_status": string }; Returns: number

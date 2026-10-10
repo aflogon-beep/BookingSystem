@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
+import { autoAssignMessage } from "@/lib/domain/assignment";
 import { sendCancellations } from "@/lib/email/booking-emails";
 
 export type ManifestActionResult = { ok: true; message?: string } | { ok: false; error: string };
@@ -31,6 +32,8 @@ function fail(code: string | undefined, hint?: string): ManifestActionResult {
       return { ok: false, error: "La salida está cancelada: ya no se puede volver a abrir." };
     case "RB007":
       return { ok: false, error: "La salida ya ha empezado: no se puede cancelar." };
+    case "23P01":
+      return { ok: false, error: "Ya está en otra salida a esa hora." };
     case "P0002":
       return { ok: false, error: "No se ha encontrado. Recarga la página." };
     case "42501":
@@ -102,6 +105,33 @@ export async function setSessionStatus(sessionId: string, status: string): Promi
   if (confirmedIds.length) after(() => sendCancellations(confirmedIds));
   const cancelled = data ? ` y ${data === 1 ? "1 reserva cancelada" : `${data} reservas canceladas`}` : "";
   return done(STATUS_MESSAGES[parsed.data] + cancelled);
+}
+
+const CANCELLED: ManifestActionResult = { ok: false, error: "La salida está cancelada: no lleva equipo." };
+
+/** Botón «Auto»: vuelve a elegir todo el equipo de la salida. */
+export async function autoAssignSession(sessionId: string): Promise<ManifestActionResult> {
+  await requireAccess("hoy");
+  if (!uuid.safeParse(sessionId).success) return fail(undefined);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("session_auto_assign", { p_session_id: sessionId });
+  if (error) return error.code === "23514" ? CANCELLED : fail(error.code);
+  const message = autoAssignMessage(data);
+  revalidatePath("/panel", "layout");
+  return message.ok ? { ok: true, message: message.text } : { ok: false, error: message.text };
+}
+
+const resourceIdsSchema = z.array(z.uuid()).max(15);
+
+/** Equipo elegido a mano en el manifiesto: sustituye todo lo asignado a la salida. */
+export async function setSessionResources(sessionId: string, resourceIds: string[]): Promise<ManifestActionResult> {
+  await requireAccess("hoy");
+  const parsed = resourceIdsSchema.safeParse(resourceIds);
+  if (!uuid.safeParse(sessionId).success || !parsed.success) return fail(undefined);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("session_set_resources", { p_session_id: sessionId, p_resource_ids: parsed.data });
+  if (error) return error.code === "23514" ? CANCELLED : fail(error.code);
+  return done("Equipo actualizado");
 }
 
 const capacitySchema = z.int().min(1).max(500);
