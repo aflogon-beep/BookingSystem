@@ -1,3 +1,5 @@
+import type { ResourceType } from "@/lib/domain/resources";
+
 export type CalendarSession = {
   id: string;
   date: string;
@@ -9,6 +11,8 @@ export type CalendarSession = {
   status: "open" | "closed" | "cancelled";
   /** Le falta equipo (guía, vehículo…) según su producto. */
   unstaffed: boolean;
+  /** Recurso obligatorio que no está libre a esa hora: no admite reservas. */
+  blockingNeed: ResourceType | null;
   past: boolean;
   product: { name: string; color: string; minPax: number };
 };

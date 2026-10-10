@@ -4,7 +4,10 @@ import type { ActivityItem, TodaySession } from "@/components/hoy/types";
 import { createClient } from "@/lib/db/server";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
 import { businessToday } from "@/lib/domain/schedule";
+import { webSalesOpen } from "@/lib/domain/session-state";
 import { NOTHING_MISSING, attentionItems, dayKpis, shiftDay, type DayBooking, type MissingByType } from "@/lib/domain/today";
+
+import { loadBlockedNeeds, loadCutoffHours } from "./team-status";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -38,10 +41,16 @@ export async function loadSoonSessions(today: string, now: Date): Promise<TodayS
 }
 
 async function loadSessions(supabase: Supabase, range: { from: string; to: string }, now: Date): Promise<TodaySession[]> {
-  const [{ data: rows, error }, { data: availability, error: availabilityError }, { data: staffing, error: staffingError }] = await Promise.all([
+  const [
+    { data: rows, error },
+    { data: availability, error: availabilityError },
+    { data: staffing, error: staffingError },
+    blocked,
+    cutoffHours,
+  ] = await Promise.all([
     supabase
       .from("sessions")
-      .select("id, starts_at, ends_at, language, capacity, status, products!inner(name, color, min_pax)")
+      .select("id, starts_at, ends_at, language, capacity, status, products!inner(name, color, min_pax, active)")
       .gte("starts_at", range.from)
       .lt("starts_at", range.to)
       .order("starts_at")
@@ -58,6 +67,8 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
       .gte("starts_at", range.from)
       .lt("starts_at", range.to)
       .gt("missing", 0),
+    loadBlockedNeeds(supabase, range),
+    loadCutoffHours(supabase),
   ]);
   if (error || availabilityError || staffingError) throw new Error("No se pudieron cargar las salidas.");
 
@@ -82,6 +93,8 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
       booked: booked.get(row.id) ?? 0,
       minPax: row.products.min_pax,
       missing: missing.get(row.id) ?? NOTHING_MISSING,
+      blockingNeed: blocked.get(row.id) ?? null,
+      webOpen: webSalesOpen(row.starts_at, row.products.active, cutoffHours, now),
       started: new Date(row.starts_at) <= now,
       past: new Date(row.ends_at) <= now,
       product: { name: row.products.name, color: row.products.color },

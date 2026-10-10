@@ -4,7 +4,10 @@ import { createClient } from "@/lib/db/server";
 import type { AssignableResource } from "@/lib/domain/assignment";
 import { toBusinessDateTime } from "@/lib/domain/calendar";
 import type { ManifestBooking } from "@/lib/domain/manifest";
-import { isResourceType, needsFromRows, type ProductNeeds } from "@/lib/domain/resources";
+import { isResourceType, needsFromRows, type ProductNeeds, type ResourceType } from "@/lib/domain/resources";
+import { webSalesOpen } from "@/lib/domain/session-state";
+
+import { loadBlockedNeed, loadCutoffHours } from "../../team-status";
 
 export type ManifestSession = {
   id: string;
@@ -17,6 +20,11 @@ export type ManifestSession = {
   capacity: number;
   booked: number;
   started: boolean;
+  ended: boolean;
+  /** Recurso obligatorio que no está libre a esa hora: no admite reservas. */
+  blockingNeed: ResourceType | null;
+  /** Se vende en la web: producto a la venta y antes del cierre de venta online. */
+  webOpen: boolean;
   product: { name: string; color: string; minPax: number; meetingPoint: string; pickup: boolean };
 };
 
@@ -29,6 +37,8 @@ export type ManifestEquipment = {
   resources: AssignableResource[];
   /** Recursos asignados a otra salida que se solapa con esta. */
   busyIds: string[];
+  /** Esos recursos, con la salida en la que están. */
+  busy: { resourceId: string; productName: string; time: string; endTime: string }[];
 };
 
 const STATUSES = new Set<ManifestSession["status"]>(["open", "closed", "cancelled"]);
@@ -36,11 +46,11 @@ const STATUSES = new Set<ManifestSession["status"]>(["open", "closed", "cancelle
 /** Salida con su ocupación y sus reservas (sin las web caducadas, que nunca llegaron a confirmarse). */
 export async function loadManifest(sessionId: string, now: Date): Promise<{ session: ManifestSession; bookings: ManifestRow[]; equipment: ManifestEquipment } | null> {
   const supabase = await createClient();
-  const [{ data: row, error }, { data: availability, error: availabilityError }, { data: bookings, error: bookingsError }] =
+  const [{ data: row, error }, { data: availability, error: availabilityError }, { data: bookings, error: bookingsError }, blockingNeed, cutoffHours] =
     await Promise.all([
       supabase
         .from("sessions")
-        .select("id, product_id, starts_at, ends_at, language, status, capacity, products!inner(name, color, min_pax, meeting_point, pickup)")
+        .select("id, product_id, starts_at, ends_at, language, status, capacity, products!inner(name, color, min_pax, meeting_point, pickup, active)")
         .eq("id", sessionId)
         .maybeSingle(),
       supabase.from("session_availability").select("booked_seats").eq("session_id", sessionId).maybeSingle(),
@@ -51,6 +61,8 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
         )
         .eq("session_id", sessionId)
         .in("status", ["confirmed", "cancelled"]),
+      loadBlockedNeed(supabase, sessionId),
+      loadCutoffHours(supabase),
     ]);
   if (error || availabilityError || bookingsError) throw new Error("No se pudo cargar el manifiesto.");
   if (!row) return null;
@@ -82,6 +94,9 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
       capacity: row.capacity,
       booked: availability?.booked_seats ?? 0,
       started: new Date(row.starts_at) <= now,
+      ended: new Date(row.ends_at) <= now,
+      blockingNeed,
+      webOpen: webSalesOpen(row.starts_at, row.products.active, cutoffHours, now),
       product: {
         name: row.products.name,
         color: row.products.color,
@@ -118,7 +133,11 @@ async function loadEquipment(session: { id: string; product_id: string; starts_a
     supabase.from("product_needs").select("resource_type, qty").eq("product_id", session.product_id),
     supabase.from("session_resources").select("resource_id").eq("session_id", session.id).order("created_at").order("resource_id"),
     supabase.from("resources").select("id, name, type, seats, languages").order("created_at").order("id"),
-    supabase.from("session_resources").select("resource_id").neq("session_id", session.id).overlaps("period", period),
+    supabase
+      .from("session_resources")
+      .select("resource_id, sessions!inner(starts_at, ends_at, products!inner(name))")
+      .neq("session_id", session.id)
+      .overlaps("period", period),
   ]);
   if (needs.error || assigned.error || resources.error || busy.error) throw new Error("No se pudo cargar el equipo de la salida.");
   return {
@@ -126,5 +145,11 @@ async function loadEquipment(session: { id: string; product_id: string; starts_a
     assignedIds: assigned.data.map((item) => item.resource_id),
     resources: resources.data.flatMap((item) => (isResourceType(item.type) ? [{ ...item, type: item.type }] : [])),
     busyIds: [...new Set(busy.data.map((item) => item.resource_id))],
+    busy: busy.data.map((item) => ({
+      resourceId: item.resource_id,
+      productName: item.sessions.products.name,
+      time: toBusinessDateTime(item.sessions.starts_at).time,
+      endTime: toBusinessDateTime(item.sessions.ends_at).time,
+    })),
   };
 }

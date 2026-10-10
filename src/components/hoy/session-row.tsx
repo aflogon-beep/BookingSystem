@@ -1,26 +1,20 @@
 import Link from "next/link";
 import { ClipboardList, Plus } from "lucide-react";
 
+import { STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
-import { canBookSession, sessionFlags, type SessionFlag } from "@/lib/domain/today";
+import { sessionState } from "@/lib/domain/session-state";
+import { sessionFlags } from "@/lib/domain/today";
 import { cn } from "@/lib/utils";
 
 import type { TodaySession } from "./types";
 
-const FLAG_CLASS: Record<SessionFlag["tone"], string> = {
-  neutral: "",
-  danger: "bg-danger-soft text-danger",
-  warn: "",
-  blue: "bg-primary-soft text-primary-dark",
-};
-
 /** Fila de una salida en «Salidas del día» («slot» del prototipo). */
 export function SessionRow({ session }: { session: TodaySession }) {
-  const free = Math.max(session.capacity - session.booked, 0);
+  const state = sessionState({ ...session, ended: session.past });
   const percent = session.capacity ? Math.min(100, (session.booked / session.capacity) * 100) : 0;
   const cancelled = session.status === "cancelled";
-  const bookable = canBookSession(session);
   const label = `${session.time} ${session.product.name}`;
   const labelId = `slot-${session.id}`;
 
@@ -48,7 +42,7 @@ export function SessionRow({ session }: { session: TodaySession }) {
         <div className="mt-[5px] flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[0.78rem] text-muted-foreground">
           <span className="rounded-[5px] border border-line px-1 font-mono text-[0.68rem]">{session.language.toUpperCase()}</span>
           {sessionFlags(session).map((flag) => (
-            <Pill key={flag.label} tone={flag.tone === "warn" ? "warn" : "neutral"} className={FLAG_CLASS[flag.tone]}>
+            <Pill key={flag.label} tone={flag.tone === "warn" ? "warn" : "neutral"} className={cn(flag.tone === "danger" && "bg-danger-soft text-danger")}>
               {flag.label}
             </Pill>
           ))}
@@ -59,7 +53,7 @@ export function SessionRow({ session }: { session: TodaySession }) {
           <span>
             <b className="font-semibold text-foreground tabular-nums">{session.booked}</b> / {session.capacity} plazas
           </span>
-          <span>{free > 0 ? `${free} libres` : "Lleno"}</span>
+          <span className={STATE_TEXT_CLASS[state.tone]}>{state.label}</span>
         </div>
         <div
           role="progressbar"
@@ -69,11 +63,11 @@ export function SessionRow({ session }: { session: TodaySession }) {
           aria-valuenow={Math.min(session.booked, session.capacity)}
           className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line-2"
         >
-          <div className={cn("h-full rounded-full", free > 0 ? "bg-primary" : "bg-warn")} style={{ width: `${percent}%` }} />
+          <div className={cn("h-full rounded-full", state.free > 0 ? "bg-primary" : "bg-warn")} style={{ width: `${percent}%` }} />
         </div>
       </div>
       <div className="col-start-2 flex gap-1.5 tablet:col-span-2 desk:col-span-1 desk:col-start-auto">
-        {bookable ? (
+        {state.panelBookable ? (
           <Button asChild variant="outline" size="sm">
             <Link href={`/panel/reservas/nueva?salida=${session.id}`} aria-label={`Reservar ${label}`}>
               <Plus aria-hidden="true" />
@@ -81,7 +75,13 @@ export function SessionRow({ session }: { session: TodaySession }) {
             </Link>
           </Button>
         ) : (
-          <Button variant="outline" size="sm" disabled aria-label={`Reservar ${label}`}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            aria-label={`Reservar ${label}`}
+            title={stateHint(state)}
+          >
             <Plus aria-hidden="true" />
             Reservar
           </Button>

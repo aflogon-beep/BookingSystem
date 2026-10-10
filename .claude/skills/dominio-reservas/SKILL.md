@@ -30,6 +30,7 @@ description: Reglas de negocio del sistema de reservas de tours (salidas generad
    - Vehículos: el más pequeño con asientos ≥ aforo; si no hay, el más grande y aviso.
    - Si falta alguno, la salida queda marcada "sin equipo" y aparece en avisos.
    - Cada recurso que pide un producto puede ser **obligatorio** (por defecto) o no. Una salida sin reservas no admite reservas (web y panel, `RB012`) si un recurso obligatorio no está libre durante toda su duración (`session_blocking_need`): la primera reserva se queda con el guía y las salidas que se solapan dejan de venderse hasta que termina. Un recurso no obligatorio no bloquea: la salida queda "sin equipo". Un tipo de recurso sin ninguna ficha no bloquea.
+   - En el panel, el estado de cada salida sale siempre de `sessionState` (`src/lib/domain/session-state.ts`): Cancelada > Ya salió/En ruta > Cerrada > Sin guía libre > Completa > Quedan N > N libres · solo panel. El motivo sustituye a «N libres» y decide si se puede reservar. «Sin equipo» y «Bajo mínimo» son avisos aparte (`sessionFlags`) que no bloquean.
    - Al cancelar o mover la última reserva activa de una salida, su equipo se libera.
 10. **Dónde está cada recurso**: se deduce de la salida asignada en curso (zona del recorrido). El GPS real es un módulo aparte, no lo asumas.
 

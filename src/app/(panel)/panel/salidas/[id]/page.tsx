@@ -8,6 +8,7 @@ import { Box } from "@/components/ajustes/box";
 import { EquipmentBox } from "@/components/manifiesto/equipment-box";
 import { CheckAllButton, CheckInToggle, CollectButton, CopyManifestButton } from "@/components/manifiesto/passenger-actions";
 import { SessionControls } from "@/components/manifiesto/session-controls";
+import { STATE_PILL_CLASS, STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { requireAccess } from "@/lib/auth";
@@ -15,8 +16,8 @@ import { longDayLabel } from "@/lib/domain/calendar";
 import { canCollect, isLive, manifestSummary, manifestText, paxOf, sortManifest, ticketsLabel } from "@/lib/domain/manifest";
 import { formatCents } from "@/lib/domain/money";
 import { businessToday } from "@/lib/domain/schedule";
+import { blockedReason, sessionState, type SessionStateKind } from "@/lib/domain/session-state";
 import { isLanguageCode, LANGUAGES } from "@/lib/domain/settings";
-import { canBookSession } from "@/lib/domain/today";
 import { cn } from "@/lib/utils";
 
 import { loadManifest, type ManifestRow, type ManifestSession } from "./data";
@@ -35,7 +36,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
   const rows = sortManifest(bookings);
   const live = rows.filter(isLive);
   const summary = manifestSummary(rows);
-  const free = Math.max(session.capacity - session.booked, 0);
+  const state = sessionState(session);
   const language = isLanguageCode(session.language) ? LANGUAGES[session.language] : session.language.toUpperCase();
   const dayLabel = longDayLabel(session.date);
   const backHref = session.date === businessToday(now) ? "/panel" : `/panel?fecha=${session.date}`;
@@ -84,10 +85,26 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
               </li>
             ) : null}
           </ul>
+          {state.kind === "blocked" && session.blockingNeed ? (
+            <p className="mt-2 text-[0.84rem] text-warn">
+              <b className="font-semibold">{state.label}:</b>{" "}
+              {blockedReason(
+                session.blockingNeed,
+                equipment.busy.flatMap((item) => {
+                  const resource = equipment.resources.find(
+                    (candidate) => candidate.id === item.resourceId && candidate.type === session.blockingNeed,
+                  );
+                  return resource ? [{ ...item, name: resource.name }] : [];
+                }),
+                language,
+              )}{" "}
+              Es obligatorio, así que esta salida no admite reservas hasta que quede libre.
+            </p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <CopyManifestButton text={copyText} />
-          {canBookSession(session) ? (
+          {state.panelBookable ? (
             <Button asChild>
               <Link href={`/panel/reservas/nueva?salida=${session.id}`}>
                 <Plus aria-hidden="true" />
@@ -95,7 +112,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
               </Link>
             </Button>
           ) : (
-            <Button disabled>
+            <Button disabled title={stateHint(state)}>
               <Plus aria-hidden="true" />
               Añadir reserva
             </Button>
@@ -104,7 +121,15 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
       </div>
 
       <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card tablet:grid-cols-4">
-        <Kpi index={0} label="Ocupación" detail={`${free > 0 ? `${free} plazas libres` : "Completa"} · mín. ${session.product.minPax}`}>
+        <Kpi
+          index={0}
+          label="Ocupación"
+          detail={
+            <>
+              <span className={STATE_TEXT_CLASS[state.tone]}>{state.label}</span> · mín. {session.product.minPax}
+            </>
+          }
+        >
           {session.booked}
           <span className="text-[1rem] text-faint"> / {session.capacity}</span>
         </Kpi>
@@ -184,7 +209,17 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
         </Box>
 
         <div className="flex flex-col gap-[18px]">
-          <Box title="Salida" action={<StatusPill status={session.status} />}>
+          <Box
+            title="Salida"
+            action={
+              <Pill
+                tone={state.kind === "blocked" ? "warn" : state.kind === "available" || state.kind === "few" ? "ok" : "neutral"}
+                className={state.kind === "full" ? STATE_PILL_CLASS.blue : undefined}
+              >
+                {state.kind === "blocked" ? state.label : STATUS_TEXT[state.kind]}
+              </Pill>
+            }
+          >
             <div className="p-4">
               <SessionControls
                 sessionId={session.id}
@@ -199,7 +234,10 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
             cancelled={session.status === "cancelled"}
             language={session.language}
             capacity={session.capacity}
-            {...equipment}
+            needs={equipment.needs}
+            assignedIds={equipment.assignedIds}
+            resources={equipment.resources}
+            busyIds={equipment.busyIds}
           />
         </div>
       </div>
@@ -248,11 +286,18 @@ function Kpi({
   );
 }
 
-function StatusPill({ status }: { status: ManifestSession["status"] }) {
-  if (status === "open") return <Pill tone="ok">A la venta</Pill>;
-  if (status === "closed") return <Pill>Cerrada</Pill>;
-  return <Pill className="bg-danger-soft text-danger">Cancelada</Pill>;
-}
+/** Estado de la salida en la caja «Salida»: el de sessionState, sin contar plazas. */
+const STATUS_TEXT: Record<SessionStateKind, string> = {
+  cancelled: "Cancelada",
+  departed: "Ya salió",
+  in_progress: "En ruta",
+  closed: "Cerrada",
+  blocked: "Sin recurso libre",
+  full: "Completa",
+  few: "A la venta",
+  panel_only: "Solo panel",
+  available: "A la venta",
+};
 
 function PaymentCell({ row }: { row: ManifestRow }) {
   if (!isLive(row)) return <Pill className="bg-danger-soft text-danger">Cancelada</Pill>;
