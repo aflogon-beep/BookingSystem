@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Sparkles } from "lucide-react";
 
 import { Box, FieldHint } from "@/components/ajustes/box";
 import { LanguageChips } from "@/components/ajustes/language-chips";
 import { SettingInput, SettingSelect } from "@/components/ajustes/setting-field";
+import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
 import { CURRENCIES, SETTINGS_LIMITS } from "@/lib/domain/settings";
@@ -20,7 +23,17 @@ export default async function Page() {
   if (error) throw new Error("No se pudieron cargar los ajustes.");
 
   return (
-    <Box title="Empresa">
+    <Box
+      title="Empresa"
+      action={
+        <Button asChild variant="outline" size="sm">
+          <Link href="/panel/asistente">
+            <Sparkles aria-hidden="true" />
+            Asistente
+          </Link>
+        </Button>
+      }
+    >
       <div className="grid gap-3.5 p-4 tablet:grid-cols-2">
         <SettingInput
           field="business_name"

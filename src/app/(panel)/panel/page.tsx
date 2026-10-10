@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarX2, ChevronLeft, ChevronRight, Handshake, Globe, Phone, Plus, Store, type LucideIcon } from "lucide-react";
+import { CalendarX2, ChevronLeft, ChevronRight, Handshake, Globe, Phone, Plus, Sparkles, Store, type LucideIcon } from "lucide-react";
 
 import { AttentionList } from "@/components/hoy/attention-list";
 import { DayPicker } from "@/components/hoy/day-picker";
@@ -9,6 +9,8 @@ import { SessionRow } from "@/components/hoy/session-row";
 import type { ActivityItem } from "@/components/hoy/types";
 import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
+import { createClient } from "@/lib/db/server";
+import { canAccess } from "@/lib/domain/auth";
 import { longDayLabel } from "@/lib/domain/calendar";
 import { formatCents } from "@/lib/domain/money";
 import { businessToday } from "@/lib/domain/schedule";
@@ -21,13 +23,38 @@ export const metadata: Metadata = { title: "Hoy" };
 
 const dayHref = (day: string, today: string) => (day === today ? "/panel" : `/panel?fecha=${day}`);
 
+/** El negocio aún no ha pasado por el asistente de configuración inicial. */
+async function setupPending(): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("settings").select("setup_done_at").eq("id", 1).single();
+  return data !== null && data.setup_done_at === null;
+}
+
+function SetupBanner() {
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#b3d4f7] bg-primary-soft px-4 py-3.5">
+      <span aria-hidden="true" className="grid size-10 flex-none place-items-center rounded-[10px] bg-primary text-white">
+        <Sparkles className="size-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <b className="block">Deja tu panel listo en dos minutos</b>
+        <span className="text-[0.86rem] text-muted-foreground">El asistente te guía: negocio, entradas, equipo y tu primer tour con salidas.</span>
+      </div>
+      <Button asChild>
+        <Link href="/panel/asistente">Abrir el asistente</Link>
+      </Button>
+    </div>
+  );
+}
+
 export default async function Page({ searchParams }: PageProps<"/panel">) {
-  await requireAccess("hoy");
+  const staff = await requireAccess("hoy");
   const now = new Date();
   const today = businessToday(now);
   const day = parseDayParam((await searchParams).fecha, today);
   const { sessions, kpis, soon, activity } = await loadToday(day, today, now);
   const attention = attentionItems(soon, now);
+  const showSetup = canAccess(staff.role, "ajustes") && (await setupPending());
 
   return (
     <section className="flex flex-col gap-4 tablet:gap-5">
@@ -67,6 +94,8 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
           </Button>
         </div>
       </div>
+
+      {showSetup ? <SetupBanner /> : null}
 
       <Kpis kpis={kpis} />
 

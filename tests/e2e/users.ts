@@ -12,12 +12,17 @@ export const E2E_USERS = {
   outsider: { email: "e2e-outsider@example.test", name: null, role: null },
 } as const;
 
-/** Crea o actualiza los usuarios de prueba (idempotente). */
-export async function ensureE2EUsers(): Promise<void> {
+/** Cliente con la service role de la BD local o de CI, para preparar y limpiar datos de los e2e. */
+export function e2eAdminDb() {
   const env = parseServerEnv(process.env);
-  const admin = createClient<Database>(env.supabaseUrl, env.supabaseServiceRoleKey, {
+  return createClient<Database>(env.supabaseUrl, env.supabaseServiceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+/** Crea o actualiza los usuarios de prueba (idempotente). */
+export async function ensureE2EUsers(): Promise<void> {
+  const admin = e2eAdminDb();
 
   const { data: list, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (listError) throw listError;
