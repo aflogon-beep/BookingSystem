@@ -121,6 +121,12 @@ isOneToOne: false
       foreignKeyName: "bookings_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_team_status"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     }
@@ -281,6 +287,12 @@ isOneToOne: false
       foreignKeyName: "session_resources_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_team_status"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "session_resources_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     }
@@ -384,6 +396,12 @@ isOneToOne: false
       foreignKeyName: "bookings_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_team_status"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     },{
@@ -419,6 +437,20 @@ isOneToOne: false
                 },"session_staffing": {
                   Row: {
                     "missing": number | null,"missing_equipment": number | null,"missing_guides": number | null,"missing_vehicles": number | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "sessions_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"session_team_status": {
+                  Row: {
+                    "product_id": string | null,"session_id": string | null,"starts_at": string | null,"team_free": boolean | null
                   }
                   ComputedFields: never
                   Relationships: [
@@ -510,6 +542,9 @@ isOneToOne: false
                            },
 "session_set_status":
 { Args: { "p_session_id": string,"p_status": string }; Returns: number
+                           },
+"session_team_free":
+{ Args: { "p_session_id": string }; Returns: boolean
                            },
 "sessions_assign_pending":
 { Args: { "p_from": string,"p_to": string }; Returns: Json

@@ -191,7 +191,8 @@ export const loadWebProduct = cache(async (slug: string, locale: Locale): Promis
 
 /**
  * Salidas que la web vende de un producto, desde ahora hasta el final de las generadas, con sus
- * plazas libres (vista session_availability, la misma regla que create_booking_hold).
+ * plazas libres (vista session_availability) y si tienen su equipo libre (vista
+ * session_team_status): las mismas reglas que create_booking_hold.
  * PostgREST devuelve como mucho 1000 filas: las dos consultas van por fecha para que, en un
  * producto con más de 8 salidas al día, solo se pierdan los últimos días y nunca días sueltos.
  */
@@ -200,7 +201,11 @@ export async function loadWebSessions(productId: string, cutoffHours: number, no
   const lastDay = format(addDays(parseISO(businessToday(now)), GENERATION_DAYS + 1), "yyyy-MM-dd");
   const to = localToInstant(lastDay, "00:00").toISOString();
   const supabase = createAdminClient();
-  const [{ data: sessions, error }, { data: availability, error: availabilityError }] = await Promise.all([
+  const [
+    { data: sessions, error },
+    { data: availability, error: availabilityError },
+    { data: team, error: teamError },
+  ] = await Promise.all([
     supabase
       .from("sessions")
       .select("id, starts_at, language, status")
@@ -216,9 +221,17 @@ export async function loadWebSessions(productId: string, cutoffHours: number, no
       .gte("starts_at", from)
       .lt("starts_at", to)
       .order("starts_at"),
+    supabase
+      .from("session_team_status")
+      .select("session_id, team_free")
+      .eq("product_id", productId)
+      .gte("starts_at", from)
+      .lt("starts_at", to)
+      .order("starts_at"),
   ]);
-  if (error || availabilityError) throw new Error("No se pudieron cargar las salidas.");
+  if (error || availabilityError || teamError) throw new Error("No se pudieron cargar las salidas.");
   const free = new Map(availability.map((row) => [row.session_id, row.free_seats ?? 0]));
+  const teamFree = new Map(team.map((row) => [row.session_id, row.team_free ?? false]));
   return sessions
     .map((session): WebSession => {
       const { date, time } = toBusinessDateTime(session.starts_at);
@@ -230,6 +243,7 @@ export async function loadWebSessions(productId: string, cutoffHours: number, no
         status: session.status as WebSession["status"],
         startsAt: new Date(session.starts_at),
         free: free.get(session.id) ?? 0,
+        teamFree: teamFree.get(session.id) ?? false,
       };
     })
     .filter((session) => isWebBookable(session, now, cutoffHours));
@@ -243,7 +257,11 @@ export async function loadWebSession(
   now = new Date(),
 ): Promise<WebSession | null> {
   const supabase = createAdminClient();
-  const [{ data: session, error }, { data: availability, error: availabilityError }] = await Promise.all([
+  const [
+    { data: session, error },
+    { data: availability, error: availabilityError },
+    { data: team, error: teamError },
+  ] = await Promise.all([
     supabase
       .from("sessions")
       .select("id, starts_at, language, status")
@@ -251,8 +269,9 @@ export async function loadWebSession(
       .eq("product_id", productId)
       .maybeSingle(),
     supabase.from("session_availability").select("free_seats").eq("session_id", sessionId).maybeSingle(),
+    supabase.from("session_team_status").select("team_free").eq("session_id", sessionId).maybeSingle(),
   ]);
-  if (error || availabilityError) throw new Error("No se pudo cargar la salida.");
+  if (error || availabilityError || teamError) throw new Error("No se pudo cargar la salida.");
   if (!session) return null;
   const { date, time } = toBusinessDateTime(session.starts_at);
   const web: WebSession = {
@@ -263,6 +282,7 @@ export async function loadWebSession(
     status: session.status as WebSession["status"],
     startsAt: new Date(session.starts_at),
     free: availability?.free_seats ?? 0,
+    teamFree: team?.team_free ?? false,
   };
   return isWebBookable(web, now, cutoffHours) ? web : null;
 }

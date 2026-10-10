@@ -15,20 +15,24 @@ export type WebSession = {
   status: "open" | "closed" | "cancelled";
   startsAt: Date;
   free: number;
+  /** ¿Tiene libre el equipo que necesita (vista session_team_status)? */
+  teamFree: boolean;
 };
 
 /**
- * ¿La web vende esta salida? Igual que create_booking_hold con canal web: abierta, con plazas y
- * que empiece después de `cutoffHours` horas desde ahora (cierre de venta online).
+ * ¿La web vende esta salida? Igual que create_booking_hold con canal web: abierta, con plazas, con
+ * su equipo libre (si el único guía está en otra salida a esa hora, no se vende) y que empiece
+ * después de `cutoffHours` horas desde ahora (cierre de venta online).
  */
 export function isWebBookable(
-  session: Pick<WebSession, "status" | "startsAt" | "free">,
+  session: Pick<WebSession, "status" | "startsAt" | "free" | "teamFree">,
   now: Date,
   cutoffHours: number,
 ): boolean {
   return (
     session.status === "open" &&
     session.free > 0 &&
+    session.teamFree &&
     session.startsAt.getTime() > now.getTime() &&
     session.startsAt.getTime() >= now.getTime() + cutoffHours * 3_600_000
   );

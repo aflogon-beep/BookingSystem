@@ -20,7 +20,7 @@ const A = "00000000-0000-4000-8000-0000000000aa";
 const B = "00000000-0000-4000-8000-0000000000bb";
 
 describe("isWebBookable", () => {
-  const session = { status: "open" as const, free: 4, startsAt: new Date("2026-10-10T10:00:00Z") };
+  const session = { status: "open" as const, free: 4, teamFree: true, startsAt: new Date("2026-10-10T10:00:00Z") };
 
   it("vende salidas abiertas, con plazas y fuera del cierre de venta", () => {
     expect(isWebBookable(session, NOW, 2)).toBe(true);
@@ -33,6 +33,10 @@ describe("isWebBookable", () => {
     expect(isWebBookable({ ...session, status: "cancelled" }, NOW, 0)).toBe(false);
     expect(isWebBookable({ ...session, free: 0 }, NOW, 0)).toBe(false);
     expect(isWebBookable({ ...session, startsAt: NOW }, NOW, 0)).toBe(false);
+  });
+
+  it("no vende salidas sin su equipo libre (el único guía está en otra salida a esa hora)", () => {
+    expect(isWebBookable({ ...session, teamFree: false }, NOW, 0)).toBe(false);
   });
 });
 
