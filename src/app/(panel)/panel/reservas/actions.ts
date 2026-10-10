@@ -13,6 +13,9 @@ import { bookingChangeError } from "@/lib/domain/booking-detail";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
 import { formatCents } from "@/lib/domain/money";
 import { isResourceType } from "@/lib/domain/resources";
+import { webSalesOpen } from "@/lib/domain/session-state";
+
+import { loadCutoffHours } from "../team-status";
 
 const dateSchema = z.iso.date();
 
@@ -29,17 +32,18 @@ export async function loadDaySessions(productId: string, date: string): Promise<
     { data: sessions, error },
     { data: availability, error: availabilityError },
     { data: team, error: teamError },
+    cutoffHours,
   ] = await Promise.all([
     supabase
       .from("sessions")
-      .select("id, starts_at, language, status")
+      .select("id, starts_at, ends_at, language, status, products!inner(active)")
       .eq("product_id", productId)
       .gte("starts_at", from)
       .lt("starts_at", to)
       .order("starts_at"),
     supabase
       .from("session_availability")
-      .select("session_id, free_seats")
+      .select("session_id, free_seats, booked_seats")
       .eq("product_id", productId)
       .gte("starts_at", from)
       .lt("starts_at", to),
@@ -49,20 +53,25 @@ export async function loadDaySessions(productId: string, date: string): Promise<
       .eq("product_id", productId)
       .gte("starts_at", from)
       .lt("starts_at", to),
+    loadCutoffHours(supabase),
   ]);
   if (error || availabilityError || teamError) throw new Error("No se pudieron cargar las salidas.");
 
   const free = new Map(availability.map((row) => [row.session_id, row.free_seats ?? 0]));
+  const booked = new Map(availability.map((row) => [row.session_id, row.booked_seats ?? 0]));
   const blocking = new Map(team.map((row) => [row.session_id, isResourceType(row.blocking_need) ? row.blocking_need : null]));
-  const now = Date.now();
+  const now = new Date();
   return sessions.map((session) => ({
     id: session.id,
     time: toBusinessDateTime(session.starts_at).time,
     language: session.language,
     status: STATUSES.has(session.status as DaySession["status"]) ? (session.status as DaySession["status"]) : "closed",
     free: free.get(session.id) ?? 0,
-    past: new Date(session.starts_at).getTime() <= now,
+    booked: booked.get(session.id) ?? 0,
+    started: new Date(session.starts_at) <= now,
+    ended: new Date(session.ends_at) <= now,
     blockingNeed: blocking.get(session.id) ?? null,
+    webOpen: webSalesOpen(session.starts_at, session.products.active, cutoffHours, now),
   }));
 }
 

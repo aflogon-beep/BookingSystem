@@ -20,6 +20,7 @@ import { toast } from "sonner";
 
 import { createInternalBooking, loadDaySessions } from "@/app/(panel)/panel/reservas/actions";
 import { ProductArt } from "@/components/productos/product-art";
+import { STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +38,7 @@ import {
 import { calendarHref, longDayLabel } from "@/lib/domain/calendar";
 import { formatCents } from "@/lib/domain/money";
 import { bookingTotal } from "@/lib/domain/pricing";
-import { blockingNeedLabel } from "@/lib/domain/resources";
+import { sessionState } from "@/lib/domain/session-state";
 import { cn } from "@/lib/utils";
 
 import type { DaySession, NewBookingInitial, NewBookingProduct } from "./types";
@@ -58,17 +59,13 @@ function firstTicket(product: NewBookingProduct | undefined): Record<string, num
   return ticket ? { [ticket.id]: 1 } : {};
 }
 
-function isBookable(session: DaySession): boolean {
-  return session.status === "open" && !session.past && session.free > 0 && session.blockingNeed === null;
+function stateOf(session: DaySession) {
+  // session_availability da las libres y las ocupadas; el aforo es su suma.
+  return sessionState({ ...session, capacity: session.free + session.booked });
 }
 
-function sessionNote(session: DaySession): string {
-  const language = LANGUAGE_NAMES[session.language] ?? session.language.toUpperCase();
-  if (session.status === "cancelled") return `${language} · Cancelada`;
-  if (session.status === "closed") return `${language} · Cerrada`;
-  if (session.past) return `${language} · Ya salió`;
-  if (session.blockingNeed) return `${language} · Sin ${blockingNeedLabel(session.blockingNeed)} libre`;
-  return `${language} · ${session.free > 0 ? `${session.free} libres` : "Completa"}`;
+function isBookable(session: DaySession): boolean {
+  return stateOf(session).panelBookable;
 }
 
 /**
@@ -253,6 +250,7 @@ export function NewBookingForm({
                   type="button"
                   aria-pressed={candidate.id === session?.id}
                   disabled={!isBookable(candidate)}
+                  title={stateHint(stateOf(candidate))}
                   onClick={() => {
                     setSessionId(candidate.id);
                     setError(null);
@@ -263,7 +261,7 @@ export function NewBookingForm({
                   )}
                 >
                   <b className="font-mono font-medium">{candidate.time}</b>
-                  <small className="text-[0.72rem] text-muted-foreground">{sessionNote(candidate)}</small>
+                  <SessionNote session={candidate} />
                 </button>
               ))}
             </div>
@@ -501,5 +499,16 @@ function OptionCards<T extends string>({
         );
       })}
     </div>
+  );
+}
+
+/** Idioma y estado de la salida («Inglés · 12 libres», «Alemán · Sin guía libre»). */
+function SessionNote({ session }: { session: DaySession }) {
+  const language = LANGUAGE_NAMES[session.language] ?? session.language.toUpperCase();
+  const state = stateOf(session);
+  return (
+    <small className="text-[0.72rem] text-muted-foreground">
+      {language} · <span className={STATE_TEXT_CLASS[state.tone]}>{state.label}</span>
+    </small>
   );
 }

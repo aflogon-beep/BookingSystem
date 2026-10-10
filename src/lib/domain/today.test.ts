@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   NOTHING_MISSING,
   attentionItems,
-  blockedText,
-  canBookSession,
   dayKpis,
   dayLabel,
   missingText,
@@ -83,46 +81,22 @@ describe("KPIs del día", () => {
 });
 
 describe("avisos de salida", () => {
-  const base = { status: "open", booked: 0, capacity: 16, minPax: 4, missing: NOTHING_MISSING };
+  const base = { status: "open", booked: 0, minPax: 4, missing: NOTHING_MISSING };
   const noGuide = { ...NOTHING_MISSING, guide: 1 };
 
   it("marca sin equipo solo con reservas y antes que bajo mínimo", () => {
     expect(sessionFlags({ ...base, missing: noGuide })).toEqual([]);
     expect(sessionFlags({ ...base, booked: 2, missing: noGuide }).map((flag) => flag.label)).toEqual(["Sin equipo", "Bajo mínimo"]);
-    expect(sessionFlags({ ...base, status: "cancelled", booked: 2, missing: noGuide }).map((flag) => flag.label)).toEqual(["Cancelada"]);
   });
 
   it("marca bajo mínimo solo con reservas", () => {
     expect(sessionFlags(base)).toEqual([]);
     expect(sessionFlags({ ...base, booked: 2 }).map((flag) => flag.label)).toEqual(["Bajo mínimo"]);
+    expect(sessionFlags({ ...base, status: "closed", booked: 1 }).map((flag) => flag.label)).toEqual(["Bajo mínimo"]);
   });
 
-  it("marca las salidas sin su recurso obligatorio libre", () => {
-    expect(blockedText("guide")).toBe("Sin guía libre");
-    expect(sessionFlags({ ...base, blockingNeed: "guide" }).map((flag) => flag.label)).toEqual(["Sin guía libre"]);
-    expect(sessionFlags({ ...base, status: "cancelled", blockingNeed: "guide" }).map((flag) => flag.label)).toEqual(["Cancelada"]);
-  });
-
-  it("marca completa, cerrada y cancelada", () => {
-    expect(sessionFlags({ ...base, booked: 16 }).map((flag) => flag.label)).toEqual(["Completa"]);
-    expect(sessionFlags({ ...base, booked: 18 }).map((flag) => flag.label)).toEqual(["Completa"]);
-    expect(sessionFlags({ ...base, status: "closed", booked: 1 }).map((flag) => flag.label)).toEqual(["Cerrada", "Bajo mínimo"]);
-    expect(sessionFlags({ ...base, status: "cancelled", booked: 1 }).map((flag) => flag.label)).toEqual(["Cancelada"]);
-  });
-});
-
-describe("reservar desde el panel", () => {
-  const base = { status: "open", started: false, booked: 3, capacity: 16 };
-  it("solo salidas abiertas, sin empezar y con plazas", () => {
-    expect(canBookSession(base)).toBe(true);
-    expect(canBookSession({ ...base, started: true })).toBe(false);
-    expect(canBookSession({ ...base, booked: 16 })).toBe(false);
-    expect(canBookSession({ ...base, status: "closed" })).toBe(false);
-  });
-
-  it("no, si su recurso obligatorio está en otra salida a esa hora", () => {
-    expect(canBookSession({ ...base, blockingNeed: null })).toBe(true);
-    expect(canBookSession({ ...base, blockingNeed: "guide" })).toBe(false);
+  it("una salida cancelada no da avisos", () => {
+    expect(sessionFlags({ ...base, status: "cancelled", booked: 2, missing: noGuide })).toEqual([]);
   });
 });
 

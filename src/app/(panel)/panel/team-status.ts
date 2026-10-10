@@ -42,3 +42,10 @@ export async function loadBlockedNeed(supabase: Supabase, sessionId: string): Pr
   if (error) throw new Error("No se pudo cargar la salida.");
   return isResourceType(data?.blocking_need) ? data.blocking_need : null;
 }
+
+/** Horas antes de la salida en que cierra la venta online (Ajustes › Políticas). */
+export async function loadCutoffHours(supabase: Supabase): Promise<number> {
+  const { data, error } = await supabase.from("settings").select("cutoff_hours").eq("id", 1).maybeSingle();
+  if (error) throw new Error("No se pudieron cargar los ajustes.");
+  return data?.cutoff_hours ?? 0;
+}

@@ -3,8 +3,8 @@ import { parseISO } from "date-fns";
 
 import { cn } from "@/lib/utils";
 import { calendarHref, groupByDate, longDayLabel, occupancyLevel, occupancyTotals } from "@/lib/domain/calendar";
-import { blockedText } from "@/lib/domain/today";
 
+import { calendarState } from "./session-status";
 import type { CalendarSession } from "./types";
 
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -90,29 +90,30 @@ export function MonthView({
                     </span>
                   ) : null}
                 </div>
-                {list.slice(0, MAX_LINES).map((session) => (
-                  <span
-                    key={session.id}
-                    className={cn(
-                      "hidden min-w-0 items-center gap-[5px] rounded-[4px] px-1 py-px text-[0.72rem] leading-[1.3] tablet:flex",
-                      session.status !== "cancelled" && session.capacity > 0 && session.booked >= session.capacity ? "bg-warn-soft" : "bg-surface-2",
-                      session.status === "cancelled" && "line-through opacity-45",
-                      session.status === "open" && !session.past && session.blockingNeed && "opacity-45",
-                    )}
-                    title={
-                      session.status === "open" && !session.past && session.blockingNeed
-                        ? `${blockedText(session.blockingNeed)}: no admite reservas`
-                        : undefined
-                    }
-                  >
-                    <span aria-hidden="true" className="size-[7px] flex-none rounded-[3px]" style={{ background: session.product.color }} />
-                    <span className="flex-none font-mono text-muted-foreground">{session.time}</span>
-                    <span className="min-w-0 flex-1 truncate max-desk:hidden">{session.product.name}</span>
-                    <span className="flex-none font-mono text-[0.66rem] text-muted-foreground max-desk:ml-auto">
-                      {session.booked}/{session.capacity}
+                {list.slice(0, MAX_LINES).map((session) => {
+                  const state = calendarState(session);
+                  // No admite reservas por un motivo que no es estar completa: atenuada, con el motivo al pasar el ratón.
+                  const unsellable = state.kind === "blocked" || state.kind === "closed";
+                  return (
+                    <span
+                      key={session.id}
+                      className={cn(
+                        "hidden min-w-0 items-center gap-[5px] rounded-[4px] px-1 py-px text-[0.72rem] leading-[1.3] tablet:flex",
+                        state.kind === "full" ? "bg-warn-soft" : "bg-surface-2",
+                        state.kind === "cancelled" && "line-through opacity-45",
+                        unsellable && "opacity-45",
+                      )}
+                      title={unsellable ? `${state.label}: no admite reservas` : undefined}
+                    >
+                      <span aria-hidden="true" className="size-[7px] flex-none rounded-[3px]" style={{ background: session.product.color }} />
+                      <span className="flex-none font-mono text-muted-foreground">{session.time}</span>
+                      <span className="min-w-0 flex-1 truncate max-desk:hidden">{session.product.name}</span>
+                      <span className="flex-none font-mono text-[0.66rem] text-muted-foreground max-desk:ml-auto">
+                        {session.booked}/{session.capacity}
+                      </span>
                     </span>
-                  </span>
-                ))}
+                  );
+                })}
                 {list.length > MAX_LINES ? (
                   <span className="hidden pl-1 text-[0.7rem] font-medium text-primary tablet:inline">
                     +{list.length - MAX_LINES} más

@@ -16,6 +16,8 @@ export type TodaySession = {
   missing: MissingByType;
   /** Recurso obligatorio que no está libre a esa hora: no admite reservas (vista session_team_status). */
   blockingNeed: ResourceType | null;
+  /** Se vende en la web: producto a la venta y antes del cierre de venta online. */
+  webOpen: boolean;
   started: boolean;
   past: boolean;
   product: { name: string; color: string };
