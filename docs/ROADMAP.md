@@ -33,7 +33,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 - [x] 3.3 Equipo · "Dónde están" (línea de tiempo) y planificación semanal.
 - [x] 3.4 Reservas: listado con pestañas, filtros y CSV. Clientes.
 - [x] 3.5 Informes.
-- [ ] 3.6 Avisos (sin equipo, bajo mínimo) y asistente de configuración inicial. Hecho: avisos (Hoy, Calendario y campana). Falta: asistente.
+- [x] 3.6 Avisos (sin equipo, bajo mínimo) y asistente de configuración inicial.
 
 ## Fase 4 — Producción
 - [ ] 4.1 `/revision-seguridad` completa + `npm audit` + revisión externa.

@@ -293,14 +293,14 @@ isOneToOne: false
                   ]
                 },"settings": {
                   Row: {
-                    "business_name": string,"cancel_hours": number,"created_at": string,"currency": string,"cutoff_hours": number,"default_capacity": number,"email": string,"id": number,"languages": (string)[],"phone": string,"timezone": string
+                    "business_name": string,"cancel_hours": number,"created_at": string,"currency": string,"cutoff_hours": number,"default_capacity": number,"email": string,"id": number,"languages": (string)[],"phone": string,"setup_done_at": string | null,"timezone": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"phone"?: string,"timezone"?: string
+                    "business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"phone"?: string,"setup_done_at"?: string | null,"timezone"?: string
                   }
                   Update: {
-                    "business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"phone"?: string,"timezone"?: string
+                    "business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"phone"?: string,"setup_done_at"?: string | null,"timezone"?: string
                   }
                   Relationships: [
                     
@@ -436,6 +436,9 @@ isOneToOne: false
                            },
 "cancel_locked_booking":
 { Args: { "p_booking_id": string,"p_reason": string,"p_refund": boolean }; Returns: number
+                           },
+"complete_setup":
+{ Args: { "p": Json }; Returns: string
                            },
 "create_booking_hold":
 { Args: { "p_booking"?: Json,"p_customer": Json,"p_hold_minutes"?: number,"p_lines": Json,"p_session_id": string }; Returns: Json

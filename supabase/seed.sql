@@ -9,7 +9,8 @@ set business_name = 'Volcán Tours',
     cancel_hours = 24,
     default_capacity = 12,
     email = 'reservas@volcantours.es',
-    phone = '+34 922 555 210'
+    phone = '+34 922 555 210',
+    setup_done_at = now()
 where id = 1;
 
 insert into public.ticket_types (id, name, note, takes_seat, sort) values

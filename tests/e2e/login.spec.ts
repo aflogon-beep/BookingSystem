@@ -44,6 +44,8 @@ test("el rol staff no ve Ajustes ni puede abrirlo", async ({ page }, testInfo) =
 
   await page.goto("/panel/ajustes");
   await expect(page).toHaveURL(/\/panel$/);
+  await page.goto("/panel/asistente");
+  await expect(page).toHaveURL(/\/panel$/);
 });
 
 test("Salir cierra la sesión", async ({ page }, testInfo) => {
