@@ -24,6 +24,7 @@ export async function anonymizeCustomer(customerId: string): Promise<CustomerAct
     if (error.code === "RB010") {
       return { ok: false, error: "Tiene reservas próximas. Cancélalas antes de borrar sus datos." };
     }
+    if (error.code === "42501") return { ok: false, error: "Solo un admin puede borrar los datos de un cliente." };
     return { ok: false, error: "No se pudieron borrar los datos. Inténtalo de nuevo." };
   }
   revalidatePath("/panel", "layout");

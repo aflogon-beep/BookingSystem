@@ -17,7 +17,7 @@ export default async function Page() {
   const supabase = await createClient();
   const { data: settings, error } = await supabase
     .from("settings")
-    .select("business_name, email, phone, currency, default_capacity, languages, legal_name, tax_id, address")
+    .select("business_name, email, phone, currency, default_capacity, languages, legal_name, tax_id, address, registry_info, tourism_registry")
     .eq("id", 1)
     .single();
   if (error) throw new Error("No se pudieron cargar los ajustes.");
@@ -81,8 +81,13 @@ export default async function Page() {
       </div>
       <div className="grid gap-3.5 border-t border-line-2 p-4 tablet:grid-cols-2">
         <p className="text-[0.8rem] text-muted-foreground tablet:col-span-2">
-          Datos del titular. Salen en la política de privacidad y en las condiciones de la web.
+          Datos del titular. Salen en la política de privacidad y en el aviso legal de la web.
         </p>
+        {!settings.legal_name.trim() || !settings.tax_id.trim() ? (
+          <p role="status" className="rounded-[10px] bg-warn-soft px-3 py-2 text-[0.8rem] text-warn tablet:col-span-2">
+            Falta la razón social o el NIF: la ley pide que salgan en el aviso legal de la web.
+          </p>
+        ) : null}
         <SettingInput
           field="legal_name"
           label="Razón social"
@@ -98,6 +103,21 @@ export default async function Page() {
           defaultValue={settings.address}
           maxLength={SETTINGS_LIMITS.address}
           className="tablet:col-span-2"
+        />
+        <SettingInput
+          field="registry_info"
+          label="Registro Mercantil"
+          defaultValue={settings.registry_info}
+          maxLength={SETTINGS_LIMITS.registryInfo}
+          placeholder="Tomo, folio, hoja e inscripción"
+          hint="Solo si eres una sociedad."
+        />
+        <SettingInput
+          field="tourism_registry"
+          label="Registro turístico de Canarias"
+          defaultValue={settings.tourism_registry}
+          maxLength={SETTINGS_LIMITS.tourismRegistry}
+          hint="Número de inscripción como empresa de actividades turísticas."
         />
       </div>
     </Box>

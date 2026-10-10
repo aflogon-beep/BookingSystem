@@ -30,6 +30,8 @@ export const SETTINGS_LIMITS = {
   legalName: 200,
   taxId: 20,
   address: 300,
+  registryInfo: 300,
+  tourismRegistry: 60,
   retentionMonths: { min: 6, max: 120 },
 } as const;
 
@@ -80,6 +82,16 @@ const settingsFieldSchemas = {
     .string()
     .trim()
     .max(SETTINGS_LIMITS.address, { error: `La dirección admite ${SETTINGS_LIMITS.address} caracteres como máximo.` }),
+  registry_info: z
+    .string()
+    .trim()
+    .max(SETTINGS_LIMITS.registryInfo, { error: `Los datos registrales admiten ${SETTINGS_LIMITS.registryInfo} caracteres como máximo.` }),
+  tourism_registry: z
+    .string()
+    .trim()
+    .max(SETTINGS_LIMITS.tourismRegistry, {
+      error: `El número de registro turístico admite ${SETTINGS_LIMITS.tourismRegistry} caracteres como máximo.`,
+    }),
   customer_retention_months: integerIn(
     SETTINGS_LIMITS.retentionMonths.min,
     SETTINGS_LIMITS.retentionMonths.max,

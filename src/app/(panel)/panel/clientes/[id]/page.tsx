@@ -23,7 +23,7 @@ export default async function Page({ params }: PageProps<"/panel/clientes/[id]">
   if (!z.uuid().safeParse(id).success) notFound();
 
   const supabase = await createClient();
-  const [{ data: customer, error }, { data: bookings, error: bookingsError }, { data: privacy }] = await Promise.all([
+  const [{ data: customer, error }, { data: bookings, error: bookingsError }, { data: privacy, error: privacyError }] = await Promise.all([
     supabase.from("customer_list").select("id, name, email, phone, bookings, pax, spent_cents").eq("id", id).maybeSingle(),
     supabase
       .from("booking_list")
@@ -33,7 +33,7 @@ export default async function Page({ params }: PageProps<"/panel/clientes/[id]">
       .limit(200),
     supabase.from("customers").select("anonymized_at").eq("id", id).maybeSingle(),
   ]);
-  if (error || bookingsError) throw new Error("No se pudo cargar el cliente.");
+  if (error || bookingsError || privacyError) throw new Error("No se pudo cargar el cliente.");
   if (!customer) notFound();
   const name = customer.name ?? "";
   const anonymizedAt = privacy?.anonymized_at ?? null;

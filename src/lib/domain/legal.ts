@@ -22,6 +22,8 @@ export type LegalInfo = {
   legalName: string;
   taxId: string;
   address: string;
+  registryInfo: string;
+  tourismRegistry: string;
   email: string;
   phone: string;
   cancelHours: number;
@@ -51,6 +53,20 @@ function contactLine(info: LegalInfo, locale: Locale): string {
   return parts.join(locale === "en" ? " or " : " o ");
 }
 
+/** Datos registrales del aviso legal (art. 10 LSSI), los que haya. */
+function registryLines(info: LegalInfo, locale: Locale): string[] {
+  const lines: string[] = [];
+  if (info.registryInfo.trim()) {
+    lines.push(`${locale === "en" ? "Commercial Registry" : "Registro Mercantil"}: ${info.registryInfo.trim()}.`);
+  }
+  if (info.tourismRegistry.trim()) {
+    lines.push(
+      `${locale === "en" ? "Canary Islands General Tourism Registry no." : "Registro General Turístico de Canarias n.º"} ${info.tourismRegistry.trim()}.`,
+    );
+  }
+  return lines;
+}
+
 function formatUpdated(locale: Locale): string {
   const [year, month, day] = LEGAL_UPDATED.split("-").map(Number);
   return new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "es-ES", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
@@ -61,12 +77,12 @@ function formatUpdated(locale: Locale): string {
 function cancellationText(hours: number, locale: Locale): string {
   if (locale === "en") {
     return hours > 0
-      ? `You can cancel free of charge up to ${hours} hours before the tour starts. After that, or if you do not show up, the booking is not refunded.`
-      : "Bookings cannot be cancelled free of charge. If you do not show up, the booking is not refunded.";
+      ? `You can cancel free of charge up to ${hours} hours before the tour starts. If you cancel later or do not show up, you lose your place and anything you have already paid is not refunded.`
+      : "Bookings cannot be cancelled free of charge: if you cancel or do not show up, anything you have already paid is not refunded.";
   }
   return hours > 0
-    ? `Puedes cancelar gratis hasta ${hours} horas antes de la salida. Después, o si no te presentas, la reserva no se reembolsa.`
-    : "Las reservas no tienen cancelación gratuita. Si no te presentas, la reserva no se reembolsa.";
+    ? `Puedes cancelar gratis hasta ${hours} horas antes de la salida. Si cancelas más tarde o no te presentas, pierdes la plaza y no se reembolsa lo que hayas pagado.`
+    : "Las reservas no tienen cancelación gratuita: si cancelas o no te presentas, no se reembolsa lo que hayas pagado.";
 }
 
 const DOCUMENTS: Record<Locale, Record<LegalDoc, (info: LegalInfo) => LegalSection[]>> = {
@@ -91,13 +107,14 @@ const DOCUMENTS: Record<Locale, Record<LegalDoc, (info: LegalInfo) => LegalSecti
       {
         heading: "Cuánto tiempo los guardamos",
         paragraphs: [
-          `Mientras tu reserva esté activa y ${info.retentionMonths} meses después de tu última excursión. Pasado ese plazo borramos tu nombre, email y teléfono; solo queda el registro de la reserva, sin datos que te identifiquen.`,
+          `Mientras tu reserva esté activa y ${info.retentionMonths} meses después de tu última excursión. Pasado ese plazo borramos tu nombre, email y teléfono; solo queda el registro de la reserva, sin datos que te identifiquen. Si una ley nos obliga a guardar algún dato más tiempo (por ejemplo, el de una factura), lo guardamos solo para eso.`,
         ],
       },
       {
         heading: "Quién más los ve",
         paragraphs: [
           "Nuestro equipo y los proveedores que nos prestan el servicio (alojamiento de la web y de la base de datos, envío de emails), que tratan los datos por encargo nuestro y con las garantías del RGPD. No los cedemos a nadie más salvo obligación legal.",
+          "Algunos de esos proveedores son de Estados Unidos. Esas transferencias se amparan en el Marco de Privacidad de Datos UE-EE. UU. o en las cláusulas contractuales tipo de la Comisión Europea.",
         ],
       },
       {
@@ -110,7 +127,10 @@ const DOCUMENTS: Record<Locale, Record<LegalDoc, (info: LegalInfo) => LegalSecti
     condiciones: (info) => [
       {
         heading: "Quiénes somos",
-        paragraphs: [`Esta web y las excursiones que vende son de ${ownerLine(info, "es")}. Contacto: ${contactLine(info, "es")}.`],
+        paragraphs: [
+          `Esta web y las excursiones que vende son de ${ownerLine(info, "es")}. Contacto: ${contactLine(info, "es")}.`,
+          ...registryLines(info, "es"),
+        ],
       },
       {
         heading: "Reserva y precio",
@@ -123,6 +143,12 @@ const DOCUMENTS: Record<Locale, Record<LegalDoc, (info: LegalInfo) => LegalSecti
         paragraphs: ["Salvo que se indique otra cosa, pagas el total al guía el día de la excursión, antes de salir."],
       },
       { heading: "Cancelación por tu parte", paragraphs: [cancellationText(info.cancelHours, "es")] },
+      {
+        heading: "Derecho de desistimiento",
+        paragraphs: [
+          "Al ser una actividad de ocio con fecha y hora concretas, no se aplica el derecho de desistimiento de 14 días (artículo 103.l de la Ley General para la Defensa de los Consumidores y Usuarios). Puedes cancelar según el apartado anterior.",
+        ],
+      },
       {
         heading: "Cancelación o cambios por nuestra parte",
         paragraphs: [
@@ -180,13 +206,14 @@ const DOCUMENTS: Record<Locale, Record<LegalDoc, (info: LegalInfo) => LegalSecti
       {
         heading: "How long we keep it",
         paragraphs: [
-          `While your booking is active and for ${info.retentionMonths} months after your last tour. After that we delete your name, email and phone; only the booking record remains, without anything that identifies you.`,
+          `While your booking is active and for ${info.retentionMonths} months after your last tour. After that we delete your name, email and phone; only the booking record remains, without anything that identifies you. If a law requires us to keep some data longer (for example, an invoice), we keep it only for that purpose.`,
         ],
       },
       {
         heading: "Who else sees it",
         paragraphs: [
           "Our team and the providers that run the service for us (website and database hosting, email delivery), who process the data on our behalf with GDPR safeguards. We do not share it with anyone else unless the law requires it.",
+          "Some of those providers are based in the United States. Those transfers rely on the EU-US Data Privacy Framework or on the European Commission's standard contractual clauses.",
         ],
       },
       {
@@ -199,7 +226,10 @@ const DOCUMENTS: Record<Locale, Record<LegalDoc, (info: LegalInfo) => LegalSecti
     condiciones: (info) => [
       {
         heading: "Who we are",
-        paragraphs: [`This website and the tours it sells belong to ${ownerLine(info, "en")}. Contact: ${contactLine(info, "en")}.`],
+        paragraphs: [
+          `This website and the tours it sells belong to ${ownerLine(info, "en")}. Contact: ${contactLine(info, "en")}.`,
+          ...registryLines(info, "en"),
+        ],
       },
       {
         heading: "Booking and price",
@@ -212,6 +242,12 @@ const DOCUMENTS: Record<Locale, Record<LegalDoc, (info: LegalInfo) => LegalSecti
         paragraphs: ["Unless stated otherwise, you pay the full amount to the guide on the day of the tour, before departure."],
       },
       { heading: "Cancellation by you", paragraphs: [cancellationText(info.cancelHours, "en")] },
+      {
+        heading: "Right of withdrawal",
+        paragraphs: [
+          "As a leisure activity on a specific date and time, the 14-day right of withdrawal does not apply (article 103.l of the Spanish consumer protection law). You can cancel as described in the previous section.",
+        ],
+      },
       {
         heading: "Cancellation or changes by us",
         paragraphs: [

@@ -22,6 +22,6 @@ export async function GET(request: Request) {
     console.error("generate_sessions falló", generated.error.code, generated.error.message);
     return Response.json({ error: "No se pudieron generar las salidas" }, { status: 500 });
   }
-  if (anonymized.error) return Response.json({ error: "No se pudieron anonimizar los clientes" }, { status: 500 });
-  return Response.json({ from, to, changed: generated.data, anonymized: anonymized.data });
+  // Si solo falla la anonimización, las salidas sí se han generado: se dice y se reintenta mañana.
+  return Response.json({ from, to, changed: generated.data, anonymized: anonymized.error ? null : anonymized.data });
 }

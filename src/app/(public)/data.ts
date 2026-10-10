@@ -44,7 +44,7 @@ export const loadLegalInfo = cache(async (): Promise<LegalInfo> => {
   await connection();
   const { data, error } = await createAdminClient()
     .from("settings")
-    .select("business_name, legal_name, tax_id, address, email, phone, cancel_hours, customer_retention_months")
+    .select("business_name, legal_name, tax_id, address, registry_info, tourism_registry, email, phone, cancel_hours, customer_retention_months")
     .eq("id", 1)
     .single();
   if (error) throw new Error("No se pudieron cargar los ajustes.");
@@ -53,6 +53,8 @@ export const loadLegalInfo = cache(async (): Promise<LegalInfo> => {
     legalName: data.legal_name,
     taxId: data.tax_id,
     address: data.address,
+    registryInfo: data.registry_info,
+    tourismRegistry: data.tourism_registry,
     email: data.email,
     phone: data.phone,
     cancelHours: data.cancel_hours,

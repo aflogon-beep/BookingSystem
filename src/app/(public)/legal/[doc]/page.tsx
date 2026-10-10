@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { localizedPath } from "@/lib/domain/i18n";
 import { isLegalDoc, LEGAL_DOCS, LEGAL_TITLES, legalDocument } from "@/lib/domain/legal";
+import { webText } from "@/lib/domain/web-text";
 import { getLocale } from "@/lib/i18n";
 
 import { loadLegalInfo } from "../../data";
@@ -20,13 +21,14 @@ export default async function LegalPage({ params }: PageProps<"/legal/[doc]">) {
   if (!isLegalDoc(doc)) notFound();
   const [locale, info] = await Promise.all([getLocale(), loadLegalInfo()]);
   const document = legalDocument(doc, locale, info);
+  const text = webText(locale);
 
   return (
     <article className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-6 tablet:px-[22px] tablet:py-10">
       <header>
         <h1 className="text-[1.6rem] tracking-[-0.02em] tablet:text-[2rem]">{document.title}</h1>
         <p className="mt-1 text-[0.8rem] text-muted-foreground">
-          {locale === "en" ? "Last updated" : "Última actualización"}: {document.updated}
+          {text.lastUpdated}: {document.updated}
         </p>
       </header>
       {document.sections.map((section) => (
@@ -39,7 +41,7 @@ export default async function LegalPage({ params }: PageProps<"/legal/[doc]">) {
           ))}
         </section>
       ))}
-      <nav aria-label={locale === "en" ? "Legal" : "Textos legales"} className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line-2 pt-4 text-[0.82rem]">
+      <nav aria-label={text.legalLabel} className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line-2 pt-4 text-[0.82rem]">
         {LEGAL_DOCS.filter((other) => other !== doc).map((other) => (
           <Link key={other} href={localizedPath(locale, `/legal/${other}`)} className="text-primary underline-offset-2 hover:underline">
             {LEGAL_TITLES[locale][other]}

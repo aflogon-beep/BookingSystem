@@ -7,6 +7,8 @@ const info: LegalInfo = {
   legalName: "Volcán Tours S.L.",
   taxId: "B12345678",
   address: "Calle La Marina 1, Santa Cruz de Tenerife",
+  registryInfo: "",
+  tourismRegistry: "",
   email: "reservas@volcan.es",
   phone: "+34 922 555 210",
   cancelHours: 24,
@@ -43,6 +45,15 @@ describe("textos legales", () => {
     expect(text(48, "es")).toContain("hasta 48 horas antes");
     expect(text(0, "es")).toContain("no tienen cancelación gratuita");
     expect(text(48, "en")).toContain("up to 48 hours before");
+    expect(text(48, "es")).toContain("no se aplica el derecho de desistimiento");
+  });
+
+  it("el aviso legal añade los registros mercantil y turístico si los hay", () => {
+    const text = legalDocument("condiciones", "es", { ...info, registryInfo: "Tomo 1, folio 2, hoja TF-3", tourismRegistry: "AT-38-1234" })
+      .sections[0]?.paragraphs.join(" ");
+    expect(text).toContain("Registro Mercantil: Tomo 1, folio 2, hoja TF-3.");
+    expect(text).toContain("Registro General Turístico de Canarias n.º AT-38-1234.");
+    expect(legalDocument("condiciones", "es", info).sections[0]?.paragraphs).toHaveLength(1);
   });
 
   it("los mismos apartados en español e inglés, con fecha de revisión", () => {

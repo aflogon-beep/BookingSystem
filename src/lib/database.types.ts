@@ -307,14 +307,14 @@ isOneToOne: false
                   ]
                 },"settings": {
                   Row: {
-                    "address": string,"business_name": string,"cancel_hours": number,"created_at": string,"currency": string,"customer_retention_months": number,"cutoff_hours": number,"default_capacity": number,"email": string,"id": number,"languages": (string)[],"legal_name": string,"phone": string,"setup_done_at": string | null,"tax_id": string,"timezone": string
+                    "address": string,"business_name": string,"cancel_hours": number,"created_at": string,"currency": string,"customer_retention_months": number,"cutoff_hours": number,"default_capacity": number,"email": string,"id": number,"languages": (string)[],"legal_name": string,"phone": string,"registry_info": string,"setup_done_at": string | null,"tax_id": string,"timezone": string,"tourism_registry": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "address"?: string,"business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"customer_retention_months"?: number,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"legal_name"?: string,"phone"?: string,"setup_done_at"?: string | null,"tax_id"?: string,"timezone"?: string
+                    "address"?: string,"business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"customer_retention_months"?: number,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"legal_name"?: string,"phone"?: string,"registry_info"?: string,"setup_done_at"?: string | null,"tax_id"?: string,"timezone"?: string,"tourism_registry"?: string
                   }
                   Update: {
-                    "address"?: string,"business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"customer_retention_months"?: number,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"legal_name"?: string,"phone"?: string,"setup_done_at"?: string | null,"tax_id"?: string,"timezone"?: string
+                    "address"?: string,"business_name"?: string,"cancel_hours"?: number,"created_at"?: string,"currency"?: string,"customer_retention_months"?: number,"cutoff_hours"?: number,"default_capacity"?: number,"email"?: string,"id"?: number,"languages"?: (string)[],"legal_name"?: string,"phone"?: string,"registry_info"?: string,"setup_done_at"?: string | null,"tax_id"?: string,"timezone"?: string,"tourism_registry"?: string
                   }
                   Relationships: [
                     

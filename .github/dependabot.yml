@@ -1,4 +1,6 @@
-# Avisos y PRs semanales para actualizar dependencias (npm y GitHub Actions).
+# PRs semanales para actualizar dependencias (npm y GitHub Actions). Las versiones mayores (que
+# pueden romper cosas) no se proponen solas: se actualizan a mano, con calma. Los avisos de
+# seguridad de Dependabot siguen llegando aparte.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -6,6 +8,9 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
     groups:
       minor-and-patch:
         update-types: [minor, patch]
@@ -13,3 +18,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

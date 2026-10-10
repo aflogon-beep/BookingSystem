@@ -98,6 +98,23 @@ describe("anonymize_customer", () => {
     expect((await boss.db.rpc("anonymize_customer", { p_customer_id: customerId })).error).toBeNull();
     const { data: again } = await adminDb.from("customers").select("anonymized_at").eq("id", customerId).single();
     expect(again?.anonymized_at).toBe(customer?.anonymized_at);
+
+    // Sus datos no pueden volver: nadie edita un cliente anonimizado ni le cuelga reservas.
+    expect((await adminDb.from("customers").update({ name: "Lucía Pérez" }).eq("id", customerId)).error?.code).toBe("RB011");
+    const { data: session } = await adminDb.from("bookings").select("session_id").eq("id", bookingId).single();
+    const hung = await adminDb
+      .from("bookings")
+      .insert({ code: "VTZZ9999", session_id: session?.session_id ?? "", customer_id: customerId, channel: "phone", total_cents: 0 });
+    expect(hung.error?.code).toBe("RB011");
+  });
+
+  it("el equipo solo edita nombre, email y teléfono, nunca la marca de anonimizado", async () => {
+    const { customerId } = await book(await createSession());
+    const mark = await member.db.from("customers").update({ anonymized_at: new Date().toISOString() }).eq("id", customerId);
+    expect(mark.error?.code).toBe("42501");
+    const phone = await member.db.from("customers").update({ phone: "+34 600 999 999" }).eq("id", customerId).select("phone");
+    expect(phone.error).toBeNull();
+    expect(phone.data).toEqual([{ phone: "+34 600 999 999" }]);
   });
 
   it("un cliente que no existe da P0002", async () => {
@@ -105,7 +122,29 @@ describe("anonymize_customer", () => {
   });
 });
 
+// Ojo: la función recorre todos los clientes de la base compartida. Los clientes de los tests y del
+// seed son de ahora, así que solo caen los creados aquí con fechas antiguas.
 describe("anonymize_expired_customers", () => {
+  it("con una fecha de referencia, el corte es exacto: cuenta el alta del cliente sin reservas", async () => {
+    const { data, error } = await adminDb
+      .from("customers")
+      .insert([
+        { name: "Antes del corte", email: `antes-${testTag}@example.test`, created_at: "2016-12-31T00:00:00Z" },
+        { name: "Después del corte", email: `despues-${testTag}@example.test`, created_at: "2017-01-02T00:00:00Z" },
+      ])
+      .select("id, name");
+    if (error) throw error;
+    customerIds.push(...data.map((row) => row.id));
+    // 24 meses antes de 2019-01-01 = 2017-01-01.
+    expect((await adminDb.rpc("anonymize_expired_customers", { p_as_of: "2019-01-01T00:00:00Z" })).error).toBeNull();
+    const { data: rows } = await adminDb.from("customers").select("id, anonymized_at").in("id", data.map((row) => row.id));
+    const anonymized = new Map((rows ?? []).map((row) => [row.id, row.anonymized_at !== null]));
+    expect(data.map((row) => [row.name, anonymized.get(row.id)])).toEqual([
+      ["Antes del corte", true],
+      ["Después del corte", false],
+    ]);
+  });
+
   it("anonimiza a quien pasó el plazo desde su última salida y deja a quien tiene salidas recientes", async () => {
     const { customerId: recent } = await book(await createSession());
     const { data: old, error } = await adminDb
