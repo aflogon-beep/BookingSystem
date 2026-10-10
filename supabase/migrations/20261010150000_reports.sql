@@ -1,8 +1,9 @@
 -- Tarea 3.5: Informes.
 
 -- Resumen de un rango de días (en la hora del negocio, Atlantic/Canary) para la pantalla Informes:
--- reservas confirmadas por día de salida, producto, canal e idioma, y aforo y plazas ocupadas de
--- las salidas no canceladas. Se agrega en la BD para no traer miles de filas a la app.
+-- reservas confirmadas por día de salida, producto, canal e idioma, y aforo y plazas ocupadas
+-- (por reservas confirmadas) de las salidas no canceladas. Se agrega en la BD para no traer
+-- miles de filas a la app.
 -- security invoker: RLS de cada tabla decide (solo el equipo ve reservas y salidas).
 create function public.report_summary(p_from date, p_to date)
 returns jsonb
@@ -40,10 +41,19 @@ begin
       and s.starts_at >= v_from
       and s.starts_at < v_to
   ),
+  -- Plazas de las mismas reservas confirmadas (sin bloqueos web a medio pagar), para que la
+  -- ocupación cuadre con ingresos y pasajeros.
   ss as (
-    select a.product_id, a.capacity, a.booked_seats
-    from public.session_availability a
-    join public.sessions s on s.id = a.session_id
+    select
+      s.product_id,
+      s.capacity,
+      coalesce((
+        select sum(l.qty)
+        from public.bookings b
+        join public.booking_lines l on l.booking_id = b.id
+        where b.session_id = s.id and b.status = 'confirmed' and l.takes_seat
+      ), 0)::integer as booked_seats
+    from public.sessions s
     where s.status <> 'cancelled'
       and s.starts_at >= v_from
       and s.starts_at < v_to

@@ -29,7 +29,7 @@ describe("reportRange", () => {
     expect(range.days).toHaveLength(30);
   });
 
-  it("futuros: hoy y los 29 siguientes, también con cambio de hora", () => {
+  it("futuros: hoy y los 29 siguientes, aunque haya un cambio de hora en medio", () => {
     const range = reportRange("futuros", "2030-03-15");
     expect(range).toMatchObject({ from: "2030-03-15", to: "2030-04-13" });
     expect(new Set(range.days).size).toBe(30);
@@ -114,6 +114,11 @@ describe("buildReport", () => {
       ["Inglés", 4, 100],
       ["Español", 3, 75],
     ]);
+  });
+
+  it("los porcentajes de canal suman 100 aunque llegue un canal desconocido", () => {
+    const withUnknown = buildReport({ ...summary, channels: [...summary.channels, { channel: "otro", revenue_cents: 99_000 }] }, days, "2030-07-01");
+    expect(withUnknown.channels.reduce((sum, channel) => sum + channel.sharePercent, 0)).toBeCloseTo(100);
   });
 
   it("sin datos no divide entre cero", () => {

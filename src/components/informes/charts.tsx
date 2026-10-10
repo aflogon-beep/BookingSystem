@@ -12,10 +12,14 @@ const shortDay = (day: string) => format(parseISO(day), "d MMM", { locale: es })
 export function DailyRevenueChart({ report }: { report: Report }) {
   const top = report.chartTopCents;
   return (
-    <figure className="m-0 grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[150px_auto] gap-x-2.5 tablet:grid-rows-[200px_auto]">
+    <figure
+      aria-label="Ingresos por día de salida"
+      className="m-0 grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[150px_auto] gap-x-2.5 tablet:grid-rows-[200px_auto]"
+    >
+      {/* El eje lleva céntimos si hace falta: con importes pequeños el tope puede ser 1,50 €. */}
       <div aria-hidden="true" className="-my-1.5 flex flex-col justify-between text-right text-[0.7rem] text-faint tabular-nums">
-        <span>{euros(top)}</span>
-        <span>{euros(top / 2)}</span>
+        <span>{formatCents(top)}</span>
+        <span>{formatCents(Math.round(top / 2))}</span>
         <span>0</span>
       </div>
       <div className="relative border-b border-line bg-[linear-gradient(var(--color-line-2)_1px,transparent_1px)] bg-size-[100%_50%]">
@@ -23,11 +27,13 @@ export function DailyRevenueChart({ report }: { report: Report }) {
           {report.days.map((day) => (
             <li
               key={day.day}
-              title={`${shortDay(day.day)}: ${formatCents(day.revenueCents)}`}
-              aria-label={`${shortDay(day.day)}: ${formatCents(day.revenueCents)}`}
               className={cn("min-w-0.5 flex-1 rounded-t-[3px] hover:brightness-110", day.future ? "bg-[#B3D4F7]" : "bg-primary")}
               style={{ height: `${day.heightPercent.toFixed(1)}%` }}
-            />
+            >
+              <span className="sr-only">
+                {shortDay(day.day)}: {formatCents(day.revenueCents)}
+              </span>
+            </li>
           ))}
         </ol>
       </div>
@@ -49,12 +55,12 @@ export function ProductBars({ report }: { report: Report }) {
   return (
     <ul className="m-0 flex list-none flex-col gap-3 p-0">
       {report.products.map((product) => (
-        <li key={product.id} className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)_auto] items-center gap-3 text-[0.86rem] tablet:grid-cols-[minmax(0,200px)_minmax(0,1fr)_auto]">
+        <li key={product.id} className="grid grid-cols-[minmax(90px,170px)_minmax(0,1fr)_auto] items-center gap-2.5 text-[0.86rem]">
           <span className="flex min-w-0 items-center gap-2">
             <span aria-hidden="true" className="size-2.5 flex-none rounded-[3px]" style={{ background: product.color }} />
             <span className="truncate">{product.name}</span>
           </span>
-          <span aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-surface-2">
+          <span aria-hidden="true" className="h-[9px] overflow-hidden rounded-full bg-line-2">
             <span className="block h-full rounded-full" style={{ width: `${product.widthPercent}%`, background: product.color }} />
           </span>
           <span className="text-right whitespace-nowrap tabular-nums">
@@ -93,9 +99,9 @@ export function LanguageBars({ report }: { report: Report }) {
   return (
     <ul className="m-0 flex list-none flex-col gap-3 p-0">
       {report.languages.map((language) => (
-        <li key={language.language} className="grid grid-cols-[80px_minmax(0,1fr)_auto] items-center gap-3 text-[0.86rem]">
+        <li key={language.language} className="grid grid-cols-[80px_minmax(0,1fr)_auto] items-center gap-2.5 text-[0.86rem]">
           <span>{language.label}</span>
-          <span aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-surface-2">
+          <span aria-hidden="true" className="h-[9px] overflow-hidden rounded-full bg-line-2">
             <span className="block h-full rounded-full bg-primary" style={{ width: `${language.widthPercent}%` }} />
           </span>
           <span className="tabular-nums">{language.pax}</span>

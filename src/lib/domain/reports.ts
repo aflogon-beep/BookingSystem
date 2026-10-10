@@ -100,7 +100,8 @@ export function buildReport(summary: ReportSummary, days: readonly string[], tod
   const maxProduct = Math.max(1, ...products.map((product) => product.revenue_cents));
 
   const channelRevenue = new Map(summary.channels.map((row) => [row.channel, row.revenue_cents]));
-  const channelTotal = summary.channels.reduce((sum, row) => sum + row.revenue_cents, 0);
+  // Solo los canales que se pintan, para que los porcentajes sumen 100.
+  const channelTotal = CHANNEL_COLORS.reduce((sum, { channel }) => sum + (channelRevenue.get(channel) ?? 0), 0);
 
   const languages = summary.languages.filter((row) => row.pax > 0).sort((a, b) => b.pax - a.pax || a.language.localeCompare(b.language));
   const maxLanguage = Math.max(1, ...languages.map((row) => row.pax));

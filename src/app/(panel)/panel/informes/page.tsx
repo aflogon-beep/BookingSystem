@@ -55,7 +55,8 @@ export default async function Page({ searchParams }: PageProps<"/panel/informes"
         </nav>
       </div>
 
-      <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card tablet:grid-cols-4">
+      {/* Como el prototipo: 2 columnas por debajo de 820 px, para que quepan importes largos. */}
+      <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card min-[820px]:grid-cols-4">
         {[
           ["Ingresos", formatCents(roundToEuros(kpis.revenueCents)), kpis.bookings === 1 ? "1 reserva" : `${kpis.bookings} reservas`],
           ["Pasajeros", String(kpis.pax), `${kpis.paxPerBooking} por reserva`],
@@ -67,13 +68,13 @@ export default async function Page({ searchParams }: PageProps<"/panel/informes"
             className={cn(
               "min-w-0 px-3.5 py-3 tablet:px-[18px] tablet:py-3.5",
               index % 2 === 1 && "border-l border-line-2",
-              index >= 2 && "border-t border-line-2 tablet:border-t-0",
-              index === 2 && "tablet:border-l",
+              index >= 2 && "border-t border-line-2 min-[820px]:border-t-0",
+              index === 2 && "min-[820px]:border-l",
             )}
           >
             <dt className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{label}</dt>
             <dd className="mt-[3px] text-[1.25rem] font-semibold tracking-[-0.03em] tabular-nums tablet:text-[1.6rem]">{value}</dd>
-            <dd className="text-[0.8rem] text-muted-foreground">{detail}</dd>
+            <dd className="text-[0.76rem] text-muted-foreground">{detail}</dd>
           </div>
         ))}
       </dl>
