@@ -115,6 +115,12 @@ isOneToOne: false
       foreignKeyName: "bookings_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_staffing"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     }
@@ -255,6 +261,12 @@ isOneToOne: false
       foreignKeyName: "session_resources_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_staffing"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "session_resources_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     }
@@ -347,6 +359,12 @@ isOneToOne: false
       columns: ["session_id"]
 isOneToOne: false
       referencedRelation: "session_availability"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
+      referencedRelation: "session_staffing"
       referencedColumns: ["session_id"]
     },{
       foreignKeyName: "bookings_session_id_fkey"

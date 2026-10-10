@@ -71,7 +71,7 @@ export const NOTHING_MISSING: MissingByType = { guide: 0, vehicle: 0, equipment:
 
 export const totalMissing = (missing: MissingByType) => RESOURCE_TYPES.reduce((sum, type) => sum + missing[type], 0);
 
-/** «Sin guía asignado», «Sin guía/vehículo asignado» (como el prototipo). */
+/** «Sin guía asignado», «Sin guía/vehículo asignado». A diferencia del prototipo, solo nombra lo que falta. */
 export function missingText(missing: MissingByType): string {
   const types = RESOURCE_TYPES.filter((type) => missing[type] > 0).map((type) => RESOURCE_TYPE_TEXT[type].singular);
   return `Sin ${types.join("/")} asignado`;

@@ -6,6 +6,8 @@ import { TopBar } from "@/components/panel/top-bar";
 import { Toaster } from "@/components/ui/sonner";
 import { requireStaff } from "@/lib/auth";
 
+import { countAlerts } from "./panel/today-data";
+
 // Backoffice del equipo: solo miembros de staff (el proxy redirige antes, pero la comprobación real es esta).
 export const metadata: Metadata = {
   title: { template: "%s · Ruta Reservas", default: "Panel · Ruta Reservas" },
@@ -14,6 +16,8 @@ export const metadata: Metadata = {
 
 export default async function PanelLayout({ children, modal }: LayoutProps<"/">) {
   const staff = await requireStaff();
+  // Se recalcula con cada revalidatePath del panel (por ejemplo, al asignar equipo).
+  const alerts = await countAlerts();
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -23,7 +27,7 @@ export default async function PanelLayout({ children, modal }: LayoutProps<"/">)
       >
         Saltar al contenido
       </a>
-      <TopBar staff={staff} />
+      <TopBar staff={staff} alerts={alerts} />
       <NavSub role={staff.role} />
       <main id="contenido" className="mx-auto w-full max-w-[1380px] flex-1 px-4 pt-4 pb-28 tablet:px-6 tablet:pt-[22px] tablet:pb-14">
         {children}

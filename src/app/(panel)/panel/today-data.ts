@@ -3,7 +3,8 @@ import "server-only";
 import type { ActivityItem, TodaySession } from "@/components/hoy/types";
 import { createClient } from "@/lib/db/server";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
-import { NOTHING_MISSING, dayKpis, shiftDay, type DayBooking, type MissingByType } from "@/lib/domain/today";
+import { businessToday } from "@/lib/domain/schedule";
+import { NOTHING_MISSING, attentionItems, dayKpis, shiftDay, type DayBooking, type MissingByType } from "@/lib/domain/today";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -137,4 +138,9 @@ async function loadActivity(supabase: Supabase): Promise<ActivityItem[]> {
     channel: row.bookings.channel,
     cancelled: row.bookings.status === "cancelled",
   }));
+}
+
+/** Cuántos avisos hay ahora (el punto rojo de la campana). */
+export async function countAlerts(now = new Date()): Promise<number> {
+  return attentionItems(await loadSoonSessions(businessToday(now), now), now).length;
 }

@@ -159,8 +159,23 @@ describe("requiere atención", () => {
     ]);
   });
 
+  it("no avisa del equipo de salidas cerradas, canceladas o que ya han salido", () => {
+    const missing = { guide: 1, vehicle: 0, equipment: 0 };
+    const items = attentionItems(
+      [
+        session("a", { booked: 4, status: "closed", missing }),
+        session("b", { booked: 4, status: "cancelled", missing }),
+        session("c", { booked: 4, startsAt: "2026-10-09T09:59:00Z", missing }),
+      ],
+      now,
+    );
+    expect(items).toEqual([]);
+  });
+
   it("texto de lo que falta", () => {
     expect(missingText({ guide: 2, vehicle: 0, equipment: 0 })).toBe("Sin guía asignado");
+    expect(missingText({ guide: 1, vehicle: 0, equipment: 1 })).toBe("Sin guía/equipo asignado");
+    expect(missingText({ guide: 1, vehicle: 1, equipment: 1 })).toBe("Sin guía/vehículo/equipo asignado");
   });
 });
 

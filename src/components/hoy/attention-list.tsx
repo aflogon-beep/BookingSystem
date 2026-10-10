@@ -7,12 +7,22 @@ import { longDayLabel } from "@/lib/domain/calendar";
 import { shiftDay, type AttentionItem } from "@/lib/domain/today";
 
 /** Avisos de las próximas 48 h (Hoy · Requiere atención y la pantalla Avisos), enlazados al manifiesto. */
-export function AttentionList({ items, today, limit }: { items: AttentionItem<TodaySession>[]; today: string; limit?: number }) {
+export function AttentionList({
+  items,
+  today,
+  limit,
+  emptyTitle = "Todo en orden",
+}: {
+  items: AttentionItem<TodaySession>[];
+  today: string;
+  limit?: number;
+  emptyTitle?: string;
+}) {
   if (!items.length) {
     return (
       <ul>
         <FeedItem icon={CircleCheck} tone="ok">
-          <b>Todo en orden</b>
+          <b>{emptyTitle}</b>
           <div className="text-muted-foreground">Las salidas de las próximas 48 h tienen equipo asignado y llegan al mínimo.</div>
         </FeedItem>
       </ul>

@@ -25,7 +25,7 @@ export default async function Page() {
         </p>
       </div>
       <div className="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card">
-        <AttentionList items={items} today={today} />
+        <AttentionList items={items} today={today} emptyTitle="Sin avisos" />
       </div>
     </section>
   );

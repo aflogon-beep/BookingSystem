@@ -97,7 +97,11 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
               <span
                 className={cn(
                   "rounded-full px-2 py-0.5 text-[0.72rem] font-semibold",
-                  attention.length ? "bg-warn-soft text-warn" : "bg-ok-soft text-ok",
+                  attention.some((item) => item.kind === "staff")
+                    ? "bg-danger-soft text-danger"
+                    : attention.length
+                      ? "bg-warn-soft text-warn"
+                      : "bg-ok-soft text-ok",
                 )}
               >
                 {attention.length}
