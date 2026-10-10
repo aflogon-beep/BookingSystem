@@ -15,6 +15,8 @@ import {
   toggleGuideLanguage,
 } from "@/lib/domain/resources";
 import { isLanguageCode } from "@/lib/domain/settings";
+import { rangeForDays } from "@/lib/domain/calendar";
+import { assignPendingMessage } from "@/lib/domain/whereabouts";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -103,4 +105,23 @@ export async function deleteResource(id: string): Promise<ActionResult> {
   if (error || data.length !== 1) return { ok: false, error: "No se pudo eliminar. Inténtalo de nuevo." };
   refresh();
   return { ok: true };
+}
+
+const daySchema = z.iso.date();
+const pendingSchema = z.object({ sessions: z.int(), missing: z.int() });
+
+/** «Asignar pendientes»: rellena el equipo de las salidas de ese día con reservas y huecos. */
+export async function assignPending(day: string): Promise<{ level: "ok" | "warn" | "error"; message: string }> {
+  await requireAccess("equipo");
+  if (!daySchema.safeParse(day).success) return { level: "error", message: "Día no válido." };
+  const range = rangeForDays([day]);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("sessions_assign_pending", { p_from: range.from, p_to: range.to });
+  const parsed = pendingSchema.safeParse(data);
+  if (error || !parsed.success) {
+    return { level: "error", message: error?.code === "42501" ? "No tienes permiso para hacer esto." : SAVE_FAILED };
+  }
+  revalidatePath("/panel", "layout");
+  const { level, text } = assignPendingMessage(parsed.data);
+  return { level, message: text };
 }

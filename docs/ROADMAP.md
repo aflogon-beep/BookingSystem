@@ -30,7 +30,7 @@ Cada tarea se lanza en Claude Code con `/nueva-funcionalidad <nº>`. Marca `[x]`
 ## Fase 3 — Operación avanzada
 - [x] 3.1 Recursos: fichas, idiomas y asientos. Restricción de solapes en BD.
 - [x] 3.2 Asignación automática y manual en el manifiesto.
-- [ ] 3.3 Equipo · "Dónde están" (línea de tiempo) y planificación semanal.
+- [x] 3.3 Equipo · "Dónde están" (línea de tiempo) y planificación semanal.
 - [ ] 3.4 Reservas: listado con pestañas, filtros y CSV. Clientes.
 - [ ] 3.5 Informes.
 - [ ] 3.6 Avisos (sin equipo, bajo mínimo) y asistente de configuración inicial.

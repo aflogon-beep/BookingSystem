@@ -344,6 +344,9 @@ isOneToOne: false
 "create_booking_hold":
 { Args: { "p_booking"?: Json,"p_customer": Json,"p_hold_minutes"?: number,"p_lines": Json,"p_session_id": string }; Returns: Json
                            },
+"fill_session_resources":
+{ Args: { "p_session_id": string }; Returns: number
+                           },
 "format_cents":
 { Args: { "p_cents": number }; Returns: string
                            },
@@ -382,6 +385,9 @@ isOneToOne: false
                            },
 "session_set_status":
 { Args: { "p_session_id": string,"p_status": string }; Returns: number
+                           },
+"sessions_assign_pending":
+{ Args: { "p_from": string,"p_to": string }; Returns: Json
                            },
 "staff_actor":
 { Args: Record<PropertyKey, never>; Returns: string
