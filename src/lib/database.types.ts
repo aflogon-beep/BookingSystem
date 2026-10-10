@@ -429,6 +429,9 @@ isOneToOne: false
 "payment_method_label":
 { Args: { "p_method": string }; Returns: string
                            },
+"report_summary":
+{ Args: { "p_from": string,"p_to": string }; Returns: Json
+                           },
 "save_product":
 { Args: { "p_id"?: string,"p_prices": Json,"p_product": Json,"p_rules": Json }; Returns: Json
                            },
