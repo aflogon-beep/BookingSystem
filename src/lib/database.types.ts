@@ -378,7 +378,7 @@ isOneToOne: false
 { Args: { "p_session_id": string }; Returns: number
                            },
 "session_set_resources":
-{ Args: { "p_resource_ids": string[],"p_session_id": string }; Returns: undefined
+{ Args: { "p_resource_ids": (string)[],"p_session_id": string }; Returns: undefined
                            },
 "session_set_status":
 { Args: { "p_session_id": string,"p_status": string }; Returns: number
