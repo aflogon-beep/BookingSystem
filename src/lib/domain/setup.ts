@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { CURRENCIES, LANGUAGES, LANGUAGE_CODES, SETTINGS_LIMITS, TICKET_TYPE_LIMITS, isLanguageCode } from "@/lib/domain/settings";
+import { CURRENCIES, LANGUAGES, LANGUAGE_CODES, SETTINGS_LIMITS, isLanguageCode } from "@/lib/domain/settings";
 import { PRODUCT_COLORS, PRODUCT_LIMITS, parsePriceInput } from "@/lib/domain/product";
 import { RESOURCE_LIMITS, type ProductNeeds } from "@/lib/domain/resources";
 import { parseTimes } from "@/lib/domain/schedule";
@@ -141,7 +141,7 @@ export function checkSetupStep(step: SetupStep, draft: SetupDraft, context: Setu
       if (parsePriceInput(ticket.price) === null) return `Escribe el precio de ${ticket.name} (por ejemplo, 45 o 45,50).`;
     }
     if (tour.meetingPoint.trim().length > PRODUCT_LIMITS.meetingPoint) return "El punto de encuentro es demasiado largo.";
-    if (!tour.weekdays.length) return "Elige al menos un día.";
+    if (!tour.weekdays.length || tour.weekdays.some((day) => !Number.isInteger(day) || day < 1 || day > 7)) return "Elige al menos un día.";
     if (!parseTimes(tour.times).length) return "Escribe al menos una hora de salida, por ejemplo 10:00.";
     if (!draft.languages.includes(tour.language)) return "Elige el idioma del tour.";
   }
@@ -207,7 +207,7 @@ export function parseSetup(draft: SetupDraft, context: SetupContext & { existing
     ? []
     : DEFAULT_TICKET_TYPES.filter((ticket) => refs.includes(ticket.key)).map((ticket, index) => ({
         key: ticket.key,
-        name: ticket.name.slice(0, TICKET_TYPE_LIMITS.name),
+        name: ticket.name,
         note: ticket.note,
         takes_seat: ticket.takesSeat,
         sort: context.nextTicketSort + index,
@@ -267,7 +267,7 @@ export const setupDraftSchema = z.object({
     capacity: text(10),
     minPax: text(10),
     meetingPoint: text(500),
-    weekdays: z.array(z.number().int()).max(7),
+    weekdays: z.array(z.number().int().min(1).max(7)).max(7),
     times: text(200),
     language: text(5),
   }),

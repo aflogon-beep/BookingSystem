@@ -53,6 +53,7 @@ describe("asistente de configuración", () => {
     expect(checkSetupStep(4, draft({ tour: { ...tour, durationMin: "10" } }), CONTEXT)).toBe("La duración va de 15 a 1440 minutos.");
     expect(checkSetupStep(4, draft({ tour: { ...tour, minPax: "20" } }), CONTEXT)).toBe("El mínimo no puede ser mayor que el aforo.");
     expect(checkSetupStep(4, draft({ tour: { ...tour, weekdays: [] } }), CONTEXT)).toBe("Elige al menos un día.");
+    expect(checkSetupStep(4, draft({ tour: { ...tour, weekdays: [0, 8] } }), CONTEXT)).toBe("Elige al menos un día.");
     expect(checkSetupStep(4, draft({ tour: { ...tour, times: "a las diez" } }), CONTEXT)).toBe(
       "Escribe al menos una hora de salida, por ejemplo 10:00.",
     );
@@ -141,5 +142,6 @@ describe("asistente de configuración", () => {
   it("rechaza lo que no tiene la forma del borrador", () => {
     expect(parseSetupInput({ businessName: "x" }, CONTEXT)).toEqual({ ok: false, error: "Datos no válidos. Recarga la página.", step: 1 });
     expect(parseSetupInput(draft(), CONTEXT).ok).toBe(true);
+    expect(parseSetupInput({ ...draft(), tour: { ...draft().tour, weekdays: [9] } }, CONTEXT).ok).toBe(false);
   });
 });

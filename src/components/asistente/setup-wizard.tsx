@@ -29,14 +29,13 @@ const chip = (on: boolean) =>
     on ? "border-[#b3d4f7] bg-primary-soft text-primary-dark" : "border-line bg-surface text-muted-foreground hover:text-foreground",
   );
 
-function Field({ id, label, hint, className, children }: { id: string; label: string; hint?: string; className?: string; children: ReactNode }) {
+function Field({ id, label, className, children }: { id: string; label: string; className?: string; children: ReactNode }) {
   return (
     <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
       <Label htmlFor={id} className="text-[#2a3644]">
         {label}
       </Label>
       {children}
-      {hint ? <FieldHint id={`${id}-hint`}>{hint}</FieldHint> : null}
     </div>
   );
 }
@@ -74,7 +73,7 @@ export function SetupWizard({ initialDraft, context, today }: { initialDraft: Se
     startTransition(async () => {
       const result = await completeSetup(draft);
       if (!result.ok) {
-        if (result.step !== LAST_STEP) setStep(result.step);
+        if (result.step !== LAST_STEP) goTo(result.step);
         setError(result.error);
         return;
       }

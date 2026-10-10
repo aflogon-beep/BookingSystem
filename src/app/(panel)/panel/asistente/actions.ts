@@ -38,13 +38,17 @@ export async function completeSetup(input: unknown): Promise<CompleteSetupResult
   const payload = parsed.value;
 
   const base = slugify(payload.product.name);
-  const { data: taken } = await supabase.from("products").select("slug").like("slug", `${base}%`);
+  // uniqueSlug recorta la base para añadir «-2»: se buscan también esos.
+  const { data: taken } = await supabase.from("products").select("slug").like("slug", `${base.slice(0, 77)}%`);
   if (!taken) return { ok: false, error: SAVE_FAILED, step: 5 };
   const slug = uniqueSlug(base, new Set(taken.map((row) => row.slug)));
 
   const { data: productId, error } = await supabase.rpc("complete_setup", {
     p: { ...payload, product: { ...payload.product, slug } },
   });
+  if (error?.message === "Idioma en uso") {
+    return { ok: false, error: "Ya hay horarios en un idioma que has quitado. Recarga la página.", step: 1 };
+  }
   if (error || typeof productId !== "string") {
     console.error("complete_setup falló", error?.code, error?.message);
     return { ok: false, error: SAVE_FAILED, step: 5 };

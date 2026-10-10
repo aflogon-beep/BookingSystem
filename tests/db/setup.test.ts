@@ -101,6 +101,8 @@ describe("complete_setup", () => {
 
   it("si algo falla no guarda nada", async () => {
     const bad = payload("Tour roto (test)");
+    bad.settings = { ...settings, business_name: `Roto ${tag}` };
+    bad.ticket_types = [{ key: "vip", name: "VIP roto", note: `Roto ${tag}`, takes_seat: true, sort: 91 }];
     bad.resources = [{ name: `Roto ${tag}`, type: "vehicle", seats: 1000, languages: [] }];
     const { error } = await admin.db.rpc("complete_setup", { p: bad });
     expect(error).not.toBeNull();
@@ -108,5 +110,16 @@ describe("complete_setup", () => {
     expect(data).toEqual([]);
     const { data: products } = await adminDb.from("products").select("id").eq("name", "Tour roto (test)");
     expect(products).toEqual([]);
+    const { data: tickets } = await adminDb.from("ticket_types").select("id").eq("note", `Roto ${tag}`);
+    expect(tickets).toEqual([]);
+    const { data: current } = await adminDb.from("settings").select("business_name").eq("id", 1).single();
+    expect(current?.business_name).toBe(settings.business_name);
+  });
+
+  it("no deja quitar un idioma que usan los horarios", async () => {
+    const bad = payload("Tour sin idioma (test)");
+    bad.settings = { ...settings, languages: ["en"] };
+    const { error } = await admin.db.rpc("complete_setup", { p: bad });
+    expect(error?.message).toBe("Idioma en uso");
   });
 });

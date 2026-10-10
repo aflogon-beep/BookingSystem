@@ -14,7 +14,8 @@ update public.settings set setup_done_at = now() where exists (select 1 from pub
 
 -- Guarda el asistente en una sola transacción: datos del negocio, tipos de entrada nuevos,
 -- equipo (guías y vehículos) y el primer tour con sus precios y horario (save_product).
--- Añade a lo que ya hay: no borra nada. Solo admin (los ajustes y los tipos de entrada son suyos).
+-- Añade a lo que ya hay: no borra nada (los ajustes sí se reescriben con lo del asistente).
+-- Solo admin (los ajustes y los tipos de entrada son suyos).
 -- p:
 --   settings      {business_name, currency, languages}
 --   ticket_types  [{key, name, note, takes_seat, sort}]  tipos nuevos; key solo sirve para los precios
@@ -38,6 +39,15 @@ declare
 begin
   if not public.is_admin() then
     raise exception 'Sin permiso' using errcode = 'insufficient_privilege';
+  end if;
+
+  -- Fila de ajustes bloqueada: no se quita un idioma que ya usan los horarios (como en Ajustes).
+  perform 1 from public.settings where id = 1 for update;
+  if exists (
+    select 1 from public.schedule_rules
+    where not (language = any (array(select jsonb_array_elements_text(p->'settings'->'languages'))))
+  ) then
+    raise exception 'Idioma en uso' using errcode = 'check_violation';
   end if;
 
   update public.settings
