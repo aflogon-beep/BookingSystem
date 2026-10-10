@@ -115,6 +115,12 @@ isOneToOne: false
       foreignKeyName: "bookings_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_staffing"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     }
@@ -255,6 +261,12 @@ isOneToOne: false
       foreignKeyName: "session_resources_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_staffing"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "session_resources_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     }
@@ -352,6 +364,12 @@ isOneToOne: false
       foreignKeyName: "bookings_session_id_fkey"
       columns: ["session_id"]
 isOneToOne: false
+      referencedRelation: "session_staffing"
+      referencedColumns: ["session_id"]
+    },{
+      foreignKeyName: "bookings_session_id_fkey"
+      columns: ["session_id"]
+isOneToOne: false
       referencedRelation: "sessions"
       referencedColumns: ["id"]
     },{
@@ -373,6 +391,20 @@ isOneToOne: false
                 },"session_availability": {
                   Row: {
                     "booked_seats": number | null,"capacity": number | null,"free_seats": number | null,"pax": number | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "sessions_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"session_staffing": {
+                  Row: {
+                    "missing": number | null,"missing_equipment": number | null,"missing_guides": number | null,"missing_vehicles": number | null,"product_id": string | null,"session_id": string | null,"starts_at": string | null
                   }
                   ComputedFields: never
                   Relationships: [

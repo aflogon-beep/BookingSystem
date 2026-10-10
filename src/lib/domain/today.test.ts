@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { attentionItems, canBookSession, dayKpis, dayLabel, parseDayParam, sessionFlags, shiftDay, timeAgo } from "./today";
+import {
+  NOTHING_MISSING,
+  attentionItems,
+  canBookSession,
+  dayKpis,
+  dayLabel,
+  missingText,
+  parseDayParam,
+  sessionFlags,
+  shiftDay,
+  timeAgo,
+} from "./today";
 
 const booking = (overrides: Partial<Parameters<typeof dayKpis>[1][number]> = {}) => ({
   sessionId: "s1",
@@ -71,7 +82,14 @@ describe("KPIs del día", () => {
 });
 
 describe("avisos de salida", () => {
-  const base = { status: "open", booked: 0, capacity: 16, minPax: 4 };
+  const base = { status: "open", booked: 0, capacity: 16, minPax: 4, missing: NOTHING_MISSING };
+  const noGuide = { ...NOTHING_MISSING, guide: 1 };
+
+  it("marca sin equipo solo con reservas y antes que bajo mínimo", () => {
+    expect(sessionFlags({ ...base, missing: noGuide })).toEqual([]);
+    expect(sessionFlags({ ...base, booked: 2, missing: noGuide }).map((flag) => flag.label)).toEqual(["Sin equipo", "Bajo mínimo"]);
+    expect(sessionFlags({ ...base, status: "cancelled", booked: 2, missing: noGuide }).map((flag) => flag.label)).toEqual(["Cancelada"]);
+  });
 
   it("marca bajo mínimo solo con reservas", () => {
     expect(sessionFlags(base)).toEqual([]);
@@ -105,6 +123,7 @@ describe("requiere atención", () => {
     booked: 2,
     capacity: 16,
     minPax: 4,
+    missing: NOTHING_MISSING,
     ...overrides,
   });
 
@@ -121,7 +140,42 @@ describe("requiere atención", () => {
       ],
       now,
     );
-    expect(items).toEqual([{ session: expect.objectContaining({ id: "a" }), text: "Faltan 2 para el mínimo (4)" }]);
+    expect(items).toEqual([{ session: expect.objectContaining({ id: "a" }), kind: "min", text: "Faltan 2 para el mínimo (4)" }]);
+  });
+
+  it("avisa de las que no tienen el equipo que necesitan, aunque lleguen al mínimo", () => {
+    const items = attentionItems(
+      [
+        session("a", { booked: 4, missing: { guide: 1, vehicle: 1, equipment: 0 } }),
+        session("b", { missing: { guide: 0, vehicle: 0, equipment: 2 } }),
+        session("c", { booked: 0, missing: { guide: 1, vehicle: 0, equipment: 0 } }),
+      ],
+      now,
+    );
+    expect(items.map((item) => [item.session.id, item.kind, item.text])).toEqual([
+      ["a", "staff", "Sin guía/vehículo asignado"],
+      ["b", "staff", "Sin equipo asignado"],
+      ["b", "min", "Faltan 2 para el mínimo (4)"],
+    ]);
+  });
+
+  it("no avisa del equipo de salidas cerradas, canceladas o que ya han salido", () => {
+    const missing = { guide: 1, vehicle: 0, equipment: 0 };
+    const items = attentionItems(
+      [
+        session("a", { booked: 4, status: "closed", missing }),
+        session("b", { booked: 4, status: "cancelled", missing }),
+        session("c", { booked: 4, startsAt: "2026-10-09T09:59:00Z", missing }),
+      ],
+      now,
+    );
+    expect(items).toEqual([]);
+  });
+
+  it("texto de lo que falta", () => {
+    expect(missingText({ guide: 2, vehicle: 0, equipment: 0 })).toBe("Sin guía asignado");
+    expect(missingText({ guide: 1, vehicle: 0, equipment: 1 })).toBe("Sin guía/equipo asignado");
+    expect(missingText({ guide: 1, vehicle: 1, equipment: 1 })).toBe("Sin guía/vehículo/equipo asignado");
   });
 });
 

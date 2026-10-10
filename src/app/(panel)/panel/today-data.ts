@@ -3,7 +3,8 @@ import "server-only";
 import type { ActivityItem, TodaySession } from "@/components/hoy/types";
 import { createClient } from "@/lib/db/server";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
-import { dayKpis, shiftDay, type DayBooking } from "@/lib/domain/today";
+import { businessToday } from "@/lib/domain/schedule";
+import { NOTHING_MISSING, attentionItems, dayKpis, shiftDay, type DayBooking, type MissingByType } from "@/lib/domain/today";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -17,11 +18,10 @@ const ACTIVITY_LIMIT = 7;
 export async function loadToday(day: string, today: string, now: Date) {
   const supabase = await createClient();
   const dayRange = rangeForDays([day]);
-  const soonRange = rangeForDays([today, shiftDay(today, 1), shiftDay(today, 2)]);
 
   const [sessions, soon, activity] = await Promise.all([
     loadSessions(supabase, dayRange, now),
-    loadSessions(supabase, soonRange, now),
+    loadSoonSessions(today, now),
     loadActivity(supabase),
   ]);
   const bookings = await loadDayBookings(
@@ -32,8 +32,13 @@ export async function loadToday(day: string, today: string, now: Date) {
   return { sessions, kpis: dayKpis(sessions, bookings), soon, activity };
 }
 
+/** Salidas de las próximas 48 h (hoy, mañana y pasado, como el prototipo): las de los avisos. */
+export async function loadSoonSessions(today: string, now: Date): Promise<TodaySession[]> {
+  return loadSessions(await createClient(), rangeForDays([today, shiftDay(today, 1), shiftDay(today, 2)]), now);
+}
+
 async function loadSessions(supabase: Supabase, range: { from: string; to: string }, now: Date): Promise<TodaySession[]> {
-  const [{ data: rows, error }, { data: availability, error: availabilityError }] = await Promise.all([
+  const [{ data: rows, error }, { data: availability, error: availabilityError }, { data: staffing, error: staffingError }] = await Promise.all([
     supabase
       .from("sessions")
       .select("id, starts_at, ends_at, language, capacity, status, products!inner(name, color, min_pax)")
@@ -47,10 +52,22 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
       .gte("starts_at", range.from)
       .lt("starts_at", range.to)
       .gt("booked_seats", 0),
+    supabase
+      .from("session_staffing")
+      .select("session_id, missing_guides, missing_vehicles, missing_equipment")
+      .gte("starts_at", range.from)
+      .lt("starts_at", range.to)
+      .gt("missing", 0),
   ]);
-  if (error || availabilityError) throw new Error("No se pudieron cargar las salidas.");
+  if (error || availabilityError || staffingError) throw new Error("No se pudieron cargar las salidas.");
 
   const booked = new Map(availability.map((row) => [row.session_id, row.booked_seats ?? 0]));
+  const missing = new Map<string | null, MissingByType>(
+    staffing.map((row) => [
+      row.session_id,
+      { guide: row.missing_guides ?? 0, vehicle: row.missing_vehicles ?? 0, equipment: row.missing_equipment ?? 0 },
+    ]),
+  );
   return rows.map((row) => {
     const { date, time } = toBusinessDateTime(row.starts_at);
     return {
@@ -64,6 +81,7 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
       capacity: row.capacity,
       booked: booked.get(row.id) ?? 0,
       minPax: row.products.min_pax,
+      missing: missing.get(row.id) ?? NOTHING_MISSING,
       started: new Date(row.starts_at) <= now,
       past: new Date(row.ends_at) <= now,
       product: { name: row.products.name, color: row.products.color },
@@ -120,4 +138,9 @@ async function loadActivity(supabase: Supabase): Promise<ActivityItem[]> {
     channel: row.bookings.channel,
     cancelled: row.bookings.status === "cancelled",
   }));
+}
+
+/** Cuántos avisos hay ahora (el punto rojo de la campana). */
+export async function countAlerts(now = new Date()): Promise<number> {
+  return attentionItems(await loadSoonSessions(businessToday(now), now), now).length;
 }

@@ -1,5 +1,7 @@
 import { addDays, format, isValid, parseISO } from "date-fns";
 
+import { RESOURCE_TYPES, RESOURCE_TYPE_TEXT, type ResourceType } from "@/lib/domain/resources";
+
 export type DayBooking = {
   sessionId: string;
   status: string;
@@ -62,15 +64,34 @@ export function dayKpis(sessions: readonly DaySessionSummary[], bookings: readon
   };
 }
 
-export type FlaggableSession = { status: string; booked: number; capacity: number; minPax: number };
+/** Equipo que le falta a una salida, por tipo (vista session_staffing). */
+export type MissingByType = Record<ResourceType, number>;
 
-export type SessionFlag = { label: "Cerrada" | "Cancelada" | "Bajo mínimo" | "Completa"; tone: "neutral" | "danger" | "warn" | "blue" };
+export const NOTHING_MISSING: MissingByType = { guide: 0, vehicle: 0, equipment: 0 };
+
+export const totalMissing = (missing: MissingByType) => RESOURCE_TYPES.reduce((sum, type) => sum + missing[type], 0);
+
+/** «Sin guía asignado», «Sin guía/vehículo asignado». A diferencia del prototipo, solo nombra lo que falta. */
+export function missingText(missing: MissingByType): string {
+  const types = RESOURCE_TYPES.filter((type) => missing[type] > 0).map((type) => RESOURCE_TYPE_TEXT[type].singular);
+  return `Sin ${types.join("/")} asignado`;
+}
+
+export type FlaggableSession = { status: string; booked: number; capacity: number; minPax: number; missing: MissingByType };
+
+export type SessionFlag = {
+  label: "Cerrada" | "Cancelada" | "Sin equipo" | "Bajo mínimo" | "Completa";
+  tone: "neutral" | "danger" | "warn" | "blue";
+};
 
 /** Avisos de una salida en la lista del día, en el orden del prototipo. */
 export function sessionFlags(session: FlaggableSession): SessionFlag[] {
   const flags: SessionFlag[] = [];
   if (session.status === "closed") flags.push({ label: "Cerrada", tone: "neutral" });
   if (session.status === "cancelled") flags.push({ label: "Cancelada", tone: "danger" });
+  if (session.status !== "cancelled" && session.booked > 0 && totalMissing(session.missing) > 0) {
+    flags.push({ label: "Sin equipo", tone: "danger" });
+  }
   if (session.status !== "cancelled" && session.booked > 0 && session.booked < session.minPax) {
     flags.push({ label: "Bajo mínimo", tone: "warn" });
   }
@@ -85,20 +106,24 @@ export function canBookSession(session: { status: string; started: boolean; book
 
 export type AttentionSession = FlaggableSession & { id: string; startsAt: string };
 
-export type AttentionItem<T extends AttentionSession> = { session: T; text: string };
+export type AttentionItem<T extends AttentionSession> = { session: T; kind: "staff" | "min"; text: string };
 
 /**
- * «Requiere atención»: salidas abiertas que aún no han salido, con reservas y por debajo del
- * mínimo. (Cuando haya asignación de equipo, también las que no lo tengan.)
+ * Avisos («Requiere atención» y la campana): salidas abiertas que aún no han salido y tienen
+ * reservas, sin el equipo que necesitan o por debajo del mínimo. Como el prototipo, una salida
+ * puede dar los dos avisos.
  */
 export function attentionItems<T extends AttentionSession>(sessions: readonly T[], now: Date): AttentionItem<T>[] {
   return sessions
-    .filter((session) => session.status === "open" && new Date(session.startsAt) > now)
-    .filter((session) => session.booked > 0 && session.booked < session.minPax)
-    .map((session) => ({
-      session,
-      text: `Faltan ${session.minPax - session.booked} para el mínimo (${session.minPax})`,
-    }));
+    .filter((session) => session.status === "open" && new Date(session.startsAt) > now && session.booked > 0)
+    .flatMap((session) => {
+      const items: AttentionItem<T>[] = [];
+      if (totalMissing(session.missing) > 0) items.push({ session, kind: "staff", text: missingText(session.missing) });
+      if (session.booked < session.minPax) {
+        items.push({ session, kind: "min", text: `Faltan ${session.minPax - session.booked} para el mínimo (${session.minPax})` });
+      }
+      return items;
+    });
 }
 
 /** «ahora», «hace 5 min», «hace 3 h», «ayer», «hace 4 días». */
