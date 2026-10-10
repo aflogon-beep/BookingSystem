@@ -453,7 +453,13 @@ isOneToOne: false
                     "product_id": string | null,"session_id": string | null,"starts_at": string | null,"team_free": boolean | null
                   }
                   ComputedFields: never
-                  Relationships: [
+                  Insert: {
+                           "product_id"?: string | null,"session_id"?: string | null,"starts_at"?: string | null,"team_free"?: never
+                         }
+                        Update: {
+                           "product_id"?: string | null,"session_id"?: string | null,"starts_at"?: string | null,"team_free"?: never
+                         }
+                        Relationships: [
                     {
       foreignKeyName: "sessions_product_id_fkey"
       columns: ["product_id"]
