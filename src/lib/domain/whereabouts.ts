@@ -15,6 +15,8 @@ export type DaySession = {
   start: string;
   end: string;
   booked: number;
+  /** Aforo de la salida. */
+  capacity: number;
   missing: number;
   resourceIds: string[];
 };
@@ -145,4 +147,33 @@ export function weeklyPlan<R extends { id: string }>(
     const perDay = days.map((day) => sorted.filter((session) => session.date === day && session.resourceIds.includes(guide.id)));
     return { guide, days: perDay, total: perDay.reduce((sum, list) => sum + list.length, 0) };
   });
+}
+
+/** Fila «Sin asignar» de la línea de tiempo: salidas a las que les falta equipo, por hora. */
+export function unassignedSessions(sessions: readonly DaySession[]): DaySession[] {
+  return sessions.filter((session) => session.missing > 0).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+/** «8/20 pax»: plazas ocupadas de la salida sobre su aforo. */
+export function paxText(session: { booked: number; capacity: number }): string {
+  return `${session.booked}/${session.capacity} pax`;
+}
+
+/**
+ * Reparte salidas en carriles sin solaparse (la primera que cabe), para dibujarlas en filas:
+ * dos salidas a la misma hora en «Sin asignar» van una encima de otra.
+ */
+export function stackLanes<T extends { startsAt: string; endsAt: string }>(items: readonly T[]): T[][] {
+  const lanes: T[][] = [];
+  const sorted = [...items].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  for (const item of sorted) {
+    const start = new Date(item.startsAt).getTime();
+    const lane = lanes.find((list) => {
+      const last = list[list.length - 1];
+      return last !== undefined && new Date(last.endsAt).getTime() <= start;
+    });
+    if (lane) lane.push(item);
+    else lanes.push([item]);
+  }
+  return lanes;
 }

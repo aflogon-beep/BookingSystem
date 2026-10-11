@@ -4,10 +4,13 @@ import {
   assignPendingMessage,
   isPast,
   minutesInDay,
+  paxText,
   resourceStatus,
   sessionPlace,
+  stackLanes,
   timelineHours,
   timelinePercent,
+  unassignedSessions,
   weeklyPlan,
   whereaboutsKpis,
   type DaySession,
@@ -29,6 +32,7 @@ function session(id: string, start: string, end: string, extra: Partial<DaySessi
     start,
     end,
     booked: 4,
+    capacity: 16,
     missing: 0,
     resourceIds: ["ana"],
     ...extra,
@@ -159,5 +163,28 @@ describe("weeklyPlan", () => {
       ["ana", [["a", "b"], [], []], 2],
       ["lukas", [[], [], ["c"]], 1],
     ]);
+  });
+});
+
+describe("unassignedSessions", () => {
+  it("deja las salidas a las que falta equipo, por hora", () => {
+    const late = session("late", "18:00", "20:00", { missing: 1 });
+    const early = session("early", "08:00", "10:00", { missing: 2, booked: 0 });
+    expect(unassignedSessions([late, morning, early]).map((item) => item.id)).toEqual(["early", "late"]);
+  });
+});
+
+describe("paxText", () => {
+  it("plazas ocupadas sobre el aforo", () => {
+    expect(paxText({ booked: 8, capacity: 20 })).toBe("8/20 pax");
+  });
+});
+
+describe("stackLanes", () => {
+  it("pone en otra fila las que se solapan y reutiliza la que queda libre", () => {
+    const a = session("a", "09:00", "12:00");
+    const b = session("b", "10:00", "11:00");
+    const c = session("c", "12:00", "14:00");
+    expect(stackLanes([c, b, a]).map((lane) => lane.map((item) => item.id))).toEqual([["a", "c"], ["b"]]);
   });
 });
