@@ -8,6 +8,7 @@ import {
   paymentMethodFor,
   paymentNote,
   paymentOptions,
+  repeatCustomerQuery,
   selectedSeats,
 } from "./booking-form";
 
@@ -59,5 +60,14 @@ describe("errores al crear la reserva", () => {
     expect(bookingErrorMessage("RB012", "guide")).toMatch(/No hay ningún guía libre a esa hora/);
     expect(bookingErrorMessage("42501", undefined)).toBe("No tienes permiso para crear reservas.");
     expect(bookingErrorMessage("XX000", undefined)).toBe("No se pudo crear la reserva. Inténtalo de nuevo.");
+  });
+});
+
+describe("cliente que repite", () => {
+  it("busca por teléfono, si no por email y si no por nombre", () => {
+    expect(repeatCustomerQuery({ name: "Ana", email: "ana@x.es", phone: "612 345" })).toBe("612 345");
+    expect(repeatCustomerQuery({ name: "Ana", email: "ana@x.es", phone: "61" })).toBe("ana@x.es");
+    expect(repeatCustomerQuery({ name: " Ana ", email: "", phone: "" })).toBe("Ana");
+    expect(repeatCustomerQuery({ name: "An", email: "an", phone: "" })).toBeNull();
   });
 });

@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { createInternalBooking, loadDaySessions } from "@/app/(panel)/panel/reservas/actions";
 import { startNavigationProgress } from "@/components/navigation-progress";
 import { ProductArt } from "@/components/productos/product-art";
+import { RepeatCustomers } from "@/components/reservas/repeat-customers";
 import { STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -319,6 +320,10 @@ export function NewBookingForm({
                 <TextField label="Nombre" className="col-span-full" required autoComplete="off" {...field("name")} />
                 <TextField label="Email" type="email" autoComplete="off" {...field("email")} />
                 <TextField label="Teléfono" type="tel" autoComplete="off" {...field("phone")} />
+                <RepeatCustomers
+                  customer={customer}
+                  onPick={(picked) => setCustomer({ ...customer, name: picked.name, email: picked.email, phone: picked.phone })}
+                />
                 {product.pickup ? (
                   <TextField
                     label="Hotel de recogida"

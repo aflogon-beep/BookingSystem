@@ -10,6 +10,7 @@ import { createClient } from "@/lib/db/server";
 import { sendBookingConfirmation, sendBookingEmail, sendCancellations } from "@/lib/email/booking-emails";
 import { bookingErrorMessage, isPaymentAllowed, paymentMethodFor, type PaymentOption } from "@/lib/domain/booking-form";
 import { bookingChangeError, bookingEditError } from "@/lib/domain/booking-detail";
+import { ilikePattern } from "@/lib/domain/booking-list";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
 import { formatCents } from "@/lib/domain/money";
 import { isResourceType } from "@/lib/domain/resources";
@@ -240,6 +241,26 @@ export async function updateBookingDetails(bookingId: string, details: BookingDe
   const { error } = await supabase.rpc("booking_update_details", { p_booking_id: bookingId, p_details: parsed.data });
   if (error) return { ok: false, error: bookingEditError(error.code, error.hint) };
   return changed("Datos guardados");
+}
+
+export type RepeatCustomer = { id: string; name: string; email: string; phone: string; bookings: number };
+
+/** Clientes que ya han reservado y encajan con lo que se está escribiendo (los 4 más recientes). */
+export async function findRepeatCustomers(query: string): Promise<RepeatCustomer[]> {
+  await requireAccess("reservas");
+  const q = z.string().trim().min(3).max(100).safeParse(query);
+  if (!q.success) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("customer_list")
+    .select("id, name, email, phone, bookings")
+    .ilike("search_text", ilikePattern(q.data))
+    .order("last_starts_at", { ascending: false })
+    .limit(4);
+  if (error) return [];
+  return data.flatMap((row) =>
+    row.id && row.name ? [{ id: row.id, name: row.name, email: row.email ?? "", phone: row.phone ?? "", bookings: row.bookings ?? 0 }] : [],
+  );
 }
 
 const RESEND_MESSAGES = {
