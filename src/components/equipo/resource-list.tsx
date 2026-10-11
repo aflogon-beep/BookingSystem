@@ -273,6 +273,9 @@ export function ResourceList({ type, rows, languages }: { type: ResourceType; ro
   ) : (
     <div className="flex flex-col items-center gap-2 rounded-2xl border border-black/5 bg-surface px-6 py-12 text-center shadow-card">
       <b className="font-semibold">No hay {text.plural.toLowerCase()}</b>
+      <span className="max-w-[340px] text-[0.86rem] text-muted-foreground">
+        Añádelos aquí para poder asignarlos a las salidas y ver dónde está cada uno.
+      </span>
       <AddResourceButton type={type} label="Añadir" size="sm" />
     </div>
   );

@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, ChevronRight, Clock, Languages, MapPin, Plus, 
 import { z } from "zod";
 
 import { Box } from "@/components/ajustes/box";
+import { EmptyState } from "@/components/empty-state";
 import { EquipmentBox } from "@/components/manifiesto/equipment-box";
 import { ManifestMenu } from "@/components/manifiesto/manifest-menu";
 import { CheckAllButton, CheckInToggle, CollectButton } from "@/components/manifiesto/passenger-actions";
@@ -214,21 +215,21 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
               </table>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 px-5 py-9 text-center text-muted-foreground">
-              <span aria-hidden="true" className="grid size-14 place-items-center rounded-full bg-line-2">
-                <Users className="size-7 text-faint" />
-              </span>
-              <b className="text-foreground">Sin reservas todavía</b>
-              <span className="text-[0.86rem]">Añade una por teléfono o espera a que entren por la web.</span>
-              {state.panelBookable ? (
-                <Button asChild size="lg" className="mt-2">
-                  <Link href={`/panel/reservas/nueva?salida=${session.id}`}>
-                    <Plus aria-hidden="true" />
-                    Añadir la primera reserva
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
+            <EmptyState
+              icon={Users}
+              title="Sin reservas todavía"
+              text="Añade una por teléfono o espera a que entren por la web."
+              action={
+                state.panelBookable ? (
+                  <Button asChild size="lg">
+                    <Link href={`/panel/reservas/nueva?salida=${session.id}`}>
+                      <Plus aria-hidden="true" />
+                      Añadir la primera reserva
+                    </Link>
+                  </Button>
+                ) : null
+              }
+            />
           )}
         </Box>
 

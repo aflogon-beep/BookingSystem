@@ -61,6 +61,16 @@ async function overflowing(page: Page): Promise<string[]> {
       return `<${el.tagName.toLowerCase()}${attrs} class="${classes}"> «${text}»`;
     };
 
+    // Las tablas tienen scroll propio, pero en móvil no deben obligar a deslizar de lado.
+    for (const table of document.body.querySelectorAll("table")) {
+      const box = table.parentElement;
+      // «data-scroll-x» marca las tablas que se deslizan a propósito (la planificación semanal).
+      if (box?.closest("[data-scroll-x]")) continue;
+      if (box && table.getBoundingClientRect().width > 1 && table.scrollWidth > box.clientWidth + 1) {
+        problems.push(`${describe(table)} obliga a deslizar de lado (${table.scrollWidth} px > ${box.clientWidth} px)`);
+      }
+    }
+
     const flagged = new Set<Element>();
     for (const el of document.body.querySelectorAll("*")) {
       const rect = el.getBoundingClientRect();
@@ -82,6 +92,7 @@ async function overflowing(page: Page): Promise<string[]> {
         if (clipStyle.overflowX === "auto" || clipStyle.overflowX === "scroll") continue;
         if (clipStyle.textOverflow === "ellipsis") continue;
         const clipRect = clipper.getBoundingClientRect();
+        if (clipRect.width <= 1 || clipRect.height <= 1) continue; // dentro de un «sr-only»: solo para lectores de pantalla
         left = Math.max(0, clipRect.left);
         right = Math.min(viewport, clipRect.right);
       }

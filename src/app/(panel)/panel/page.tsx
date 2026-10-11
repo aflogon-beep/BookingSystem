@@ -7,6 +7,7 @@ import { DayPicker } from "@/components/hoy/day-picker";
 import { FeedItem } from "@/components/hoy/feed-item";
 import { SessionRow } from "@/components/hoy/session-row";
 import type { ActivityItem } from "@/components/hoy/types";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
@@ -108,20 +109,24 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
               ))}
             </ul>
           ) : (
-            <div className="flex flex-col items-center gap-2 px-5 py-9 text-center text-muted-foreground">
-              <CalendarX2 aria-hidden="true" className="size-8 text-faint" />
-              <b className="text-foreground">No hay salidas este día</b>
-              <span className="text-[0.86rem]">Las salidas se generan con las reglas de horario de cada producto.</span>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/panel/productos">Ver productos</Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={CalendarX2}
+              title="No hay salidas este día"
+              text="Las salidas salen solas de los horarios de cada producto."
+              action={
+                <Button asChild variant="outline">
+                  <Link href="/panel/productos">Ver productos</Link>
+                </Button>
+              }
+            />
           )}
         </Box>
 
-        <div className="flex flex-col gap-3">
+        {/* En móvil y tablet las cajas laterales van en la misma columna; si hay avisos, primero. */}
+        <div className="contents desk:flex desk:flex-col desk:gap-3">
           <Box
             title="Requiere atención"
+            className={attention.length ? "max-desk:order-first" : undefined}
             aside={
               <span
                 className={cn(
@@ -202,10 +207,20 @@ function Kpis({ kpis }: { kpis: DayKpis }) {
   );
 }
 
-function Box({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
+function Box({
+  title,
+  aside,
+  className,
+  children,
+}: {
+  title: string;
+  aside?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
   const headingId = `hoy-${title.normalize("NFD").replace(/[^a-zA-Z]+/g, "-").toLowerCase()}`;
   return (
-    <section aria-labelledby={headingId} className="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card">
+    <section aria-labelledby={headingId} className={cn("overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card", className)}>
       <div className="flex items-center justify-between gap-2.5 border-b border-line-2 px-4 py-[13px]">
         <h2 id={headingId} className="text-[0.98rem] font-semibold">
           {title}

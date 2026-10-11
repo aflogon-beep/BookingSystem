@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bus, Info, Package, UserRound, type LucideIcon } from "lucide-react";
 
 import type { TeamResource } from "@/app/(panel)/panel/equipo/data";
+import { Button } from "@/components/ui/button";
 import { RESOURCE_TYPES, RESOURCE_TYPE_TEXT, initials, type ResourceType } from "@/lib/domain/resources";
 import {
   isPast,
@@ -214,6 +215,9 @@ export function Whereabouts({
           <UserRound aria-hidden="true" className="size-8 text-faint" />
           <b className="text-foreground">No hay recursos</b>
           <span className="text-[0.86rem]">Añade guías y vehículos en Fichas y planificación.</span>
+          <Button asChild variant="outline" className="mt-1">
+            <Link href="/panel/equipo?vista=fichas">Ir a fichas</Link>
+          </Button>
         </div>
       )}
 

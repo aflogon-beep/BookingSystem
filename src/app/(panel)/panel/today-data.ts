@@ -72,6 +72,7 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
   ]);
   if (error || availabilityError || staffingError) throw new Error("No se pudieron cargar las salidas.");
 
+  const guides = await loadGuideNames(supabase, rows.map((row) => row.id));
   const booked = new Map(availability.map((row) => [row.session_id, row.booked_seats ?? 0]));
   const missing = new Map<string | null, MissingByType>(
     staffing.map((row) => [
@@ -93,6 +94,7 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
       booked: booked.get(row.id) ?? 0,
       minPax: row.products.min_pax,
       missing: missing.get(row.id) ?? NOTHING_MISSING,
+      guides: guides.get(row.id) ?? [],
       blockingNeed: blocked.get(row.id) ?? null,
       webOpen: webSalesOpen(row.starts_at, row.products.active, cutoffHours, now),
       started: new Date(row.starts_at) <= now,
@@ -104,6 +106,22 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
 
 // Lotes de ids para no pasarse del largo de URL de PostgREST.
 const ID_CHUNK = 150;
+
+/** Nombres de los guías asignados a cada salida. */
+async function loadGuideNames(supabase: Supabase, sessionIds: readonly string[]): Promise<Map<string, string[]>> {
+  const guides = new Map<string, string[]>();
+  for (let start = 0; start < sessionIds.length; start += ID_CHUNK) {
+    const { data, error } = await supabase
+      .from("session_resources")
+      .select("session_id, resources!inner(name, type)")
+      .in("session_id", sessionIds.slice(start, start + ID_CHUNK))
+      .eq("resources.type", "guide");
+    if (error) throw new Error("No se pudieron cargar los guías de las salidas.");
+    for (const row of data) guides.set(row.session_id, [...(guides.get(row.session_id) ?? []), row.resources.name]);
+  }
+  for (const names of guides.values()) names.sort((a, b) => a.localeCompare(b, "es"));
+  return guides;
+}
 
 async function loadDayBookings(supabase: Supabase, sessionIds: readonly string[]): Promise<DayBooking[]> {
   const bookings: DayBooking[] = [];

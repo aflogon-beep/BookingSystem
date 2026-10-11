@@ -101,6 +101,7 @@ test("crea, edita, retira de la venta y elimina un producto con foto", async ({ 
   await page.getByRole("spinbutton", { name: "Vehículos" }).fill("1");
   await page.locator("#pn-vehicle-required").click();
   await expect(page.locator("#pn-vehicle-required")).not.toBeChecked();
+  await expect(page.locator("#pn-vehicle-hint")).toHaveText("3 disponibles en Equipo · si falta, se vende y avisa");
   await tab(page, "Horarios").click();
   await expect(page.getByText(/\d+ salidas · \d+ plazas a la venta en 14 días/)).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Así lo verá el cliente" }).getByText("25,50 €")).toBeVisible();
