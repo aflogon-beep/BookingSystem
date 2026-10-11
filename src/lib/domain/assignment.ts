@@ -1,4 +1,4 @@
-import { RESOURCE_TYPES, type ProductNeeds, type ResourceType } from "@/lib/domain/resources";
+import { RESOURCE_TYPE_TEXT, RESOURCE_TYPES, type ProductNeeds, type ResourceType } from "@/lib/domain/resources";
 import { isLanguageCode, LANGUAGES } from "@/lib/domain/settings";
 
 /** Recurso tal y como lo necesita el manifiesto para elegir equipo. */
@@ -51,6 +51,17 @@ export function missingResources(needs: ProductNeeds, assigned: readonly { type:
     (total, type) => total + Math.max(needs[type] - assigned.filter((resource) => resource.type === type).length, 0),
     0,
   );
+}
+
+/** «1 guía y 2 vehículos»: lo que falta por asignar, tipo a tipo. Vacío si no falta nada. */
+export function missingText(needs: ProductNeeds, assigned: readonly { type: ResourceType }[]): string {
+  const parts = RESOURCE_TYPES.flatMap((type) => {
+    const count = Math.max(needs[type] - assigned.filter((resource) => resource.type === type).length, 0);
+    if (!count) return [];
+    const text = RESOURCE_TYPE_TEXT[type];
+    return [count === 1 ? `1 ${text.singular}` : `${count} ${text.plural.toLowerCase()}`];
+  });
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts.at(-1)}` : (parts[0] ?? "");
 }
 
 function languageName(code: string): string {

@@ -72,7 +72,9 @@ export function EquipmentBox({
 
   return (
     <Box
+      id="equipo"
       title="Equipo asignado"
+      className="scroll-mt-20"
       action={
         needsSomething && !cancelled ? (
           <Button variant="outline" size="sm" onClick={autoAssign} disabled={pending}>

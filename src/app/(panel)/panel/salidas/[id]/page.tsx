@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, Clock, Languages, MapPin, Plus, SearchX, StickyNote } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, Clock, Languages, MapPin, Plus, StickyNote, Ticket, TriangleAlert, UserCheck, Users, Wallet, type LucideIcon } from "lucide-react";
 import { z } from "zod";
 
 import { Box } from "@/components/ajustes/box";
@@ -12,15 +12,17 @@ import { STATE_PILL_CLASS, STATE_TEXT_CLASS, stateHint } from "@/components/sali
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { requireAccess } from "@/lib/auth";
+import { missingText } from "@/lib/domain/assignment";
 import { longDayLabel } from "@/lib/domain/calendar";
 import { canCollect, isLive, manifestSummary, manifestText, paxOf, sortManifest, ticketsLabel } from "@/lib/domain/manifest";
 import { formatCents } from "@/lib/domain/money";
 import { businessToday } from "@/lib/domain/schedule";
-import { blockedReason, sessionState, type SessionStateKind } from "@/lib/domain/session-state";
+import { blockedReason, blockedText, sessionState, type SessionStateKind } from "@/lib/domain/session-state";
+import { RESOURCE_TYPE_TEXT } from "@/lib/domain/resources";
 import { isLanguageCode, LANGUAGES } from "@/lib/domain/settings";
 import { cn } from "@/lib/utils";
 
-import { loadManifest, type ManifestRow, type ManifestSession } from "./data";
+import { loadManifest, type ManifestEquipment, type ManifestRow, type ManifestSession } from "./data";
 
 export const metadata: Metadata = { title: "Manifiesto" };
 
@@ -40,6 +42,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
   const language = isLanguageCode(session.language) ? LANGUAGES[session.language] : session.language.toUpperCase();
   const dayLabel = longDayLabel(session.date);
   const backHref = session.date === businessToday(now) ? "/panel" : `/panel?fecha=${session.date}`;
+  const alert = sessionAlert(session, equipment, state.kind, language);
   const copyText = manifestText(
     { productName: session.product.name, dateLabel: dayLabel, time: session.time, language: session.language },
     rows,
@@ -85,22 +88,6 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
               </li>
             ) : null}
           </ul>
-          {state.kind === "blocked" && session.blockingNeed ? (
-            <p className="mt-2 text-[0.84rem] text-warn">
-              <b className="font-semibold">{state.label}:</b>{" "}
-              {blockedReason(
-                session.blockingNeed,
-                equipment.busy.flatMap((item) => {
-                  const resource = equipment.resources.find(
-                    (candidate) => candidate.id === item.resourceId && candidate.type === session.blockingNeed,
-                  );
-                  return resource ? [{ ...item, name: resource.name }] : [];
-                }),
-                language,
-              )}{" "}
-              Es obligatorio, así que esta salida no admite reservas hasta que quede libre.
-            </p>
-          ) : null}
         </div>
         <div className="flex gap-2">
           <CopyManifestButton text={copyText} />
@@ -120,12 +107,34 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
         </div>
       </div>
 
+      {alert ? (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#f5d0a9] bg-warn-soft px-4 py-3.5">
+          <span aria-hidden="true" className="grid size-9 flex-none place-items-center rounded-full bg-warn text-white">
+            <TriangleAlert className="size-[18px]" />
+          </span>
+          <div className="min-w-0 flex-1 basis-[220px]">
+            <b className="block font-semibold text-warn">{alert.title}</b>
+            <span className="text-[0.86rem] text-[#5c3a14]">{alert.text}</span>
+          </div>
+          {alert.action ? (
+            <Button asChild variant="outline" className="max-tablet:w-full">
+              <a href="#equipo">
+                {alert.action}
+                <ChevronRight aria-hidden="true" />
+              </a>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
       <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card tablet:grid-cols-4">
         <Kpi
           index={0}
+          icon={Users}
           label="Ocupación"
           detail={
             <>
+              <Meter label="Ocupación" value={session.booked} max={session.capacity} className="bg-primary" />
               <span className={STATE_TEXT_CLASS[state.tone]}>{state.label}</span> · mín. {session.product.minPax}
             </>
           }
@@ -135,31 +144,24 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
         </Kpi>
         <Kpi
           index={1}
+          icon={UserCheck}
           label="Presentados"
           detail={
-            <span
-              role="progressbar"
-              aria-label="Presentados"
-              aria-valuemin={0}
-              aria-valuemax={summary.pax}
-              aria-valuenow={summary.checkedIn}
-              className="mt-2 block h-[5px] overflow-hidden rounded-full bg-line-2"
-            >
-              <span
-                className="block h-full rounded-full bg-ok"
-                style={{ width: `${summary.pax ? (summary.checkedIn / summary.pax) * 100 : 0}%` }}
-              />
-            </span>
+            <>
+              <Meter label="Presentados" value={summary.checkedIn} max={summary.pax} className="bg-ok" />
+              {summary.pax - summary.checkedIn > 0 ? `${summary.pax - summary.checkedIn} por llegar` : summary.pax ? "Han llegado todos" : "Sin pasajeros"}
+            </>
           }
         >
           {summary.checkedIn}
           <span className="text-[1rem] text-faint"> / {summary.pax}</span>
         </Kpi>
-        <Kpi index={2} label="Entradas" small>
+        <Kpi index={2} icon={Ticket} label="Entradas" small>
           {ticketsLabel(summary.tickets) || "—"}
         </Kpi>
         <Kpi
           index={3}
+          icon={Wallet}
           label="Pendiente de cobro"
           detail={`${summary.invoiceCount} a facturar a agencias`}
           className={summary.dueCents ? "text-warn" : undefined}
@@ -201,9 +203,19 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 px-5 py-9 text-center text-muted-foreground">
-              <SearchX aria-hidden="true" className="size-8 text-faint" />
+              <span aria-hidden="true" className="grid size-14 place-items-center rounded-full bg-line-2">
+                <Users className="size-7 text-faint" />
+              </span>
               <b className="text-foreground">Sin reservas todavía</b>
               <span className="text-[0.86rem]">Añade una por teléfono o espera a que entren por la web.</span>
+              {state.panelBookable ? (
+                <Button asChild size="lg" className="mt-2">
+                  <Link href={`/panel/reservas/nueva?salida=${session.id}`}>
+                    <Plus aria-hidden="true" />
+                    Añadir la primera reserva
+                  </Link>
+                </Button>
+              ) : null}
             </div>
           )}
         </Box>
@@ -245,8 +257,25 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
   );
 }
 
+/** Barra fina de progreso bajo una cifra. */
+function Meter({ label, value, max, className }: { label: string; value: number; max: number; className: string }) {
+  return (
+    <span
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuenow={Math.min(value, max)}
+      className="mt-1.5 mb-1 block h-[5px] overflow-hidden rounded-full bg-line-2"
+    >
+      <span className={cn("block h-full rounded-full", className)} style={{ width: `${max ? Math.min(100, (value / max) * 100) : 0}%` }} />
+    </span>
+  );
+}
+
 function Kpi({
   index,
+  icon: Icon,
   label,
   detail,
   small = false,
@@ -254,6 +283,7 @@ function Kpi({
   children,
 }: {
   index: number;
+  icon: LucideIcon;
   label: string;
   detail?: React.ReactNode;
   small?: boolean;
@@ -269,7 +299,10 @@ function Kpi({
         index === 2 && "tablet:border-l",
       )}
     >
-      <dt className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{label}</dt>
+      <dt className="flex items-center gap-1.5 text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
+        <Icon aria-hidden="true" className="size-4 shrink-0" />
+        {label}
+      </dt>
       <dd
         className={cn(
           "tabular-nums",
@@ -373,4 +406,35 @@ function PassengerRow({ row, session }: { row: ManifestRow; session: ManifestSes
       </td>
     </tr>
   );
+}
+
+/**
+ * Aviso destacado de la salida: no admite reservas por falta de un recurso obligatorio, o le falta
+ * equipo por asignar. Nada en salidas canceladas o que ya salieron.
+ */
+function sessionAlert(
+  session: ManifestSession,
+  equipment: ManifestEquipment,
+  kind: SessionStateKind,
+  language: string,
+): { title: string; text: string; action: string | null } | null {
+  if (kind === "cancelled" || kind === "departed" || kind === "in_progress") return null;
+  if (kind === "blocked" && session.blockingNeed) {
+    const need = session.blockingNeed;
+    const busy = equipment.busy.flatMap((item) => {
+      const resource = equipment.resources.find((candidate) => candidate.id === item.resourceId && candidate.type === need);
+      return resource ? [{ ...item, name: resource.name }] : [];
+    });
+    return {
+      title: blockedText(need),
+      text: `${blockedReason(need, busy, language)} Es obligatorio, así que esta salida no admite reservas hasta que quede libre.`,
+      action: `Ver ${RESOURCE_TYPE_TEXT[need].plural.toLowerCase()}`,
+    };
+  }
+  // Las salidas sin reservas aún no tienen equipo: se asigna solo con la primera.
+  if (session.booked === 0) return null;
+  const assigned = equipment.resources.filter((resource) => equipment.assignedIds.includes(resource.id));
+  const missing = missingText(equipment.needs, assigned);
+  if (!missing) return null;
+  return { title: "Falta equipo por asignar", text: `Esta salida necesita ${missing} más.`, action: "Asignar equipo" };
 }

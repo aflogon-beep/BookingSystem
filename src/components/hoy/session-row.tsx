@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Plus } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 
 import { STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,8 @@ export function SessionRow({ session }: { session: TodaySession }) {
     <li
       aria-labelledby={`${labelId}-time ${labelId}-name`}
       className={cn(
-        "grid grid-cols-[58px_minmax(0,1fr)] items-center gap-3 border-b border-line-2 px-3.5 py-3 last:border-b-0",
+        // Toda la fila abre el manifiesto (enlace estirado en el nombre); «Reservar» queda por encima.
+        "relative grid grid-cols-[58px_minmax(0,1fr)] items-center gap-3 border-b transition-colors hover:bg-surface-2 border-line-2 px-3.5 py-3 last:border-b-0",
         "tablet:grid-cols-[70px_minmax(0,1fr)_170px] tablet:gap-4 tablet:px-4 tablet:py-3.5",
         "desk:grid-cols-[76px_minmax(0,1fr)_220px_auto]",
         session.past && "opacity-60",
@@ -35,9 +36,14 @@ export function SessionRow({ session }: { session: TodaySession }) {
       <div className="min-w-0">
         <div className={cn("flex items-center gap-2 font-semibold", cancelled && "text-muted-foreground line-through")}>
           <span aria-hidden="true" className="size-2.5 flex-none rounded-[3px]" style={{ background: session.product.color }} />
-          <span id={`${labelId}-name`} className="truncate">
+          <Link
+            id={`${labelId}-name`}
+            href={`/panel/salidas/${session.id}`}
+            aria-label={`Manifiesto ${label}`}
+            className="truncate outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
+          >
             {session.product.name}
-          </span>
+          </Link>
         </div>
         <div className="mt-[5px] flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[0.78rem] text-muted-foreground">
           <span className="rounded-[5px] border border-line px-1 font-mono text-[0.68rem]">{session.language.toUpperCase()}</span>
@@ -66,9 +72,9 @@ export function SessionRow({ session }: { session: TodaySession }) {
           <div className={cn("h-full rounded-full", state.free > 0 ? "bg-primary" : "bg-warn")} style={{ width: `${percent}%` }} />
         </div>
       </div>
-      <div className="col-start-2 flex flex-wrap gap-1.5 *:grow tablet:col-span-2 tablet:*:grow-0 desk:col-span-1 desk:col-start-auto">
+      <div className="pointer-events-none relative z-10 col-start-2 flex items-center gap-1.5 tablet:col-span-2 desk:col-span-1 desk:col-start-auto">
         {state.panelBookable ? (
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm" className="pointer-events-auto">
             <Link href={`/panel/reservas/nueva?salida=${session.id}`} aria-label={`Reservar ${label}`}>
               <Plus aria-hidden="true" />
               Reservar
@@ -86,12 +92,10 @@ export function SessionRow({ session }: { session: TodaySession }) {
             Reservar
           </Button>
         )}
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/panel/salidas/${session.id}`} aria-label={`Manifiesto ${label}`}>
-            <ClipboardList aria-hidden="true" />
-            Manifiesto
-          </Link>
-        </Button>
+        <span aria-hidden="true" className="pointer-events-none ml-auto flex items-center gap-1 text-[0.8rem] font-medium text-primary">
+          Ver pasajeros
+          <ChevronRight className="size-4" />
+        </span>
       </div>
     </li>
   );

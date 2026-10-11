@@ -4,6 +4,7 @@ import {
   autoAssignMessage,
   buildSlots,
   missingResources,
+  missingText,
   optionLabel,
   resourceIdsAfterChange,
   slotWarning,
@@ -41,6 +42,18 @@ describe("missingResources", () => {
   it("cuenta lo que falta tipo a tipo, sin compensar con lo que sobra", () => {
     expect(missingResources({ guide: 1, vehicle: 1, equipment: 1 }, [ana, lukas])).toBe(2);
     expect(missingResources({ guide: 1, vehicle: 0, equipment: 0 }, [ana])).toBe(0);
+  });
+});
+
+describe("missingText", () => {
+  it("dice lo que falta en una frase", () => {
+    expect(missingText({ guide: 1, vehicle: 0, equipment: 0 }, [])).toBe("1 guía");
+    expect(missingText({ guide: 2, vehicle: 1, equipment: 0 }, [])).toBe("2 guías y 1 vehículo");
+    expect(missingText({ guide: 1, vehicle: 2, equipment: 3 }, [van])).toBe("1 guía, 1 vehículo y 3 equipos");
+  });
+
+  it("vacío si está todo asignado", () => {
+    expect(missingText({ guide: 1, vehicle: 1, equipment: 0 }, [ana, van])).toBe("");
   });
 });
 
