@@ -27,6 +27,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Pill } from "@/components/ui/pill";
 import { Switch } from "@/components/ui/switch";
 import { createClient } from "@/lib/db/browser";
+import { compressPhoto } from "@/lib/photo-compress";
 import { formatCents } from "@/lib/domain/money";
 import {
   PRODUCT_COLORS,
@@ -552,11 +553,20 @@ function PhotoField({ draft, update, uploading, setUploading, unsaved }: TabProp
     await createClient().storage.from(PRODUCT_PHOTO_BUCKET).remove([path]);
   }
 
-  async function upload(file: File) {
-    const extension = photoExtension(file.type);
-    if (!extension) return toast.error("La foto tiene que ser JPG, PNG o WebP");
-    if (file.size > PRODUCT_PHOTO_MAX_BYTES) return toast.error("La foto pesa más de 5 MB");
+  async function upload(original: File) {
+    if (!photoExtension(original.type)) return toast.error("La foto tiene que ser JPG, PNG o WebP");
     setUploading(true);
+    // Se reduce antes de subirla: la web carga mucho más rápido y caben fotos de más de 5 MB.
+    const file = await compressPhoto(original);
+    const extension = photoExtension(file.type);
+    if (!extension) {
+      setUploading(false);
+      return toast.error("La foto tiene que ser JPG, PNG o WebP");
+    }
+    if (file.size > PRODUCT_PHOTO_MAX_BYTES) {
+      setUploading(false);
+      return toast.error("La foto pesa más de 5 MB");
+    }
     const path = `${crypto.randomUUID()}.${extension}`;
     const { error } = await createClient()
       .storage.from(PRODUCT_PHOTO_BUCKET)

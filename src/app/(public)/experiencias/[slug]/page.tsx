@@ -62,7 +62,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     <article>
       <div className="relative mx-auto w-full max-w-6xl tablet:px-[22px] tablet:pt-[22px]">
         <div className="relative overflow-hidden tablet:rounded-[20px]">
-          <ProductArt seed={product.id} color={product.color} photoUrl={product.photoUrl} className="h-[170px] tablet:h-[300px]" />
+          <ProductArt seed={product.id} color={product.color} photoUrl={product.photoUrl} className="h-[170px] tablet:h-[300px]" priority />
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgb(0_0_0/0.6),rgb(0_0_0/0.05)_65%)]"

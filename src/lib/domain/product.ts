@@ -22,6 +22,19 @@ export const PRODUCT_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 export const PRODUCT_PHOTO_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" } as const;
 export const PRODUCT_PHOTO_PATH = /^[0-9a-f-]{36}\.(jpg|png|webp)$/;
 
+/** Lado mayor de las fotos que se suben: de sobra para la cabecera de la web en pantallas retina. */
+export const PHOTO_MAX_SIDE = 1600;
+
+/**
+ * Tamaño al que se reduce una foto antes de subirla: el lado mayor como mucho `maxSide`, sin
+ * deformarla y sin agrandar las pequeñas. Una foto de móvil (4000 × 3000, varios MB) queda en
+ * 1600 × 1200 y unos cientos de KB, así la web carga rápido también con datos móviles.
+ */
+export function photoTargetSize(width: number, height: number, maxSide = PHOTO_MAX_SIDE): { width: number; height: number } {
+  const scale = Math.min(1, maxSide / Math.max(width, height));
+  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+}
+
 export function photoExtension(mimeType: string): string | null {
   return Object.hasOwn(PRODUCT_PHOTO_TYPES, mimeType)
     ? PRODUCT_PHOTO_TYPES[mimeType as keyof typeof PRODUCT_PHOTO_TYPES]

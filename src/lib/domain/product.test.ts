@@ -7,6 +7,7 @@ import {
   parsePriceInput,
   parseProductInput,
   photoExtension,
+  photoTargetSize,
   slugify,
   uniqueSlug,
   type ProductInput,
@@ -148,5 +149,18 @@ describe("photoExtension", () => {
     expect(photoExtension("image/webp")).toBe("webp");
     expect(photoExtension("image/gif")).toBeNull();
     expect(photoExtension("constructor")).toBeNull();
+  });
+});
+
+describe("photoTargetSize", () => {
+  it("reduce el lado mayor sin deformar la foto", () => {
+    expect(photoTargetSize(4000, 3000)).toEqual({ width: 1600, height: 1200 });
+    expect(photoTargetSize(3024, 4032)).toEqual({ width: 1200, height: 1600 });
+    expect(photoTargetSize(5000, 1)).toEqual({ width: 1600, height: 1 });
+  });
+
+  it("no agranda las fotos pequeñas", () => {
+    expect(photoTargetSize(800, 600)).toEqual({ width: 800, height: 600 });
+    expect(photoTargetSize(1600, 900)).toEqual({ width: 1600, height: 900 });
   });
 });
