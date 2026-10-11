@@ -9,6 +9,8 @@ import { CollectButton } from "@/components/manifiesto/passenger-actions";
 import {
   CancelBookingButton,
   CheckInButton,
+  EditDetailsButton,
+  EditLinesButton,
   MoveBookingForm,
   NotesField,
   ResendButton,
@@ -122,8 +124,22 @@ export default async function Page({ params }: PageProps<"/panel/reservas/[codig
             ...(booking.product.pickup ? [["Recogida", booking.hotel || "Punto de encuentro"] as [string, React.ReactNode]] : []),
           ]}
         />
+        {editable && booking.status === "confirmed" && ["pending", "invoice"].includes(booking.paymentStatus) && booking.ticketOptions.length ? (
+          <div>
+            <EditLinesButton bookingId={booking.id} options={booking.ticketOptions} />
+          </div>
+        ) : null}
         <div>
-          <h2 className="mb-2 text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">Contacto</h2>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">Contacto</h2>
+            {!cancelled ? (
+              <EditDetailsButton
+                bookingId={booking.id}
+                details={{ ...booking.customer, hotel: booking.hotel }}
+                showHotel={booking.product.pickup}
+              />
+            ) : null}
+          </div>
           <Details
             items={[
               ["Email", booking.customer.email || "—"],

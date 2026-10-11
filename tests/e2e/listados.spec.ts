@@ -58,6 +58,14 @@ test("una reserva nueva sale en el listado, en el CSV y en la ficha del cliente"
   await topSearch.fill(code.toLowerCase());
   await topSearch.press("Enter");
   await expect(page).toHaveURL(new RegExp(`/panel/reservas/${code}$`));
+
+  // Con el pago pendiente se pueden cambiar las entradas: una persona más.
+  await page.getByRole("button", { name: "Cambiar entradas" }).click();
+  const lines = page.getByRole("dialog", { name: "Cambiar entradas" });
+  await lines.getByRole("button", { name: "Añadir Adulto" }).click();
+  await lines.getByRole("button", { name: "Guardar" }).click();
+  await expect(lines).toBeHidden();
+  await expect(page.getByText(/^Entradas cambiadas: /)).toBeVisible();
   await page.goto("/panel/reservas");
   await page.keyboard.press("/");
   await expect(topSearch).toBeFocused();

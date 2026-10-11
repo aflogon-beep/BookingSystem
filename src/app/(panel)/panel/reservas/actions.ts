@@ -9,7 +9,7 @@ import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
 import { sendBookingConfirmation, sendBookingEmail, sendCancellations } from "@/lib/email/booking-emails";
 import { bookingErrorMessage, isPaymentAllowed, paymentMethodFor, type PaymentOption } from "@/lib/domain/booking-form";
-import { bookingChangeError } from "@/lib/domain/booking-detail";
+import { bookingChangeError, bookingEditError } from "@/lib/domain/booking-detail";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
 import { formatCents } from "@/lib/domain/money";
 import { isResourceType } from "@/lib/domain/resources";
@@ -193,6 +193,53 @@ export async function saveBookingNotes(bookingId: string, notes: string): Promis
   if (error) return { ok: false, error: bookingChangeError(error.code, error.hint) };
   if (!data.length) return { ok: false, error: bookingChangeError("P0002", undefined) };
   return changed("Notas guardadas");
+}
+
+const linesSchema = z
+  .array(z.object({ ticketTypeId: z.uuid(), qty: z.int().min(1).max(100) }))
+  .min(1, "Añade al menos una entrada")
+  .max(20);
+
+/** Cambia las entradas de una reserva. Plazas, precios y total los decide la BD. */
+export async function updateBookingLines(
+  bookingId: string,
+  lines: { ticketTypeId: string; qty: number }[],
+): Promise<BookingActionResult> {
+  await requireAccess("reservas");
+  const parsed = linesSchema.safeParse(lines);
+  if (!uuid.safeParse(bookingId).success) return { ok: false, error: bookingEditError(undefined, undefined) };
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Entradas no válidas." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("booking_update_lines", {
+    p_booking_id: bookingId,
+    p_lines: parsed.data.map((line) => ({ ticket_type_id: line.ticketTypeId, qty: line.qty })),
+  });
+  if (error) return { ok: false, error: bookingEditError(error.code, error.hint) };
+  return changed(`Entradas cambiadas · total ${formatCents(data)}`);
+}
+
+const detailsSchema = z.object({
+  name: z.string().trim().min(1, "Escribe el nombre del cliente").max(120),
+  email: z
+    .string()
+    .trim()
+    .pipe(z.union([z.literal(""), z.email("El email no es válido").max(200)])),
+  phone: z.string().trim().max(40),
+  hotel: z.string().trim().max(200),
+});
+
+export type BookingDetailsInput = z.input<typeof detailsSchema>;
+
+/** Corrige los datos del cliente y el hotel de recogida. */
+export async function updateBookingDetails(bookingId: string, details: BookingDetailsInput): Promise<BookingActionResult> {
+  await requireAccess("reservas");
+  const parsed = detailsSchema.safeParse(details);
+  if (!uuid.safeParse(bookingId).success) return { ok: false, error: bookingEditError(undefined, undefined) };
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos no válidos." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("booking_update_details", { p_booking_id: bookingId, p_details: parsed.data });
+  if (error) return { ok: false, error: bookingEditError(error.code, error.hint) };
+  return changed("Datos guardados");
 }
 
 const RESEND_MESSAGES = {

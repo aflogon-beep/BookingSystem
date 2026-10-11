@@ -125,3 +125,29 @@ export function bookingChangeError(code: string | undefined, hint: string | unde
       return "No se pudo guardar. Inténtalo de nuevo.";
   }
 }
+
+/** Mensaje para el equipo al editar entradas o datos de una reserva. */
+export function bookingEditError(code: string | undefined, hint: string | undefined): string {
+  switch (code) {
+    case "RB001": {
+      const free = Number(hint);
+      return Number.isInteger(free)
+        ? `La salida solo tiene ${free} ${free === 1 ? "plaza libre" : "plazas libres"} más.`
+        : "La salida no tiene plazas suficientes.";
+    }
+    case "RB002":
+      return "La salida no está a la venta: solo se pueden quitar entradas.";
+    case "RB003":
+      return "Revisa las entradas: hace falta al menos una con plaza.";
+    case "RB009":
+      return "Esta reserva ya no se puede cambiar (cancelada o la salida ya ha empezado).";
+    case "RB013":
+      return "La reserva ya está pagada: para cambiar las entradas, cancélala con reembolso y crea otra.";
+    case "RB011":
+      return "Los datos de este cliente se borraron por privacidad.";
+    case "22023":
+      return "Revisa los datos: falta el nombre o algún campo es demasiado largo.";
+    default:
+      return bookingChangeError(code, hint);
+  }
+}
