@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
+import { startNavigationProgress } from "@/components/navigation-progress";
 import { Input } from "@/components/ui/input";
 
 /** Ir a una fecha concreta en «Hoy». */
@@ -16,7 +17,10 @@ export function DayPicker({ day }: { day: string }) {
       defaultValue={day}
       onChange={(event) => {
         // Al teclear salen años intermedios (0002, 0020…): solo navega con un año completo.
-        if (/^20\d{2}-/.test(event.target.value)) router.push(`/panel?fecha=${event.target.value}`);
+        if (/^20\d{2}-/.test(event.target.value)) {
+          startNavigationProgress();
+          router.push(`/panel?fecha=${event.target.value}`);
+        }
       }}
     />
   );

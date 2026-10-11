@@ -117,3 +117,35 @@
     @apply font-semibold tracking-[-0.022em] text-balance;
   }
 }
+
+/* Barra de carga entre páginas (components/navigation-progress.tsx). Aparece tras 150 ms
+   para no parpadear en las navegaciones rápidas y avanza cada vez más despacio. */
+.nav-progress {
+  opacity: 0;
+  transition: opacity 200ms ease 100ms;
+}
+.nav-progress-bar {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+.nav-progress[data-active] {
+  opacity: 1;
+  transition: opacity 150ms ease 150ms;
+}
+.nav-progress[data-active] .nav-progress-bar {
+  animation: nav-progress 8s cubic-bezier(0.1, 0.7, 0.2, 1) 150ms both;
+}
+@keyframes nav-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(0.92);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress[data-active] .nav-progress-bar {
+    animation: none;
+    transform: scaleX(0.6);
+  }
+}

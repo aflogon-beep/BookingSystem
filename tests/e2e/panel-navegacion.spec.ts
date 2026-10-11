@@ -20,6 +20,23 @@ test.describe("navegación del panel", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Ajustes" })).toBeVisible();
   });
 
+  test("al cambiar de página sale una barra de carga arriba hasta que llega la nueva", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "escritorio", "solo en escritorio");
+    await page.goto("/panel");
+    // Respuesta lenta a propósito para que se vea la barra.
+    await page.route("**/panel/clientes**", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+
+    const bar = page.locator(".nav-progress");
+    await expect(bar).not.toHaveAttribute("data-active");
+    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Clientes" }).click();
+    await expect(bar).toHaveAttribute("data-active", "true");
+    await expect(page.getByRole("heading", { level: 1, name: "Clientes" })).toBeVisible();
+    await expect(bar).not.toHaveAttribute("data-active");
+  });
+
   test("tablet: la navegación pasa a una segunda fila con todas las secciones", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "tablet", "solo en tablet");
     await page.goto("/panel/clientes");

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { completeSetup } from "@/app/(panel)/panel/asistente/actions";
 import { FieldHint } from "@/components/ajustes/box";
+import { startNavigationProgress } from "@/components/navigation-progress";
 import { focusRing } from "@/components/panel/styles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +79,7 @@ export function SetupWizard({ initialDraft, context, today }: { initialDraft: Se
         return;
       }
       toast.success("Panel creado con tus primeras salidas");
+      startNavigationProgress();
       router.push("/panel");
     });
   }

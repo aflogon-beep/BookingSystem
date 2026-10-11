@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, Search } from "lucide-react";
 
+import { startNavigationProgress } from "@/components/navigation-progress";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { CHANNEL_LABELS } from "@/lib/domain/booking-detail";
@@ -39,6 +40,7 @@ export function BookingFilters({ params, products }: { params: BookingListParams
   function go(next: Partial<BookingListParams>) {
     if (next.q !== undefined) setSentQ(next.q);
     const href = bookingListHref({ ...latest.current, ...next, limit: PAGE_SIZE });
+    startNavigationProgress();
     startTransition(() => router.replace(href, { scroll: false }));
   }
 

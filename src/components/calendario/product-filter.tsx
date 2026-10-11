@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
+import { startNavigationProgress } from "@/components/navigation-progress";
 import { NativeSelect } from "@/components/ui/native-select";
 import { calendarHref, type CalendarView } from "@/lib/domain/calendar";
 
@@ -23,7 +24,10 @@ export function ProductFilter({
       aria-label="Producto"
       className="w-full tablet:w-auto tablet:max-w-[210px]"
       value={productId ?? ""}
-      onChange={(event) => router.replace(calendarHref({ view, anchor, productId: event.target.value || null }))}
+      onChange={(event) => {
+        startNavigationProgress();
+        router.replace(calendarHref({ view, anchor, productId: event.target.value || null }));
+      }}
     >
       <option value="">Todos los productos</option>
       {products.map((product) => (
