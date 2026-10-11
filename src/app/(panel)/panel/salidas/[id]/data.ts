@@ -1,9 +1,11 @@
 import "server-only";
 
 import { createClient } from "@/lib/db/server";
+import { getPublicEnv } from "@/lib/env";
 import type { AssignableResource } from "@/lib/domain/assignment";
 import { toBusinessDateTime } from "@/lib/domain/calendar";
 import type { ManifestBooking } from "@/lib/domain/manifest";
+import { productPhotoUrl } from "@/lib/domain/product";
 import { isResourceType, needsFromRows, type ProductNeeds, type ResourceType } from "@/lib/domain/resources";
 import { webSalesOpen } from "@/lib/domain/session-state";
 
@@ -25,7 +27,7 @@ export type ManifestSession = {
   blockingNeed: ResourceType | null;
   /** Se vende en la web: producto a la venta y antes del cierre de venta online. */
   webOpen: boolean;
-  product: { name: string; color: string; minPax: number; meetingPoint: string; pickup: boolean };
+  product: { id: string; name: string; color: string; photoUrl: string | null; minPax: number; meetingPoint: string; pickup: boolean };
 };
 
 export type ManifestRow = ManifestBooking & { notes: string; channel: string; agent: string };
@@ -50,7 +52,7 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
     await Promise.all([
       supabase
         .from("sessions")
-        .select("id, product_id, starts_at, ends_at, language, status, capacity, products!inner(name, color, min_pax, meeting_point, pickup, active)")
+        .select("id, product_id, starts_at, ends_at, language, status, capacity, products!inner(name, color, photo_path, min_pax, meeting_point, pickup, active)")
         .eq("id", sessionId)
         .maybeSingle(),
       supabase.from("session_availability").select("booked_seats").eq("session_id", sessionId).maybeSingle(),
@@ -98,8 +100,10 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
       blockingNeed,
       webOpen: webSalesOpen(row.starts_at, row.products.active, cutoffHours, now),
       product: {
+        id: row.product_id,
         name: row.products.name,
         color: row.products.color,
+        photoUrl: row.products.photo_path ? productPhotoUrl(getPublicEnv().supabaseUrl, row.products.photo_path) : null,
         minPax: row.products.min_pax,
         meetingPoint: row.products.meeting_point,
         pickup: row.products.pickup,
