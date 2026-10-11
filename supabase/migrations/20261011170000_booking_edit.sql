@@ -165,10 +165,10 @@ begin
     raise exception 'Cliente anonimizado' using errcode = 'RB011';
   end if;
 
-  if v_customer.name <> v_name then v_changes := v_changes || 'nombre'; end if;
-  if v_customer.email is distinct from v_email then v_changes := v_changes || 'email'; end if;
-  if v_customer.phone is distinct from v_phone then v_changes := v_changes || 'teléfono'; end if;
-  if v_booking.hotel <> v_hotel then v_changes := v_changes || 'hotel'; end if;
+  if v_customer.name <> v_name then v_changes := array_append(v_changes, 'nombre'); end if;
+  if v_customer.email is distinct from v_email then v_changes := array_append(v_changes, 'email'); end if;
+  if v_customer.phone is distinct from v_phone then v_changes := array_append(v_changes, 'teléfono'); end if;
+  if v_booking.hotel <> v_hotel then v_changes := array_append(v_changes, 'hotel'); end if;
   if cardinality(v_changes) = 0 then
     return;
   end if;
