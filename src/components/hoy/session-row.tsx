@@ -66,7 +66,7 @@ export function SessionRow({ session }: { session: TodaySession }) {
           <div className={cn("h-full rounded-full", state.free > 0 ? "bg-primary" : "bg-warn")} style={{ width: `${percent}%` }} />
         </div>
       </div>
-      <div className="col-start-2 flex gap-1.5 tablet:col-span-2 desk:col-span-1 desk:col-start-auto">
+      <div className="col-start-2 flex flex-wrap gap-1.5 *:grow tablet:col-span-2 tablet:*:grow-0 desk:col-span-1 desk:col-start-auto">
         {state.panelBookable ? (
           <Button asChild variant="outline" size="sm">
             <Link href={`/panel/reservas/nueva?salida=${session.id}`} aria-label={`Reservar ${label}`}>
