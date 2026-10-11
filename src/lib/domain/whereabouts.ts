@@ -1,4 +1,5 @@
 import { toBusinessDateTime } from "@/lib/domain/calendar";
+import type { ResourceType } from "@/lib/domain/resources";
 
 /** Salida de un día tal y como la usa Equipo · Dónde están. */
 export type DaySession = {
@@ -176,4 +177,52 @@ export function stackLanes<T extends { startsAt: string; endsAt: string }>(items
     else lanes.push([item]);
   }
   return lanes;
+}
+
+export type DropResource = { id: string; type: ResourceType; name: string; seats: number; languages: string[] };
+
+/**
+ * Qué pasa si se suelta una salida en la fila de un recurso (arrastrar y soltar en Equipo):
+ * «same» ya lo lleva, «busy» está en otra salida que se solapa (la base de datos lo rechazaría),
+ * «warn» se puede pero conviene avisar (guía sin ese idioma, vehículo con menos asientos), «ok».
+ */
+export function dropVerdict(
+  session: Pick<DaySession, "id" | "startsAt" | "endsAt" | "language" | "booked" | "resourceIds">,
+  resource: DropResource,
+  sessions: readonly Pick<DaySession, "id" | "startsAt" | "endsAt" | "resourceIds">[],
+): { kind: "same" | "busy" | "warn" | "ok"; text: string } {
+  if (session.resourceIds.includes(resource.id)) return { kind: "same", text: "Ya va en esta salida" };
+  const start = new Date(session.startsAt).getTime();
+  const end = new Date(session.endsAt).getTime();
+  const clash = sessions.find(
+    (other) =>
+      other.id !== session.id &&
+      other.resourceIds.includes(resource.id) &&
+      new Date(other.startsAt).getTime() < end &&
+      new Date(other.endsAt).getTime() > start,
+  );
+  if (clash) return { kind: "busy", text: "Ocupado a esa hora" };
+  if (resource.type === "guide" && !resource.languages.includes(session.language)) {
+    return { kind: "warn", text: `No habla ${session.language.toUpperCase()}` };
+  }
+  if (resource.type === "vehicle" && resource.seats < session.booked) {
+    return { kind: "warn", text: `Solo ${resource.seats} asientos` };
+  }
+  return { kind: "ok", text: "Libre" };
+}
+
+/**
+ * Equipo de la salida tras soltarla: en otro recurso del mismo tipo que la fila de origen, lo
+ * sustituye (mover de un guía a otro); si viene de «Sin asignar» o de otro tipo, se suma; soltarla
+ * en «Sin asignar» (to = null) quita el recurso de origen.
+ */
+export function resourceIdsAfterDrop(
+  current: readonly string[],
+  from: { id: string; type: ResourceType } | null,
+  to: { id: string; type: ResourceType } | null,
+): string[] {
+  if (!to) return from ? current.filter((id) => id !== from.id) : [...current];
+  if (current.includes(to.id)) return [...current];
+  const kept = from && from.type === to.type ? current.filter((id) => id !== from.id) : current;
+  return [...kept, to.id];
 }

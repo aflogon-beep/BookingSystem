@@ -100,6 +100,9 @@ test("Dónde están: estado del equipo por día", async ({ page }, testInfo) => 
     await page.goto(`/panel/equipo?fecha=${farDay}`);
     await page.getByRole("button", { name: "Asignar pendientes" }).click();
     await expect(page.getByText("No había salidas pendientes")).toBeVisible();
+    // La fila «Sin asignar» sigue ahí para soltar salidas, con la ayuda de arrastrar.
+    await expect(page.getByText("Todas las salidas tienen equipo")).toBeVisible();
+    await expect(page.getByText(/Arrastra una salida a la fila de un guía o vehículo/)).toBeVisible();
   }
 
   await vistas.getByRole("link", { name: "Fichas y planificación" }).click();

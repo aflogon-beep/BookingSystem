@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   assignPendingMessage,
+  dropVerdict,
   isPast,
   minutesInDay,
   paxText,
+  resourceIdsAfterDrop,
   resourceStatus,
   sessionPlace,
   stackLanes,
@@ -186,5 +188,38 @@ describe("stackLanes", () => {
     const b = session("b", "10:00", "11:00");
     const c = session("c", "12:00", "14:00");
     expect(stackLanes([c, b, a]).map((lane) => lane.map((item) => item.id))).toEqual([["a", "c"], ["b"]]);
+  });
+});
+
+describe("dropVerdict", () => {
+  const guide = { id: "lukas", type: "guide" as const, name: "Lukas", seats: 1, languages: ["es", "de"] };
+  const van = { id: "van", type: "vehicle" as const, name: "Furgoneta", seats: 3, languages: [] };
+  const target = session("t", "10:00", "11:00", { resourceIds: [] });
+
+  it("detecta si ya la lleva, si está ocupado o si conviene avisar", () => {
+    expect(dropVerdict(target, { ...guide, id: "x" }, [target]).kind).toBe("ok");
+    expect(dropVerdict({ ...target, resourceIds: ["lukas"] }, guide, []).kind).toBe("same");
+    expect(dropVerdict(target, guide, [session("m", "09:00", "12:00", { resourceIds: ["lukas"] })])).toEqual({
+      kind: "busy",
+      text: "Ocupado a esa hora",
+    });
+    // Seguida, sin solaparse: libre.
+    expect(dropVerdict(target, guide, [session("m", "09:00", "10:00", { resourceIds: ["lukas"] })]).kind).toBe("ok");
+    expect(dropVerdict({ ...target, language: "en" }, guide, []).text).toBe("No habla EN");
+    expect(dropVerdict(target, van, []).text).toBe("Solo 3 asientos");
+  });
+});
+
+describe("resourceIdsAfterDrop", () => {
+  const ana = { id: "ana", type: "guide" as const };
+  const lukas = { id: "lukas", type: "guide" as const };
+  const van = { id: "van", type: "vehicle" as const };
+
+  it("mueve entre recursos del mismo tipo, suma desde «Sin asignar» y quita al soltar en «Sin asignar»", () => {
+    expect(resourceIdsAfterDrop(["ana", "van"], ana, lukas)).toEqual(["van", "lukas"]);
+    expect(resourceIdsAfterDrop([], null, lukas)).toEqual(["lukas"]);
+    expect(resourceIdsAfterDrop(["ana"], ana, van)).toEqual(["ana", "van"]);
+    expect(resourceIdsAfterDrop(["ana", "van"], ana, null)).toEqual(["van"]);
+    expect(resourceIdsAfterDrop(["ana"], null, ana)).toEqual(["ana"]);
   });
 });
