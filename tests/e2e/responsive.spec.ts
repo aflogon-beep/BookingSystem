@@ -61,6 +61,14 @@ async function overflowing(page: Page): Promise<string[]> {
       return `<${el.tagName.toLowerCase()}${attrs} class="${classes}"> «${text}»`;
     };
 
+    // Las tablas tienen scroll propio, pero en móvil no deben obligar a deslizar de lado.
+    for (const table of document.body.querySelectorAll("table")) {
+      const box = table.parentElement;
+      if (box && table.getBoundingClientRect().width > 1 && table.scrollWidth > box.clientWidth + 1) {
+        problems.push(`${describe(table)} obliga a deslizar de lado (${table.scrollWidth} px > ${box.clientWidth} px)`);
+      }
+    }
+
     const flagged = new Set<Element>();
     for (const el of document.body.querySelectorAll("*")) {
       const rect = el.getBoundingClientRect();

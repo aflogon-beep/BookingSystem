@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Mountain, Plus } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import { ProductCard } from "@/components/productos/product-card";
 import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
@@ -63,16 +64,20 @@ export default async function Page() {
           ))}
         </ul>
       ) : (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-black/5 bg-surface px-6 py-12 text-center shadow-card">
-          <Mountain className="size-8 text-faint" aria-hidden="true" />
-          <b className="font-semibold">Crea tu primer tour</b>
-          <span className="text-[0.86rem] text-muted-foreground">
-            Con nombre, precio y un horario ya tendrás salidas en el calendario.
-          </span>
-          <Button asChild size="sm" className="mt-1">
-            <Link href="/panel/productos/nuevo">Nuevo producto</Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={Mountain}
+          title="Crea tu primer tour"
+          text="Con nombre, precio y un horario ya tendrás salidas en el calendario."
+          className="rounded-2xl border border-black/5 bg-surface py-12 shadow-card"
+          action={
+            <Button asChild>
+              <Link href="/panel/productos/nuevo">
+                <Plus aria-hidden="true" />
+                Nuevo producto
+              </Link>
+            </Button>
+          }
+        />
       )}
     </section>
   );

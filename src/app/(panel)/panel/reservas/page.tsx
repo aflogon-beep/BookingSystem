@@ -4,6 +4,7 @@ import { Download, Globe, Handshake, Phone, Plus, SearchX, Store, type LucideIco
 
 import { BookingStatusPill, PaymentPill } from "@/components/reservas/booking-pills";
 import { BookingFilters } from "@/components/reservas/booking-filters";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
@@ -93,20 +94,17 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
                     <th scope="col" className="px-2 py-2.5 max-tablet:hidden">
                       Producto
                     </th>
-                    <th scope="col" className="px-2 py-2.5 text-right">
+                    <th scope="col" className="px-2 py-2.5 text-right max-tablet:hidden">
                       Pax
                     </th>
                     <th scope="col" className="px-2 py-2.5 text-right max-tablet:hidden">
                       Total
                     </th>
-                    <th scope="col" className="px-2 py-2.5">
-                      Pago
-                    </th>
                     <th scope="col" className="px-2 py-2.5 max-desk:hidden">
                       Canal
                     </th>
                     <th scope="col" className="px-3 py-2.5 tablet:px-4">
-                      Estado
+                      Estado y pago
                     </th>
                   </tr>
                 </thead>
@@ -132,10 +130,16 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
             ) : null}
           </>
         ) : (
-          <div className="flex flex-col items-center gap-2 px-5 py-9 text-center text-muted-foreground">
-            <SearchX aria-hidden="true" className="size-8 text-faint" />
-            <b className="text-foreground">Ninguna reserva con estos filtros</b>
-          </div>
+          <EmptyState
+            icon={SearchX}
+            title="Ninguna reserva con estos filtros"
+            text="Prueba otra pestaña o quita la búsqueda, el producto o el canal."
+            action={
+              <Button asChild variant="outline">
+                <Link href="/panel/reservas">Quitar filtros</Link>
+              </Button>
+            }
+          />
         )}
       </div>
     </section>
@@ -145,7 +149,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
 function BookingRow({ row }: { row: BookingListRow }) {
   const Icon = CHANNEL_ICONS[row.channel] ?? Globe;
   return (
-    <tr aria-label={row.customerName} className="border-b border-line-2 last:border-b-0 hover:bg-surface-2">
+    <tr aria-label={row.customerName} className="relative border-b border-line-2 last:border-b-0 hover:bg-surface-2">
       <td className="px-3 py-2.5 tablet:px-4">
         <div className="flex items-center gap-2.5">
           <span
@@ -157,7 +161,8 @@ function BookingRow({ row }: { row: BookingListRow }) {
           <div className="min-w-0">
             <Link
               href={`/panel/reservas/${row.code}`}
-              className="block max-w-[190px] truncate font-semibold underline-offset-2 hover:underline"
+              // Toda la fila abre la ficha.
+              className="block max-w-[190px] truncate font-semibold underline-offset-2 after:absolute after:inset-0 after:content-[''] hover:underline"
             >
               {row.customerName}
             </Link>
@@ -170,6 +175,10 @@ function BookingRow({ row }: { row: BookingListRow }) {
       <td className="px-2 py-2.5 whitespace-nowrap">
         <span className="first-letter:uppercase">{listDateLabel(row.date)}</span>{" "}
         <span className="font-mono text-muted-foreground">{row.time}</span>
+        {/* En móvil no cabe la columna de pasajeros: va debajo de la fecha. */}
+        <span className="block text-[0.76rem] text-muted-foreground tablet:hidden">
+          {row.pax} {row.pax === 1 ? "pasajero" : "pasajeros"}
+        </span>
       </td>
       <td className="px-2 py-2.5 max-tablet:hidden">
         <span className="flex items-center gap-2 whitespace-nowrap">
@@ -178,11 +187,8 @@ function BookingRow({ row }: { row: BookingListRow }) {
           <span className="font-mono text-[0.7rem] text-faint">{row.language.toUpperCase()}</span>
         </span>
       </td>
-      <td className="px-2 py-2.5 text-right tabular-nums">{row.pax}</td>
+      <td className="px-2 py-2.5 text-right tabular-nums max-tablet:hidden">{row.pax}</td>
       <td className="px-2 py-2.5 text-right tabular-nums max-tablet:hidden">{formatCents(row.totalCents)}</td>
-      <td className="px-2 py-2.5">
-        <PaymentPill paymentStatus={row.paymentStatus} />
-      </td>
       <td className="px-2 py-2.5 whitespace-nowrap text-muted-foreground max-desk:hidden">
         <span className="inline-flex items-center gap-1.5">
           <Icon aria-hidden="true" className="size-3.5" />
@@ -191,7 +197,10 @@ function BookingRow({ row }: { row: BookingListRow }) {
         </span>
       </td>
       <td className="px-3 py-2.5 tablet:px-4">
-        <BookingStatusPill status={row.status} checkedIn={row.checkedIn} />
+        <div className="flex flex-col items-start gap-1 desk:flex-row desk:flex-wrap">
+          <BookingStatusPill status={row.status} checkedIn={row.checkedIn} />
+          <PaymentPill paymentStatus={row.paymentStatus} />
+        </div>
       </td>
     </tr>
   );

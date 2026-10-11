@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, Plus, UserRound } from "lucide-react";
 
 import { STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,13 @@ export function SessionRow({ session }: { session: TodaySession }) {
         </div>
         <div className="mt-[5px] flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[0.78rem] text-muted-foreground">
           <span className="rounded-[5px] border border-line px-1 font-mono text-[0.68rem]">{session.language.toUpperCase()}</span>
+          {session.guides.length ? (
+            <span className="flex min-w-0 items-center gap-1">
+              <UserRound aria-hidden="true" className="size-3.5 shrink-0" />
+              <span className="sr-only">Guía:</span>
+              <span className="truncate">{session.guides.join(", ")}</span>
+            </span>
+          ) : null}
           {sessionFlags(session).map((flag) => (
             <Pill key={flag.label} tone={flag.tone === "warn" ? "warn" : "neutral"} className={cn(flag.tone === "danger" && "bg-danger-soft text-danger")}>
               {flag.label}

@@ -14,6 +14,8 @@ export type TodaySession = {
   minPax: number;
   /** Equipo que le falta (vista session_staffing). */
   missing: MissingByType;
+  /** Guías asignados, por nombre. */
+  guides: string[];
   /** Recurso obligatorio que no está libre a esa hora: no admite reservas (vista session_team_status). */
   blockingNeed: ResourceType | null;
   /** Se vende en la web: producto a la venta y antes del cierre de venta online. */

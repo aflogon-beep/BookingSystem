@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SearchX } from "lucide-react";
+import { SearchX, Users } from "lucide-react";
 
 import { CustomerSearch } from "@/components/clientes/customer-search";
+import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/ui/pill";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
@@ -114,10 +115,15 @@ export default async function Page({ searchParams }: PageProps<"/panel/clientes"
             </table>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 px-5 py-9 text-center text-muted-foreground">
-            <SearchX aria-hidden="true" className="size-8 text-faint" />
-            <b className="text-foreground">{q ? "Ningún cliente con esa búsqueda" : "Todavía no hay clientes"}</b>
-          </div>
+          <EmptyState
+            icon={q ? SearchX : Users}
+            title={q ? "Ningún cliente con esa búsqueda" : "Todavía no hay clientes"}
+            text={
+              q
+                ? "Busca por nombre, email o teléfono."
+                : "Cada persona que reserva se guarda aquí con su historial, sin hacer nada más."
+            }
+          />
         )}
       </div>
     </section>

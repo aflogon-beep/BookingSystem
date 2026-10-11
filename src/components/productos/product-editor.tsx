@@ -855,6 +855,7 @@ function EquipmentTab({ draft, update, available }: TabProps & { available: Reco
                     </label>
                     <p id={`${id}-hint`} className="text-[0.78rem] text-muted-foreground">
                       {count} {count === 1 ? "disponible" : "disponibles"} en Equipo
+                      {qty > 0 ? (draft.needsRequired[type] ? " · si no hay uno libre, no se vende" : " · si falta, se vende y avisa") : null}
                     </p>
                   </div>
                   <Input
