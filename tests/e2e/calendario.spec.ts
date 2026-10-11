@@ -23,6 +23,9 @@ test("la semana muestra las salidas generadas, de lunes a domingo", async ({ pag
   const teide = column.getByRole("listitem").filter({ hasText: "16:30" }).filter({ hasText: "Teide al atardecer y estrellas" });
   await expect(teide).toBeVisible();
   await expect(teide.getByText("0/16")).toBeVisible();
+  // Se puede reservar desde la tarjeta, sin pasar por el manifiesto.
+  await expect(teide.getByRole("link", { name: "Reservar 16:30 Teide al atardecer y estrellas" })).toHaveAttribute("href", /\/panel\/reservas\/nueva\?salida=/);
+  await expect(page.getByRole("list", { name: "Leyenda de plazas" })).toBeVisible();
   await expect(column.getByRole("listitem").filter({ hasText: "10:30" }).filter({ hasText: "La Laguna, ciudad Patrimonio" })).toBeVisible();
 });
 

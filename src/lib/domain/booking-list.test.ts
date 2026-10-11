@@ -7,6 +7,8 @@ import {
   bookingListSummary,
   bookingsCsv,
   csvFileName,
+  exactCodeMatch,
+  globalSearchHref,
   ilikePattern,
   listDateLabel,
   parseBookingListParams,
@@ -181,5 +183,18 @@ describe("bookingsCsv", () => {
 
   it("nombre del archivo", () => {
     expect(csvFileName("proximas", "2030-12-02")).toBe("reservas-proximas-2030-12-02.csv");
+  });
+});
+
+describe("buscador de la barra superior", () => {
+  it("busca en todas las reservas y marca que viene del buscador", () => {
+    expect(globalSearchHref("  Ana López ")).toBe("/panel/reservas?pestana=todas&q=Ana+L%C3%B3pez&ir=1");
+  });
+
+  it("abre la reserva solo si el código coincide exactamente y es la única", () => {
+    expect(exactCodeMatch("rt-7k2p", [{ code: "RT-7K2P" }])).toBe("RT-7K2P");
+    expect(exactCodeMatch("RT-7K", [{ code: "RT-7K2P" }])).toBeNull();
+    expect(exactCodeMatch("RT-7K2P", [{ code: "RT-7K2P" }, { code: "RT-7K2Q" }])).toBeNull();
+    expect(exactCodeMatch("", [{ code: "RT-7K2P" }])).toBeNull();
   });
 });

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, ChevronRight, Clock, Languages, MapPin, Plus, StickyNote, Ticket, TriangleAlert, UserCheck, Users, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarDays, ChevronRight, Clock, Languages, MapPin, Plus, StickyNote, Ticket, TriangleAlert, UserCheck, Users, Wallet, type LucideIcon } from "lucide-react";
 import { z } from "zod";
 
+import { BackLink } from "@/components/back-link";
 import { Box } from "@/components/ajustes/box";
+import { PhoneLinks } from "@/components/contact-buttons";
 import { EmptyState } from "@/components/empty-state";
 import { EquipmentBox } from "@/components/manifiesto/equipment-box";
 import { ManifestMenu } from "@/components/manifiesto/manifest-menu";
@@ -53,17 +55,14 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
 
   return (
     <section className="flex flex-col gap-4 tablet:gap-5">
-      <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-1 px-1">
-          <Link href={backHref}>
-            <ArrowLeft aria-hidden="true" />
-            Volver
-          </Link>
-        </Button>
+      <div className="print:hidden">
+        <BackLink fallbackHref={backHref} />
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card">
-        <div className="relative">
+        {/* Al imprimir (para el guía) sobra la foto: solo el título. */}
+        <h1 className="hidden px-4 pt-3 text-[1.3rem] print:block">{session.product.name}</h1>
+        <div className="relative print:hidden">
           <ProductArt
             seed={session.product.id}
             color={session.product.color}
@@ -105,14 +104,14 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
             ) : null}
           </ul>
           {state.panelBookable ? (
-            <Button asChild className="max-tablet:w-full">
+            <Button asChild className="max-tablet:w-full print:hidden">
               <Link href={`/panel/reservas/nueva?salida=${session.id}`}>
                 <Plus aria-hidden="true" />
                 Añadir reserva
               </Link>
             </Button>
           ) : (
-            <Button disabled title={stateHint(state)} className="max-tablet:w-full">
+            <Button disabled title={stateHint(state)} className="max-tablet:w-full print:hidden">
               <Plus aria-hidden="true" />
               Añadir reserva
             </Button>
@@ -121,7 +120,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
       </div>
 
       {alert ? (
-        <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#f5d0a9] bg-warn-soft px-4 py-3.5">
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#f5d0a9] bg-warn-soft px-4 py-3.5 print:hidden">
           <span aria-hidden="true" className="grid size-9 flex-none place-items-center rounded-full bg-warn text-white">
             <TriangleAlert className="size-[18px]" />
           </span>
@@ -183,8 +182,12 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
         </Kpi>
       </dl>
 
-      <div className="grid grid-cols-1 items-start gap-[18px] desk:grid-cols-[minmax(0,1fr)_340px]">
-        <Box title="Pasajeros" action={<CheckAllButton sessionId={session.id} disabled={!live.some((row) => !row.checkedIn)} />}>
+      <div className="grid grid-cols-1 items-start gap-[18px] desk:grid-cols-[minmax(0,1fr)_340px] print:block">
+        <Box title="Pasajeros" action={
+            <span className="print:hidden">
+              <CheckAllButton sessionId={session.id} disabled={!live.some((row) => !row.checkedIn)} />
+            </span>
+          }>
           {rows.length ? (
             <div className="overflow-x-auto">
               <table className="w-full text-[0.86rem]">
@@ -199,7 +202,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
                     <th scope="col" className="px-2 py-2.5">
                       Entradas
                     </th>
-                    <th scope="col" className="px-2 py-2.5 max-desk:hidden">
+                    <th scope="col" className="px-2 py-2.5 max-desk:hidden print:table-cell!">
                       {session.product.pickup ? "Recogida" : "Contacto"}
                     </th>
                     <th scope="col" className="px-3 py-2.5 tablet:px-4">
@@ -233,7 +236,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
           )}
         </Box>
 
-        <div className="flex flex-col gap-[18px]">
+        <div className="flex flex-col gap-[18px] print:hidden">
           <Box
             title="Gestión de la salida"
             action={
@@ -366,7 +369,6 @@ function PaymentCell({ row }: { row: ManifestRow }) {
 
 function PassengerRow({ row, session }: { row: ManifestRow; session: ManifestSession }) {
   const live = isLive(row);
-  const contact = row.phone || row.email;
   return (
     <tr
       aria-label={row.customerName}
@@ -387,13 +389,11 @@ function PassengerRow({ row, session }: { row: ManifestRow; session: ManifestSes
           </span>
         ) : null}
         {/* En móvil y tablet no cabe la columna de recogida: va debajo del nombre, con la nota. */}
-        <span className="mt-0.5 block text-[0.78rem] text-muted-foreground desk:hidden">
+        <span className="mt-0.5 block text-[0.78rem] text-muted-foreground desk:hidden print:hidden">
           {session.product.pickup ? (
             row.hotel || "En punto de encuentro"
           ) : row.phone ? (
-            <a href={`tel:${row.phone}`} className="font-mono underline-offset-2 hover:underline">
-              {row.phone}
-            </a>
+            <PhoneLinks name={row.customerName} phone={row.phone} />
           ) : (
             row.email
           )}
@@ -403,13 +403,17 @@ function PassengerRow({ row, session }: { row: ManifestRow; session: ManifestSes
       </td>
       <td className="px-2 py-2.5">
         <b className="tabular-nums">{paxOf(row)}</b>{" "}
-        <span className="text-[0.8rem] text-muted-foreground max-tablet:hidden">{ticketsLabel(row.lines)}</span>
+        <span className="text-[0.8rem] text-muted-foreground max-tablet:hidden print:inline!">{ticketsLabel(row.lines)}</span>
       </td>
-      <td className="px-2 py-2.5 text-[0.8rem] max-desk:hidden">
+      <td className="px-2 py-2.5 text-[0.8rem] max-desk:hidden print:table-cell!">
         {session.product.pickup ? (
           row.hotel || <span className="text-faint">En punto de encuentro</span>
-        ) : contact ? (
-          <span className="font-mono">{contact}</span>
+        ) : row.phone ? (
+          <PhoneLinks name={row.customerName} phone={row.phone} />
+        ) : row.email ? (
+          <a href={`mailto:${row.email}`} className="underline-offset-2 hover:underline">
+            {row.email}
+          </a>
         ) : (
           <span className="text-faint">—</span>
         )}

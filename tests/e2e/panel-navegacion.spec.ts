@@ -22,12 +22,12 @@ test.describe("navegación del panel", () => {
 
   test("al cambiar de página sale una barra de carga arriba hasta que llega la nueva", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "escritorio", "solo en escritorio");
-    await page.goto("/panel");
-    // Respuesta lenta a propósito para que se vea la barra.
+    // Respuesta lenta a propósito para que se vea la barra (también la precarga del enlace).
     await page.route("**/panel/clientes**", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       await route.continue();
     });
+    await page.goto("/panel");
 
     const bar = page.locator(".nav-progress");
     await expect(bar).not.toHaveAttribute("data-active");

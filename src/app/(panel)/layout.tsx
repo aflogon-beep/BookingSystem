@@ -29,7 +29,7 @@ export default async function PanelLayout({ children, modal }: LayoutProps<"/">)
       </a>
       <TopBar staff={staff} alerts={alerts} />
       <NavSub role={staff.role} />
-      <main id="contenido" className="mx-auto w-full max-w-[1380px] flex-1 px-4 pt-4 pb-28 tablet:px-6 tablet:pt-[22px] tablet:pb-14">
+      <main id="contenido" className="mx-auto w-full max-w-[1380px] flex-1 px-4 pt-4 pb-28 tablet:px-6 tablet:pt-[22px] tablet:pb-14 print:p-0!">
         {children}
       </main>
       {modal}

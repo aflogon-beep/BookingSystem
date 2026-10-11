@@ -4,6 +4,7 @@ import { LogOut, Plus, Settings, Store } from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
 
 import { AlertsBell } from "@/components/panel/alerts-bell";
+import { GlobalSearch } from "@/components/panel/global-search";
 import { NavTop } from "@/components/panel/nav-top";
 import { focusRing } from "@/components/panel/styles";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ function Logo() {
 
 export function TopBar({ staff, alerts }: { staff: StaffMember; alerts: number }) {
   return (
-    <header className="sticky top-0 z-40 flex min-h-[calc(54px+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] items-center gap-x-[18px] border-b border-black/[0.08] bg-white/78 px-3.5 backdrop-blur-xl backdrop-saturate-180 tablet:min-h-[calc(56px+env(safe-area-inset-top,0px))] tablet:px-[18px]">
+    <header className="sticky top-0 z-40 flex min-h-[calc(54px+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] items-center gap-x-[18px] border-b border-black/[0.08] bg-white/78 px-3.5 backdrop-blur-xl backdrop-saturate-180 tablet:min-h-[calc(56px+env(safe-area-inset-top,0px))] tablet:px-[18px] print:hidden">
       <Link href="/panel" className={`${focusRing} flex min-w-0 flex-none items-center gap-2.5 rounded-lg`}>
         <Logo />
         <span className="min-w-0 leading-tight">
@@ -39,6 +40,7 @@ export function TopBar({ staff, alerts }: { staff: StaffMember; alerts: number }
       <NavTop role={staff.role} />
 
       <div className="ml-auto flex flex-none items-center gap-1">
+        <GlobalSearch />
         <Button asChild size="sm" className="hidden tablet:inline-flex">
           <Link href={NEW_BOOKING_HREF}>
             <Plus aria-hidden="true" />
@@ -61,7 +63,8 @@ export function TopBar({ staff, alerts }: { staff: StaffMember; alerts: number }
         <form action={logout} className="hidden tablet:block">
           <Button type="submit" variant="ghost" size="sm" title={`Salir (${staff.name})`}>
             <LogOut aria-hidden="true" />
-            Salir
+            {/* Entre 1180 y 1400 px solo el icono: así cabe el buscador sin cortar la navegación. */}
+            <span className="desk:sr-only min-[1400px]:not-sr-only">Salir</span>
           </Button>
         </form>
       </div>

@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { groupByDate, occupancyTotals, weekdayLabel } from "@/lib/domain/calendar";
 
-import { SessionStatus } from "./session-status";
+import { SessionStatus, calendarState, seatToneClass } from "./session-status";
 import type { CalendarSession } from "./types";
 
 /** Semana en columnas: 7 en escritorio, 4 en tablet y 1 en móvil. */
@@ -45,7 +46,7 @@ export function WeekView({ days, sessions, today }: { days: readonly string[]; s
 }
 
 function WeekCard({ session }: { session: CalendarSession }) {
-  const full = session.status !== "cancelled" && session.capacity > 0 && session.booked >= session.capacity;
+  const state = calendarState(session);
   const percent = session.capacity ? Math.min(100, (session.booked / session.capacity) * 100) : 0;
   return (
     <li
@@ -80,7 +81,7 @@ function WeekCard({ session }: { session: CalendarSession }) {
         aria-valuenow={session.booked}
         className="h-[5px] overflow-hidden rounded-full bg-line-2"
       >
-        <div className={cn("h-full rounded-full", full ? "bg-[#ff9f0a]" : "bg-primary")} style={{ width: `${percent}%` }} />
+        <div className={cn("h-full rounded-full", seatToneClass(state.kind))} style={{ width: `${percent}%` }} />
       </div>
       <div className="flex items-center justify-between gap-2 text-[0.8rem] text-muted-foreground">
         <span className="font-mono tabular-nums">
@@ -88,6 +89,17 @@ function WeekCard({ session }: { session: CalendarSession }) {
         </span>
         <SessionStatus session={session} />
       </div>
+      {state.panelBookable ? (
+        // Por encima del enlace de la tarjeta: reservar sin pasar por el manifiesto.
+        <Link
+          href={`/panel/reservas/nueva?salida=${session.id}`}
+          aria-label={`Reservar ${session.time} ${session.product.name}`}
+          className="relative z-10 -mx-1 -mb-1 flex min-h-9 items-center justify-center gap-1 rounded-lg text-[0.8rem] font-medium text-primary hover:bg-primary-soft focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+        >
+          <Plus aria-hidden="true" className="size-3.5" />
+          Reservar
+        </Link>
+      ) : null}
     </li>
   );
 }

@@ -98,7 +98,7 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
 
       {showSetup ? <SetupBanner /> : null}
 
-      <Kpis kpis={kpis} />
+      <Kpis kpis={kpis} day={day} isToday={day === today} />
 
       <div className="grid grid-cols-1 items-start gap-[18px] desk:grid-cols-[minmax(0,1fr)_340px]">
         <Box title="Salidas del día" aside={<span className="text-[0.8rem] text-muted-foreground">{sessions.length} programadas</span>}>
@@ -160,10 +160,23 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
   );
 }
 
-function Kpis({ kpis }: { kpis: DayKpis }) {
-  const items = [
-    { label: "Salidas", value: String(kpis.sessions), detail: `${kpis.sessionsWithBookings} con reservas` },
-    { label: "Pasajeros", value: String(kpis.pax), detail: `${kpis.bookings} ${kpis.bookings === 1 ? "reserva" : "reservas"}` },
+/** Cifras del día. Las que tienen lista detrás se pueden pulsar (como en FareHarbor). */
+function Kpis({ kpis, day, isToday }: { kpis: DayKpis; day: string; isToday: boolean }) {
+  const items: { label: string; value: React.ReactNode; detail: React.ReactNode; href?: string; linkLabel?: string }[] = [
+    {
+      label: "Salidas",
+      value: String(kpis.sessions),
+      detail: `${kpis.sessionsWithBookings} con reservas`,
+      href: `/panel/calendario?fecha=${day}`,
+      linkLabel: "Ver la semana en el calendario",
+    },
+    {
+      label: "Pasajeros",
+      value: String(kpis.pax),
+      detail: `${kpis.bookings} ${kpis.bookings === 1 ? "reserva" : "reservas"}`,
+      // La pestaña «Hoy» del listado solo vale para hoy.
+      ...(isToday ? { href: "/panel/reservas?pestana=hoy", linkLabel: "Ver las reservas de hoy" } : {}),
+    },
     {
       label: "Check-in",
       value: (
@@ -184,6 +197,7 @@ function Kpis({ kpis }: { kpis: DayKpis }) {
       ) : (
         "Todo cobrado"
       ),
+      ...(kpis.pendingPayments ? { href: "/panel/reservas?pestana=pendientes", linkLabel: "Ver los pagos pendientes" } : {}),
     },
   ];
   return (
@@ -192,13 +206,21 @@ function Kpis({ kpis }: { kpis: DayKpis }) {
         <div
           key={item.label}
           className={cn(
-            "min-w-0 px-3.5 py-3 tablet:px-[18px] tablet:py-3.5",
+            "relative min-w-0 px-3.5 py-3 tablet:px-[18px] tablet:py-3.5",
+            item.href && "hover:bg-surface-2 has-[a:focus-visible]:ring-[3px] has-[a:focus-visible]:ring-ring/50 has-[a:focus-visible]:ring-inset",
             index % 2 === 1 && "border-l border-line-2",
             index >= 2 && "border-t border-line-2 tablet:border-t-0",
             index === 2 && "tablet:border-l",
           )}
         >
-          <dt className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{item.label}</dt>
+          <dt className="flex items-center justify-between gap-1 text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
+            {item.label}
+            {item.href ? (
+              <Link href={item.href} aria-label={item.linkLabel} className="outline-none after:absolute after:inset-0 after:content-['']">
+                <ChevronRight aria-hidden="true" className="size-4 text-faint" />
+              </Link>
+            ) : null}
+          </dt>
           <dd className="mt-[3px] text-[1.25rem] font-semibold tracking-[-0.03em] tabular-nums tablet:text-[1.6rem]">{item.value}</dd>
           <dd className="text-[0.76rem] text-muted-foreground">{item.detail}</dd>
         </div>

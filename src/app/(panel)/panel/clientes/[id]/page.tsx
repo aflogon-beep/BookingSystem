@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
+import { BackLink } from "@/components/back-link";
 import { Box } from "@/components/ajustes/box";
+import { ContactButtons } from "@/components/contact-buttons";
 import { AnonymizeCustomerButton } from "@/components/clientes/anonymize-customer-button";
 import { BookingStatusPill } from "@/components/reservas/booking-pills";
-import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
 import { listDateLabel } from "@/lib/domain/booking-list";
@@ -41,12 +41,7 @@ export default async function Page({ params }: PageProps<"/panel/clientes/[id]">
   return (
     <section className="flex max-w-[720px] flex-col gap-4 tablet:gap-5">
       <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-1 px-1">
-          <Link href="/panel/clientes">
-            <ArrowLeft aria-hidden="true" />
-            Clientes
-          </Link>
-        </Button>
+        <BackLink fallbackHref="/panel/clientes" />
       </div>
 
       <div className="flex min-w-0 items-center gap-3">
@@ -98,6 +93,7 @@ export default async function Page({ params }: PageProps<"/panel/clientes/[id]">
             )}
           </dd>
         </dl>
+        <ContactButtons name={customer.name ?? "el cliente"} phone={customer.phone} email={customer.email} className="border-t border-line-2 px-4 py-3" />
       </Box>
 
       <Box title="Reservas">

@@ -42,7 +42,7 @@ export function TabBar({ role, name }: { role: StaffRole; name: string }) {
   return (
     <nav
       aria-label="Pestañas"
-      className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-line bg-white/88 px-1.5 pt-1.5 pb-[calc(6px+env(safe-area-inset-bottom,0px))] backdrop-blur-xl backdrop-saturate-180 tablet:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-line bg-white/88 px-1.5 pt-1.5 pb-[calc(6px+env(safe-area-inset-bottom,0px))] backdrop-blur-xl backdrop-saturate-180 tablet:hidden print:hidden"
     >
       {tab(hoy)}
       {tab(calendario)}

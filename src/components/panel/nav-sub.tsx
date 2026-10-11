@@ -28,7 +28,7 @@ export function NavSub({ role }: { role: StaffRole }) {
     <nav
       ref={navRef}
       aria-label="Secciones"
-      className="sticky top-14 z-30 hidden overflow-x-auto border-b border-line bg-white/85 px-3 backdrop-blur-xl tablet:flex desk:hidden"
+      className="sticky top-14 z-30 hidden overflow-x-auto border-b border-line bg-white/85 px-3 backdrop-blur-xl tablet:flex desk:hidden print:hidden"
     >
       {visibleNav((id) => canAccess(role, id)).map((item) => {
         const active = isNavItemActive(item, pathname);

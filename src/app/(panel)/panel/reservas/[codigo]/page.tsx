@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
+import { BackLink } from "@/components/back-link";
+import { ContactButtons } from "@/components/contact-buttons";
 import { CollectButton } from "@/components/manifiesto/passenger-actions";
 import {
   CancelBookingButton,
@@ -11,7 +13,6 @@ import {
   NotesField,
   ResendButton,
 } from "@/components/reservas/booking-actions";
-import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { requireAccess } from "@/lib/auth";
 import { CHANNEL_LABELS, isEditable, isFreeCancellation, moveOptionLabel, paymentLabel } from "@/lib/domain/booking-detail";
@@ -50,12 +51,7 @@ export default async function Page({ params }: PageProps<"/panel/reservas/[codig
   return (
     <section className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
       <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-1 px-1">
-          <Link href={`/panel/salidas/${booking.session.id}`}>
-            <ArrowLeft aria-hidden="true" />
-            Manifiesto
-          </Link>
-        </Button>
+        <BackLink fallbackHref={`/panel/salidas/${booking.session.id}`} />
       </div>
 
       <div>
@@ -132,6 +128,7 @@ export default async function Page({ params }: PageProps<"/panel/reservas/[codig
               ["Teléfono", <span key="phone" className="font-mono">{booking.customer.phone || "—"}</span>],
             ]}
           />
+          <ContactButtons name={booking.customer.name} phone={booking.customer.phone} email={booking.customer.email} className="mt-3" />
         </div>
         <NotesField bookingId={booking.id} notes={booking.notes} />
         {editable && booking.moveOptions.length ? (

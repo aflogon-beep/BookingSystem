@@ -51,6 +51,21 @@ test("una reserva nueva sale en el listado, en el CSV y en la ficha del cliente"
   await expect(row.getByText("Pendiente")).toBeVisible();
   await expect(page.getByText(/^1 reserva · 1 pasajero ·/)).toBeVisible();
 
+  // El buscador de arriba encuentra la reserva por nombre y abre la ficha con el código exacto.
+  const code = ((await row.getByRole("link").first().getAttribute("href")) ?? "").split("/").pop() ?? "";
+  expect(code).not.toBe("");
+  const topSearch = page.getByRole("searchbox", { name: "Buscar reserva o cliente" }).filter({ visible: true });
+  await topSearch.fill(code.toLowerCase());
+  await topSearch.press("Enter");
+  await expect(page).toHaveURL(new RegExp(`/panel/reservas/${code}$`));
+  await page.goto("/panel/reservas");
+  await page.keyboard.press("/");
+  await expect(topSearch).toBeFocused();
+  await page.keyboard.type(name);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/pestana=todas&q=Listado/);
+  await expect(page.getByRole("row", { name })).toBeVisible();
+
   // El CSV lleva los mismos filtros.
   const csvHref = await page.getByRole("link", { name: "Exportar CSV" }).getAttribute("href");
   expect(csvHref).toContain("q=Listado");
