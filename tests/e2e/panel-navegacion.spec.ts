@@ -33,6 +33,7 @@ test.describe("navegación del panel", () => {
     await expect(bar).not.toHaveAttribute("data-active");
     await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Clientes" }).click();
     await expect(bar).toHaveAttribute("data-active", "true");
+    await expect(bar.getByText("Cargando…")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1, name: "Clientes" })).toBeVisible();
     await expect(bar).not.toHaveAttribute("data-active");
   });
