@@ -97,6 +97,21 @@ describe("listado de reservas y clientes", () => {
     expect(customer).toEqual({ bookings: 3, pax: 2, spent_cents: 5000 });
   });
 
+  it("suma los totales de la cabecera en la base de datos (agregados de PostgREST)", async () => {
+    const { data, error } = await member.db
+      .from("booking_list")
+      .select("status, count(), pax:pax.sum(), total_cents:total_cents.sum()")
+      .eq("session_id", sessionId)
+      .order("status");
+    expect(error).toBeNull();
+    const rows = data as unknown as { status: string; count: number; pax: number; total_cents: number }[];
+    // Del caso anterior: 1 confirmada de 2 pax y 2 canceladas de 1.
+    expect(rows).toEqual([
+      { status: "cancelled", count: 2, pax: 2, total_cents: 5000 },
+      { status: "confirmed", count: 1, pax: 2, total_cents: 5000 },
+    ]);
+  });
+
   it("quien no es del equipo no ve nada", async () => {
     for (const db of [anonDb(), outsider.db]) {
       const bookings = await db.from("booking_list").select("id").eq("session_id", sessionId);
