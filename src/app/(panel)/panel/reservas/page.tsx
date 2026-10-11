@@ -82,8 +82,8 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
         {rows.length ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-[0.86rem]">
-                <thead>
+              <table className="w-full text-[0.86rem] max-tablet:block">
+                <thead className="max-tablet:sr-only">
                   <tr className="border-b border-line-2 text-left text-[0.72rem] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
                     <th scope="col" className="px-3 py-2.5 tablet:px-4">
                       Reserva
@@ -108,7 +108,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="max-tablet:block">
                   {rows.map((row) => (
                     <BookingRow key={row.id} row={row} />
                   ))}
@@ -149,8 +149,15 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
 function BookingRow({ row }: { row: BookingListRow }) {
   const Icon = CHANNEL_ICONS[row.channel] ?? Globe;
   return (
-    <tr aria-label={row.customerName} className="relative border-b border-line-2 last:border-b-0 hover:bg-surface-2">
-      <td className="px-3 py-2.5 tablet:px-4">
+    <tr
+      aria-label={row.customerName}
+      className={cn(
+        "relative border-b border-line-2 last:border-b-0 hover:bg-surface-2",
+        // En móvil cada fila es una tarjeta: cliente y salida a la izquierda, estado y pago a la derecha.
+        "max-tablet:grid max-tablet:grid-cols-[minmax(0,1fr)_auto] max-tablet:items-center max-tablet:py-1.5",
+      )}
+    >
+      <td className="min-w-0 px-3 py-2.5 max-tablet:pb-0 tablet:px-4">
         <div className="flex items-center gap-2.5">
           <span
             aria-hidden="true"
@@ -162,17 +169,17 @@ function BookingRow({ row }: { row: BookingListRow }) {
             <Link
               href={`/panel/reservas/${row.code}`}
               // Toda la fila abre la ficha.
-              className="block max-w-[190px] truncate font-semibold underline-offset-2 after:absolute after:inset-0 after:content-[''] hover:underline"
+              className="block max-w-[190px] truncate max-tablet:max-w-full font-semibold underline-offset-2 after:absolute after:inset-0 after:content-[''] hover:underline"
             >
               {row.customerName}
             </Link>
             <span className="font-mono text-[0.74rem] text-faint">{row.code}</span>
             {/* En móvil el producto va debajo del nombre. */}
-            <span className="block max-w-[190px] truncate text-[0.76rem] text-muted-foreground tablet:hidden">{row.productName}</span>
+            <span className="block max-w-[190px] truncate max-tablet:max-w-full text-[0.76rem] text-muted-foreground tablet:hidden">{row.productName}</span>
           </div>
         </div>
       </td>
-      <td className="px-2 py-2.5 whitespace-nowrap">
+      <td className="px-2 py-2.5 whitespace-nowrap max-tablet:col-start-1 max-tablet:px-3 max-tablet:pt-0.5 max-tablet:text-[0.8rem]">
         <span className="first-letter:uppercase">{listDateLabel(row.date)}</span>{" "}
         <span className="font-mono text-muted-foreground">{row.time}</span>
         {/* En móvil no cabe la columna de pasajeros: va debajo de la fecha. */}
@@ -196,8 +203,8 @@ function BookingRow({ row }: { row: BookingListRow }) {
           {row.agent ? ` · ${row.agent}` : ""}
         </span>
       </td>
-      <td className="px-3 py-2.5 tablet:px-4">
-        <div className="flex flex-col items-start gap-1 desk:flex-row desk:flex-wrap">
+      <td className="px-3 py-2.5 max-tablet:col-start-2 max-tablet:row-span-2 max-tablet:row-start-1 tablet:px-4">
+        <div className="flex flex-col items-end gap-1 tablet:items-start desk:flex-row desk:flex-wrap">
           <BookingStatusPill status={row.status} checkedIn={row.checkedIn} />
           <PaymentPill paymentStatus={row.paymentStatus} />
         </div>

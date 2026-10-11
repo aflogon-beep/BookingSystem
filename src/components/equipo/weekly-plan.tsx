@@ -22,7 +22,8 @@ export function WeeklyPlan({
       title="Planificación de esta semana"
       action={<span className="text-[0.8rem] text-muted-foreground">Salidas asignadas a cada guía</span>}
     >
-      <div className="overflow-x-auto">
+      {/* Rejilla semanal: en móvil se desliza de lado a propósito (siete días no caben). */}
+      <div data-scroll-x className="overflow-x-auto">
         <table className="w-full text-[0.78rem]">
           <thead>
             <tr className="border-b border-line-2 text-[0.72rem] font-semibold tracking-[0.04em] text-muted-foreground uppercase">

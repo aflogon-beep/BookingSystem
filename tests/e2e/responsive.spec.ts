@@ -64,6 +64,8 @@ async function overflowing(page: Page): Promise<string[]> {
     // Las tablas tienen scroll propio, pero en móvil no deben obligar a deslizar de lado.
     for (const table of document.body.querySelectorAll("table")) {
       const box = table.parentElement;
+      // «data-scroll-x» marca las tablas que se deslizan a propósito (la planificación semanal).
+      if (box?.closest("[data-scroll-x]")) continue;
       if (box && table.getBoundingClientRect().width > 1 && table.scrollWidth > box.clientWidth + 1) {
         problems.push(`${describe(table)} obliga a deslizar de lado (${table.scrollWidth} px > ${box.clientWidth} px)`);
       }

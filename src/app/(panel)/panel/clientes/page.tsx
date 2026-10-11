@@ -62,7 +62,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/clientes"
                   <th scope="col" className="px-2 py-2.5 max-desk:hidden">
                     Teléfono
                   </th>
-                  <th scope="col" className="px-2 py-2.5 text-right">
+                  <th scope="col" className="px-2 py-2.5 text-right max-tablet:hidden">
                     Reservas
                   </th>
                   <th scope="col" className="px-2 py-2.5 text-right max-tablet:hidden">
@@ -80,7 +80,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/clientes"
                 {customers.map((customer) => {
                   const name = customer.name ?? "";
                   return (
-                    <tr key={customer.id} aria-label={name} className="border-b border-line-2 last:border-b-0 hover:bg-surface-2">
+                    <tr key={customer.id} aria-label={name} className="relative border-b border-line-2 last:border-b-0 hover:bg-surface-2">
                       <td className="px-3 py-2.5 tablet:px-4">
                         <div className="flex items-center gap-2.5">
                           <span
@@ -92,17 +92,22 @@ export default async function Page({ searchParams }: PageProps<"/panel/clientes"
                           <div className="min-w-0">
                             <Link
                               href={`/panel/clientes/${customer.id}`}
-                              className="block max-w-[240px] truncate font-semibold underline-offset-2 hover:underline"
+                              // Toda la fila abre la ficha.
+                              className="block max-w-[40vw] tablet:max-w-[240px] truncate font-semibold underline-offset-2 after:absolute after:inset-0 after:content-[''] hover:underline"
                             >
                               {name}
                             </Link>
-                            <span className="block max-w-[240px] truncate text-[0.78rem] text-muted-foreground">{customer.email}</span>
+                            <span className="block max-w-[40vw] tablet:max-w-[240px] truncate text-[0.78rem] text-muted-foreground">{customer.email}</span>
+                            {/* En móvil no cabe la columna de reservas: va debajo. */}
+                            <span className="block text-[0.76rem] text-muted-foreground tablet:hidden">
+                              {customer.bookings} {customer.bookings === 1 ? "reserva" : "reservas"}
+                            </span>
                           </div>
-                          {(customer.bookings ?? 0) > 1 ? <Pill className="bg-primary-soft text-primary-dark">Repite</Pill> : null}
+                          {(customer.bookings ?? 0) > 1 ? <Pill className="bg-primary-soft text-primary-dark max-tablet:hidden">Repite</Pill> : null}
                         </div>
                       </td>
                       <td className="px-2 py-2.5 font-mono text-[0.8rem] max-desk:hidden">{customer.phone}</td>
-                      <td className="px-2 py-2.5 text-right tabular-nums">{customer.bookings}</td>
+                      <td className="px-2 py-2.5 text-right tabular-nums max-tablet:hidden">{customer.bookings}</td>
                       <td className="px-2 py-2.5 text-right tabular-nums max-tablet:hidden">{customer.pax}</td>
                       <td className="px-2 py-2.5 text-right tabular-nums">{formatCents(customer.spent_cents ?? 0)}</td>
                       <td className="px-3 py-2.5 first-letter:uppercase max-tablet:hidden tablet:px-4">
