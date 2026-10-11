@@ -38,21 +38,12 @@ export default async function Page({ searchParams }: PageProps<"/panel/calendari
   const { from, to } = rangeForDays(days);
 
   const supabase = await createClient();
-  const { data: products, error: productsError } = await supabase
-    .from("products")
-    .select("id, name")
-    .order("created_at")
-    .order("name");
-  if (productsError) throw new Error("No se pudo cargar el calendario.");
-  // Un producto que ya no existe en la URL cuenta como «Todos los productos».
+  // Todo en paralelo con el producto de la URL. Si ese producto ya no existe (caso raro), cuenta
+  // como «Todos los productos» y se vuelve a cargar.
+  const [products, loaded] = await Promise.all([loadProducts(supabase), loadCalendarData(supabase, from, to, requestedProductId)]);
   const productId = products.some((product) => product.id === requestedProductId) ? requestedProductId : null;
-
-  const [rows, booked, unstaffed, blocked] = await Promise.all([
-    loadSessionRows(supabase, from, to, productId),
-    loadBookedSeats(supabase, from, to, productId),
-    loadUnstaffed(supabase, from, to, productId),
-    loadBlockedNeeds(supabase, { from, to }, productId),
-  ]);
+  const [rows, booked, unstaffed, blocked] =
+    productId === requestedProductId ? loaded : await loadCalendarData(supabase, from, to, productId);
   const sessions = toCalendarSessions(rows, booked, unstaffed, blocked, new Date());
 
   return (
@@ -101,6 +92,23 @@ export default async function Page({ searchParams }: PageProps<"/panel/calendari
       )}
     </section>
   );
+}
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+async function loadProducts(supabase: Supabase) {
+  const { data, error } = await supabase.from("products").select("id, name").order("created_at").order("name");
+  if (error) throw new Error("No se pudo cargar el calendario.");
+  return data;
+}
+
+function loadCalendarData(supabase: Supabase, from: string, to: string, productId: string | null) {
+  return Promise.all([
+    loadSessionRows(supabase, from, to, productId),
+    loadBookedSeats(supabase, from, to, productId),
+    loadUnstaffed(supabase, from, to, productId),
+    loadBlockedNeeds(supabase, { from, to }, productId),
+  ]);
 }
 
 // PostgREST corta cada respuesta en max_rows (1000): un mes con muchos productos lo supera.
