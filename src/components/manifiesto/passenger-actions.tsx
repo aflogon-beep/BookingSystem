@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Banknote, Check, CheckCheck, Copy, CreditCard, HandCoins } from "lucide-react";
+import { Banknote, Check, CheckCheck, CreditCard, HandCoins } from "lucide-react";
 import { toast } from "sonner";
 
 import { checkInAll, collectPayment, setCheckedIn, type ManifestActionResult } from "@/app/(panel)/panel/salidas/actions";
@@ -134,25 +134,5 @@ export function CollectButton({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/** Copia el manifiesto como texto (para el guía o WhatsApp). */
-export function CopyManifestButton({ text }: { text: string }) {
-  return (
-    <Button
-      variant="outline"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          toast.success("Manifiesto copiado");
-        } catch {
-          toast.error("No se pudo copiar. Inténtalo de nuevo.");
-        }
-      }}
-    >
-      <Copy aria-hidden="true" />
-      Copiar
-    </Button>
   );
 }

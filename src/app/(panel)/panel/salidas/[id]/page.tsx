@@ -6,8 +6,10 @@ import { z } from "zod";
 
 import { Box } from "@/components/ajustes/box";
 import { EquipmentBox } from "@/components/manifiesto/equipment-box";
-import { CheckAllButton, CheckInToggle, CollectButton, CopyManifestButton } from "@/components/manifiesto/passenger-actions";
+import { ManifestMenu } from "@/components/manifiesto/manifest-menu";
+import { CheckAllButton, CheckInToggle, CollectButton } from "@/components/manifiesto/passenger-actions";
 import { SessionControls } from "@/components/manifiesto/session-controls";
+import { ProductArt } from "@/components/productos/product-art";
 import { STATE_PILL_CLASS, STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
@@ -59,15 +61,28 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
-            <span aria-hidden="true" className="size-2.5 rounded-[3px]" style={{ background: session.product.color }} />
-            Manifiesto de pasajeros
-          </p>
-          <h1 className="mt-1 text-[1.25rem] tablet:text-[1.45rem]">{session.product.name}</h1>
-          <ul className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[0.84rem] text-muted-foreground [&_svg]:size-4">
-            <li className="flex items-center gap-1.5 first-letter:uppercase">
+      <div className="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card">
+        <div className="relative">
+          <ProductArt
+            seed={session.product.id}
+            color={session.product.color}
+            photoUrl={session.product.photoUrl}
+            className="h-[150px] tablet:h-[190px]"
+          />
+          <div aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 px-4 pb-3.5 tablet:px-5">
+            <p className="text-[0.72rem] font-semibold tracking-[0.06em] text-white/85 uppercase">Manifiesto de pasajeros</p>
+            <h1 className="mt-0.5 text-[1.3rem] text-white [text-shadow:0_1px_8px_rgb(0_0_0/0.35)] tablet:text-[1.6rem]">
+              {session.product.name}
+            </h1>
+          </div>
+          <div className="absolute top-3 right-3">
+            <ManifestMenu copyText={copyText} productId={session.product.id} dayHref={backHref} />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 tablet:px-5">
+          <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-[0.86rem] text-muted-foreground [&_svg]:size-4 [&_svg]:shrink-0">
+            <li className="flex items-center gap-1.5">
               <CalendarDays aria-hidden="true" />
               <span className="first-letter:uppercase">{dayLabel}</span>
             </li>
@@ -82,24 +97,21 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
               {language}
             </li>
             {session.product.meetingPoint ? (
-              <li className="flex items-center gap-1.5">
+              <li className="flex min-w-0 items-center gap-1.5">
                 <MapPin aria-hidden="true" />
                 {session.product.meetingPoint}
               </li>
             ) : null}
           </ul>
-        </div>
-        <div className="flex gap-2">
-          <CopyManifestButton text={copyText} />
           {state.panelBookable ? (
-            <Button asChild>
+            <Button asChild className="max-tablet:w-full">
               <Link href={`/panel/reservas/nueva?salida=${session.id}`}>
                 <Plus aria-hidden="true" />
                 Añadir reserva
               </Link>
             </Button>
           ) : (
-            <Button disabled title={stateHint(state)}>
+            <Button disabled title={stateHint(state)} className="max-tablet:w-full">
               <Plus aria-hidden="true" />
               Añadir reserva
             </Button>
@@ -222,7 +234,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
 
         <div className="flex flex-col gap-[18px]">
           <Box
-            title="Salida"
+            title="Gestión de la salida"
             action={
               <Pill
                 tone={state.kind === "blocked" ? "warn" : state.kind === "available" || state.kind === "few" ? "ok" : "neutral"}
