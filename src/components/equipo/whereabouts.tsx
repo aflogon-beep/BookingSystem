@@ -1,15 +1,20 @@
 import Link from "next/link";
-import { Bus, Info, Package, UserRound, type LucideIcon } from "lucide-react";
+import { Bus, CircleAlert, Hand, Info, Package, UserRound, type LucideIcon } from "lucide-react";
 
 import type { TeamResource } from "@/app/(panel)/panel/equipo/data";
+import { DragAssign } from "@/components/equipo/drag-assign";
 import { Button } from "@/components/ui/button";
+import { toBusinessDateTime } from "@/lib/domain/calendar";
 import { RESOURCE_TYPES, RESOURCE_TYPE_TEXT, initials, type ResourceType } from "@/lib/domain/resources";
 import {
   isPast,
   minutesInDay,
+  paxText,
   resourceStatus,
+  stackLanes,
   timelineHours,
   timelinePercent,
+  unassignedSessions,
   whereaboutsKpis,
   type DaySession,
   type ResourceStatus,
@@ -17,7 +22,11 @@ import {
 } from "@/lib/domain/whereabouts";
 import { cn } from "@/lib/utils";
 
-const TYPE_ICONS: Record<ResourceType, LucideIcon> = { guide: UserRound, vehicle: Bus, equipment: Package };
+const TYPE_ICONS: Record<ResourceType, LucideIcon> = {
+  guide: UserRound,
+  vehicle: Bus,
+  equipment: Package,
+};
 
 const DOT: Record<StatusLevel, string> = {
   live: "bg-ok",
@@ -43,7 +52,10 @@ export function Whereabouts({
   resources: TeamResource[];
   sessions: DaySession[];
 }) {
-  const rows: Row[] = resources.map((resource) => ({ resource, status: resourceStatus(resource.id, sessions, isToday, now) }));
+  const rows: Row[] = resources.map((resource) => ({
+    resource,
+    status: resourceStatus(resource.id, sessions, isToday, now),
+  }));
   const kpis = whereaboutsKpis(
     rows.map((row) => row.status),
     sessions,
@@ -51,9 +63,17 @@ export function Whereabouts({
   const hours = timelineHours(sessions, day);
   const hourMarks = Array.from({ length: hours.to - hours.from + 1 }, (_, index) => hours.from + index);
   const nowPercent = isToday ? timelinePercent(minutesInDay(now.toISOString(), day), hours) : null;
-  const groups = RESOURCE_TYPES.map((type) => ({ type, rows: rows.filter((row) => row.resource.type === type) })).filter(
-    (group) => group.rows.length,
-  );
+  const nowTime = toBusinessDateTime(now.toISOString()).time;
+  // Arrastrar para asignar: hoy y días futuros.
+  const editable = isToday || day > toBusinessDateTime(now.toISOString()).date;
+  const unassigned = unassignedSessions(sessions);
+  // Con todo asignado la fila sigue ahí (vacía) mientras se pueda arrastrar: es donde se suelta para quitar.
+  const unassignedLanes: DaySession[][] = unassigned.length ? stackLanes(unassigned) : [];
+  const timeline = { day, hours, isToday, now, nowPercent };
+  const groups = RESOURCE_TYPES.map((type) => ({
+    type,
+    rows: rows.filter((row) => row.resource.type === type),
+  })).filter((group) => group.rows.length);
 
   return (
     <>
@@ -76,6 +96,25 @@ export function Whereabouts({
         <>
           {/* Móvil: una tarjeta por recurso con sus salidas. */}
           <div className="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card tablet:hidden">
+            {unassigned.length ? (
+              <section aria-label="Sin asignar" className="bg-danger-soft/50">
+                <UnassignedTitle count={unassigned.length} />
+                <div className="flex flex-wrap gap-1.5 px-3.5 pt-1 pb-3">
+                  {unassigned.map((session) => (
+                    <Link
+                      key={session.id}
+                      href={`/panel/salidas/${session.id}`}
+                      className="inline-flex max-w-full items-center gap-1.5 overflow-hidden rounded-full border border-dashed border-danger/60 bg-surface py-[3px] pr-2.5 pl-2 text-[0.74rem]"
+                    >
+                      <i aria-hidden="true" className="size-2 flex-none rounded-full" style={{ background: session.color }} />
+                      <b className="font-mono font-medium">{session.start}</b>
+                      <span className="min-w-0 truncate">{session.productName}</span>
+                      <span className="flex-none font-mono text-[0.68rem] text-muted-foreground">{paxText(session)}</span>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             {groups.map((group) => (
               <section key={group.type} aria-label={RESOURCE_TYPE_TEXT[group.type].plural}>
                 <GroupTitle type={group.type} />
@@ -90,6 +129,7 @@ export function Whereabouts({
                         </div>
                       </div>
                       {status.level !== "idle" ? <p className="mt-1 text-[0.78rem] text-faint">{status.sub}</p> : null}
+                      {status.sessions.length ? <MiniTrack sessions={status.sessions} currentId={status.currentId} {...timeline} /> : null}
                       {status.sessions.length ? (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {status.sessions.map((session) => (
@@ -118,95 +158,140 @@ export function Whereabouts({
           {/* Tablet y escritorio: línea de tiempo. */}
           <div className="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card max-tablet:hidden">
             <div className="overflow-x-auto">
-              <div className="min-w-[860px]" role="table" aria-label="Línea de tiempo del equipo">
-                <div role="row" className="sticky top-0 z-[3] grid grid-cols-[270px_minmax(0,1fr)] bg-surface-2">
-                  <div role="columnheader" className="border-r border-line-2 px-4 py-2.5 text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
-                    Recurso · estado
-                  </div>
-                  <div role="columnheader" className="relative h-9" aria-label="Horas">
-                    {hourMarks.map((hour, index) => (
-                      <span
-                        key={hour}
-                        className={cn(
-                          "absolute top-[11px] font-mono text-[0.66rem] text-faint",
-                          index === 0 ? "pl-1" : "-translate-x-1/2",
-                          index === hourMarks.length - 1 && "hidden",
-                        )}
-                        style={{ left: `${(index / (hours.to - hours.from)) * 100}%` }}
-                      >
-                        {String(hour % 24).padStart(2, "0")}:00
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                {groups.map((group) => (
-                  <div key={group.type} role="rowgroup">
-                    <div role="row">
-                      <div role="cell">
-                        <GroupTitle type={group.type} />
-                      </div>
+              <DragAssign sessions={sessions} resources={resources} enabled={editable}>
+                <div className="min-w-[860px]" role="table" aria-label="Línea de tiempo del equipo">
+                  <div role="row" className="sticky top-0 z-[3] grid grid-cols-[270px_minmax(0,1fr)] bg-surface-2">
+                    <div
+                      role="columnheader"
+                      className="border-r border-line-2 px-4 py-2.5 text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase"
+                    >
+                      Recurso · estado
                     </div>
-                    {group.rows.map(({ resource, status }) => (
-                      <div key={resource.id} role="row" aria-label={resource.name} className="grid grid-cols-[270px_minmax(0,1fr)] border-t border-line-2">
-                        <div role="cell" className="flex min-w-0 items-center gap-2.5 border-r border-line-2 px-4 py-2.5">
-                          <Avatar resource={resource} />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <b className="truncate">{resource.name}</b>
-                              {resource.type === "guide" ? (
-                                <span className="font-mono text-[0.66rem] text-faint">
-                                  {resource.languages.map((code) => code.toUpperCase()).join(" ")}
-                                </span>
-                              ) : null}
-                            </div>
-                            <StatusLine status={status} />
-                            <p className="truncate text-[0.76rem] text-faint">{status.sub}</p>
-                          </div>
-                        </div>
-                        <div
-                          role="cell"
-                          className="relative min-h-[62px]"
+                    <div role="columnheader" className="relative h-9" aria-label="Horas">
+                      {hourMarks.map((hour, index) => (
+                        <span
+                          key={hour}
+                          className={cn(
+                            "absolute top-[11px] font-mono text-[0.66rem] text-faint",
+                            index === 0 ? "pl-1" : "-translate-x-1/2",
+                            index === hourMarks.length - 1 && "hidden",
+                          )}
                           style={{
-                            backgroundImage: "linear-gradient(to right, var(--color-line-2) 1px, transparent 1px)",
-                            backgroundSize: `calc(100% / ${hours.to - hours.from}) 100%`,
+                            left: `${(index / (hours.to - hours.from)) * 100}%`,
                           }}
                         >
-                          {status.sessions.map((session) => {
-                            const left = timelinePercent(minutesInDay(session.startsAt, day), hours);
-                            const right = timelinePercent(minutesInDay(session.endsAt, day), hours);
-                            const live = status.currentId === session.id;
-                            return (
-                              <Link
-                                key={session.id}
-                                href={`/panel/salidas/${session.id}`}
-                                title={`${session.productName} · ${session.start}–${session.end} · ${session.booked} pax`}
-                                className={cn(
-                                  "absolute top-3 bottom-3 flex items-center gap-1 overflow-hidden rounded-[9px] px-[9px] text-[0.72rem] whitespace-nowrap text-white shadow-[0_1px_3px_rgb(0_0_0/0.15)] hover:brightness-110",
-                                  isToday && isPast(session, now) && "opacity-45",
-                                  live && "ring-2 ring-ok ring-offset-2",
-                                )}
-                                style={{ left: `${left}%`, width: `${Math.max(2, right - left)}%`, background: session.color }}
-                              >
-                                <b className="font-mono font-medium">{session.start}</b>
-                                <span className="truncate">
-                                  {session.place} · {session.language.toUpperCase()} · {session.booked} pax
-                                </span>
-                              </Link>
-                            );
-                          })}
-                          {nowPercent !== null ? (
-                            <span
-                              aria-hidden="true"
-                              className="pointer-events-none absolute inset-y-0 z-[2] w-0.5 bg-[#ff3b30]"
-                              style={{ left: `${nowPercent}%` }}
-                            />
-                          ) : null}
+                          {String(hour % 24).padStart(2, "0")}:00
+                        </span>
+                      ))}
+                      {nowPercent !== null ? (
+                        <span
+                          className="absolute top-[7px] z-[2] -translate-x-1/2 rounded-full bg-[#ff3b30] px-1.5 py-px font-mono text-[0.66rem] font-semibold text-white shadow-[0_1px_2px_rgb(0_0_0/0.2)]"
+                          style={{ left: `${nowPercent}%` }}
+                        >
+                          <span className="sr-only">Ahora: </span>
+                          {nowTime}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  {unassignedLanes.length || editable ? (
+                    <div role="rowgroup" className={cn(unassigned.length && "bg-danger-soft/40")}>
+                      <div role="row">
+                        <div role="cell">
+                          <UnassignedTitle count={unassigned.length} />
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+                      {(unassignedLanes.length ? unassignedLanes : [[]]).map((lane, index) => (
+                        <div
+                          key={index}
+                          role="row"
+                          aria-label={index ? undefined : "Sin asignar"}
+                          className="grid grid-cols-[270px_minmax(0,1fr)] border-t border-line-2"
+                        >
+                          <div role="cell" className="flex min-w-0 items-center gap-2.5 border-r border-line-2 px-4 py-2.5">
+                            {index === 0 && !unassigned.length ? (
+                              <p className="text-[0.78rem] text-faint">Todas las salidas tienen equipo</p>
+                            ) : index === 0 ? (
+                              <>
+                                <span
+                                  aria-hidden="true"
+                                  className="grid size-8 flex-none place-items-center rounded-full border border-dashed border-danger/60 text-danger"
+                                >
+                                  <CircleAlert className="size-4" />
+                                </span>
+                                <div className="min-w-0">
+                                  <b className="block truncate text-danger">Falta equipo</b>
+                                  <p className="truncate text-[0.76rem] text-faint">Arrástrala a un guía o vehículo</p>
+                                </div>
+                              </>
+                            ) : null}
+                          </div>
+                          <Track hours={hours} nowPercent={nowPercent} drop="none">
+                            {lane.map((session) => (
+                              <Block
+                                key={session.id}
+                                session={session}
+                                day={day}
+                                hours={hours}
+                                unassigned
+                                draggable={editable}
+                                faded={isToday && isPast(session, now)}
+                              />
+                            ))}
+                          </Track>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {groups.map((group) => (
+                    <div key={group.type} role="rowgroup">
+                      <div role="row">
+                        <div role="cell">
+                          <GroupTitle type={group.type} />
+                        </div>
+                      </div>
+                      {group.rows.map(({ resource, status }) => (
+                        <div
+                          key={resource.id}
+                          role="row"
+                          aria-label={resource.name}
+                          className="grid grid-cols-[270px_minmax(0,1fr)] border-t border-line-2"
+                        >
+                          <div role="cell" className="flex min-w-0 items-center gap-2.5 border-r border-line-2 px-4 py-2.5">
+                            <Avatar resource={resource} />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <b className="truncate">{resource.name}</b>
+                                {resource.type === "guide" ? (
+                                  <span className="font-mono text-[0.66rem] text-faint">
+                                    {resource.languages.map((code) => code.toUpperCase()).join(" ")}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <StatusLine status={status} />
+                              <p className="truncate text-[0.76rem] text-faint">{status.sub}</p>
+                            </div>
+                          </div>
+                          <Track hours={hours} nowPercent={nowPercent} drop={resource.id}>
+                            {status.sessions.map((session) => (
+                              <Block
+                                key={session.id}
+                                session={session}
+                                day={day}
+                                hours={hours}
+                                live={status.currentId === session.id}
+                                from={resource.id}
+                                draggable={editable}
+                                faded={isToday && isPast(session, now)}
+                              />
+                            ))}
+                          </Track>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </DragAssign>
             </div>
           </div>
         </>
@@ -221,6 +306,12 @@ export function Whereabouts({
         </div>
       )}
 
+      {editable && groups.length ? (
+        <p className="flex items-center gap-1.5 text-[0.78rem] text-muted-foreground max-tablet:hidden">
+          <Hand aria-hidden="true" className="size-3.5 flex-none" />
+          Arrastra una salida a la fila de un guía o vehículo para asignársela, o a «Sin asignar» para quitarla.
+        </p>
+      ) : null}
       <p className="flex items-center gap-1.5 text-[0.78rem] text-faint">
         <Info aria-hidden="true" className="size-3.5 flex-none" />
         La ubicación sale de la salida asignada (zona del recorrido y punto de encuentro).
@@ -286,10 +377,167 @@ function Kpi({
       )}
     >
       <dt className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{label}</dt>
-      <dd className={cn("mt-[3px] text-[1.25rem] font-semibold tracking-[-0.03em] tabular-nums tablet:text-[1.6rem]", className)}>
-        {children}
-      </dd>
+      <dd className={cn("mt-[3px] text-[1.25rem] font-semibold tracking-[-0.03em] tabular-nums tablet:text-[1.6rem]", className)}>{children}</dd>
       <dd className="text-[0.76rem] text-muted-foreground">{detail}</dd>
     </div>
+  );
+}
+
+type Hours = { from: number; to: number };
+
+/** Pista de horas de una fila: rayas de cada hora y la línea roja de «ahora». */
+function Track({
+  hours,
+  nowPercent,
+  drop,
+  children,
+}: {
+  hours: Hours;
+  nowPercent: number | null;
+  /** Id del recurso de la fila, o «none» para «Sin asignar»: destino al arrastrar una salida. */
+  drop: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      role="cell"
+      data-drop={drop}
+      className={cn(
+        "relative min-h-[62px] transition-colors",
+        // Al arrastrar (drag-assign.tsx): verde libre, ámbar con aviso, rojo ocupado; el motivo, a la derecha.
+        "data-[verdict=ok]:bg-ok-soft/70 data-[verdict=warn]:bg-warn-soft/70 data-[verdict=busy]:bg-danger-soft/60",
+        "data-[over=true]:shadow-[inset_0_0_0_2px_var(--color-primary)]",
+        "after:pointer-events-none after:absolute after:top-0.5 after:right-2 after:z-[3] after:rounded-full after:text-[0.66rem] after:font-semibold after:content-[attr(data-verdict-text)] data-[verdict]:after:bg-surface/90 data-[verdict]:after:px-1.5",
+        "data-[verdict=ok]:after:text-ok data-[verdict=warn]:after:text-warn data-[verdict=busy]:after:text-danger",
+      )}
+      style={{
+        backgroundImage: "linear-gradient(to right, var(--color-line-2) 1px, transparent 1px)",
+        backgroundSize: `calc(100% / ${hours.to - hours.from}) 100%`,
+      }}
+    >
+      {children}
+      {nowPercent !== null ? (
+        <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-[2] w-0.5 bg-[#ff3b30]" style={{ left: `${nowPercent}%` }} />
+      ) : null}
+    </div>
+  );
+}
+
+/** Bloque de una salida en la línea de tiempo, con una barra abajo que marca lo lleno que va. */
+function Block({
+  session,
+  day,
+  hours,
+  live = false,
+  faded,
+  unassigned = false,
+  from,
+  draggable = false,
+}: {
+  session: DaySession;
+  day: string;
+  hours: Hours;
+  live?: boolean;
+  faded: boolean;
+  unassigned?: boolean;
+  /** Recurso de la fila en la que está (para moverla a otro al arrastrar). */
+  from?: string;
+  draggable?: boolean;
+}) {
+  const left = timelinePercent(minutesInDay(session.startsAt, day), hours);
+  const right = timelinePercent(minutesInDay(session.endsAt, day), hours);
+  const fill = session.capacity ? Math.min(100, (session.booked / session.capacity) * 100) : 0;
+  return (
+    <Link
+      href={`/panel/salidas/${session.id}`}
+      title={`${session.productName} · ${session.start}–${session.end} · ${paxText(session)}${unassigned ? " · falta equipo" : ""}${draggable ? " · arrástrala para cambiar el equipo" : ""}`}
+      draggable={draggable}
+      data-session={draggable ? session.id : undefined}
+      data-from={draggable ? (from ?? "") : undefined}
+      className={cn(
+        draggable && "cursor-grab active:cursor-grabbing data-[dragged=true]:opacity-40",
+        "absolute top-3 bottom-3 z-[1] flex items-center gap-1 overflow-hidden rounded-[9px] px-[9px] text-[0.72rem] whitespace-nowrap hover:brightness-110",
+        unassigned ? "border-[1.5px] border-dashed bg-surface text-foreground hover:bg-danger-soft" : "text-white shadow-[0_1px_3px_rgb(0_0_0/0.15)]",
+        faded && "opacity-45",
+        live && "ring-2 ring-ok ring-offset-2",
+      )}
+      style={{
+        left: `${left}%`,
+        width: `${Math.max(2, right - left)}%`,
+        ...(unassigned ? { borderColor: session.color } : { background: session.color }),
+      }}
+    >
+      <b className="font-mono font-medium">{session.start}</b>
+      <span className="truncate">
+        {unassigned ? session.productName : session.place} · {session.language.toUpperCase()} · {paxText(session)}
+      </span>
+      <span aria-hidden="true" className={cn("absolute inset-x-0 bottom-0 h-[3px]", unassigned ? "bg-line-2" : "bg-black/20")}>
+        <span className={cn("block h-full", unassigned ? "bg-danger" : "bg-white/85")} style={{ width: `${fill}%` }} />
+      </span>
+    </Link>
+  );
+}
+
+/** Móvil: el día del recurso en una barra fina, con sus salidas y la hora actual. */
+function MiniTrack({
+  sessions,
+  currentId,
+  day,
+  hours,
+  isToday,
+  now,
+  nowPercent,
+}: {
+  sessions: DaySession[];
+  currentId: string | null;
+  day: string;
+  hours: Hours;
+  isToday: boolean;
+  now: Date;
+  nowPercent: number | null;
+}) {
+  return (
+    <div aria-hidden="true" className="mt-2.5">
+      <div className="relative h-2 rounded-full bg-line-2">
+        {sessions.map((session) => {
+          const left = timelinePercent(minutesInDay(session.startsAt, day), hours);
+          const right = timelinePercent(minutesInDay(session.endsAt, day), hours);
+          return (
+            <span
+              key={session.id}
+              className={cn(
+                "absolute inset-y-0 rounded-full",
+                isToday && isPast(session, now) && "opacity-45",
+                currentId === session.id && "ring-2 ring-ok ring-offset-1",
+              )}
+              style={{
+                left: `${left}%`,
+                width: `${Math.max(2, right - left)}%`,
+                background: session.color,
+              }}
+            />
+          );
+        })}
+        {nowPercent !== null ? <span className="absolute -inset-y-1 w-0.5 rounded-full bg-[#ff3b30]" style={{ left: `${nowPercent}%` }} /> : null}
+      </div>
+      <div className="mt-1 flex justify-between font-mono text-[0.62rem] text-faint">
+        <span>{String(hours.from).padStart(2, "0")}:00</span>
+        <span>{String(hours.to % 24).padStart(2, "0")}:00</span>
+      </div>
+    </div>
+  );
+}
+
+function UnassignedTitle({ count }: { count: number }) {
+  return (
+    <h2
+      className={cn(
+        "flex items-center gap-1.5 border-t border-line-2 px-4 py-2 text-[0.68rem] font-semibold tracking-[0.08em] uppercase first:border-t-0",
+        count ? "text-danger" : "bg-surface-2 text-muted-foreground",
+      )}
+    >
+      <CircleAlert aria-hidden="true" className="size-3.5" />
+      Sin asignar · {count}
+    </h2>
   );
 }

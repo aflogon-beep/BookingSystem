@@ -1,4 +1,5 @@
 import { toBusinessDateTime } from "@/lib/domain/calendar";
+import type { ResourceType } from "@/lib/domain/resources";
 
 /** Salida de un día tal y como la usa Equipo · Dónde están. */
 export type DaySession = {
@@ -15,6 +16,8 @@ export type DaySession = {
   start: string;
   end: string;
   booked: number;
+  /** Aforo de la salida. */
+  capacity: number;
   missing: number;
   resourceIds: string[];
 };
@@ -145,4 +148,81 @@ export function weeklyPlan<R extends { id: string }>(
     const perDay = days.map((day) => sorted.filter((session) => session.date === day && session.resourceIds.includes(guide.id)));
     return { guide, days: perDay, total: perDay.reduce((sum, list) => sum + list.length, 0) };
   });
+}
+
+/** Fila «Sin asignar» de la línea de tiempo: salidas a las que les falta equipo, por hora. */
+export function unassignedSessions(sessions: readonly DaySession[]): DaySession[] {
+  return sessions.filter((session) => session.missing > 0).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+/** «8/20 pax»: plazas ocupadas de la salida sobre su aforo. */
+export function paxText(session: { booked: number; capacity: number }): string {
+  return `${session.booked}/${session.capacity} pax`;
+}
+
+/**
+ * Reparte salidas en carriles sin solaparse (la primera que cabe), para dibujarlas en filas:
+ * dos salidas a la misma hora en «Sin asignar» van una encima de otra.
+ */
+export function stackLanes<T extends { startsAt: string; endsAt: string }>(items: readonly T[]): T[][] {
+  const lanes: T[][] = [];
+  const sorted = [...items].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  for (const item of sorted) {
+    const start = new Date(item.startsAt).getTime();
+    const lane = lanes.find((list) => {
+      const last = list[list.length - 1];
+      return last !== undefined && new Date(last.endsAt).getTime() <= start;
+    });
+    if (lane) lane.push(item);
+    else lanes.push([item]);
+  }
+  return lanes;
+}
+
+export type DropResource = { id: string; type: ResourceType; name: string; seats: number; languages: string[] };
+
+/**
+ * Qué pasa si se suelta una salida en la fila de un recurso (arrastrar y soltar en Equipo):
+ * «same» ya lo lleva, «busy» está en otra salida que se solapa (la base de datos lo rechazaría),
+ * «warn» se puede pero conviene avisar (guía sin ese idioma, vehículo con menos asientos), «ok».
+ */
+export function dropVerdict(
+  session: Pick<DaySession, "id" | "startsAt" | "endsAt" | "language" | "booked" | "resourceIds">,
+  resource: DropResource,
+  sessions: readonly Pick<DaySession, "id" | "startsAt" | "endsAt" | "resourceIds">[],
+): { kind: "same" | "busy" | "warn" | "ok"; text: string } {
+  if (session.resourceIds.includes(resource.id)) return { kind: "same", text: "Ya va en esta salida" };
+  const start = new Date(session.startsAt).getTime();
+  const end = new Date(session.endsAt).getTime();
+  const clash = sessions.find(
+    (other) =>
+      other.id !== session.id &&
+      other.resourceIds.includes(resource.id) &&
+      new Date(other.startsAt).getTime() < end &&
+      new Date(other.endsAt).getTime() > start,
+  );
+  if (clash) return { kind: "busy", text: "Ocupado a esa hora" };
+  if (resource.type === "guide" && !resource.languages.includes(session.language)) {
+    return { kind: "warn", text: `No habla ${session.language.toUpperCase()}` };
+  }
+  if (resource.type === "vehicle" && resource.seats < session.booked) {
+    return { kind: "warn", text: `Solo ${resource.seats} asientos` };
+  }
+  return { kind: "ok", text: "Libre" };
+}
+
+/**
+ * Equipo de la salida tras soltarla: en otro recurso del mismo tipo que la fila de origen, lo
+ * sustituye (mover de un guía a otro); si viene de «Sin asignar» o de otro tipo, se suma; soltarla
+ * en «Sin asignar» (to = null) quita el recurso de origen.
+ */
+export function resourceIdsAfterDrop(
+  current: readonly string[],
+  from: { id: string; type: ResourceType } | null,
+  to: { id: string; type: ResourceType } | null,
+): string[] {
+  if (!to) return from ? current.filter((id) => id !== from.id) : [...current];
+  if (current.includes(to.id)) return [...current];
+  const kept = from && from.type === to.type ? current.filter((id) => id !== from.id) : current;
+  return [...kept, to.id];
 }

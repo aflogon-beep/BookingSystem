@@ -24,7 +24,7 @@ async function loadSessions(days: string[]) {
   const { data, error } = await supabase
     .from("sessions")
     .select(
-      "id, product_id, starts_at, ends_at, language, products!inner(name, color, place, meeting_point), session_resources(resource_id)",
+      "id, product_id, starts_at, ends_at, language, capacity, products!inner(name, color, place, meeting_point), session_resources(resource_id)",
     )
     .neq("status", "cancelled")
     .gte("starts_at", range.from)
@@ -70,6 +70,7 @@ export async function loadDaySessions(day: string, resources: readonly TeamResou
       start: toBusinessDateTime(row.starts_at).time,
       end: toBusinessDateTime(row.ends_at).time,
       booked: booked.get(row.id) ?? 0,
+      capacity: row.capacity,
       missing: missingResources(
         productNeeds,
         resourceIds.flatMap((id) => byId.get(id) ?? []),
