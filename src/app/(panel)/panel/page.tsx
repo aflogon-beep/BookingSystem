@@ -84,7 +84,7 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
             </h1>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2 max-tablet:w-full">
           <DayPicker day={day} />
           <Button asChild>
             <Link href={day > today ? `/panel/reservas/nueva?fecha=${day}` : "/panel/reservas/nueva"}>

@@ -50,13 +50,15 @@ async function overflowing(page: Page): Promise<string[]> {
     const describe = (el: Element) => {
       const text = (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 50);
       const classes = el.getAttribute("class")?.split(/\s+/).slice(0, 8).join(" ") ?? "";
-      return `<${el.tagName.toLowerCase()} class="${classes}"> «${text}»`;
+      const attrs = ["id", "type", "aria-label"].map((name) => (el.hasAttribute(name) ? ` ${name}="${el.getAttribute(name)}"` : "")).join("");
+      return `<${el.tagName.toLowerCase()}${attrs} class="${classes}"> «${text}»`;
     };
 
     const flagged = new Set<Element>();
     for (const el of document.body.querySelectorAll("*")) {
       const rect = el.getBoundingClientRect();
       if (rect.width <= 1 || rect.height <= 1) continue; // oculto o «sr-only»
+      if (el instanceof SVGElement && !(el instanceof SVGSVGElement)) continue; // el dibujo de un icono
       const style = getComputedStyle(el);
       if (style.visibility === "hidden" || style.display === "contents") continue;
 
