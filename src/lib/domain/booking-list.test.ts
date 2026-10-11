@@ -113,6 +113,15 @@ describe("bookingListSummary", () => {
       ]),
     ).toEqual({ bookings: 3, pax: 3, totalCents: 7500 });
   });
+
+  it("suma grupos de reservas ya agregados por estado", () => {
+    expect(
+      bookingListSummary([
+        { status: "confirmed", count: 4, pax: 9, totalCents: 20000 },
+        { status: "cancelled", count: 2, pax: 3, totalCents: 9000 },
+      ]),
+    ).toEqual({ bookings: 6, pax: 9, totalCents: 20000 });
+  });
 });
 
 describe("bookingsCsv", () => {

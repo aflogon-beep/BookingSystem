@@ -117,21 +117,21 @@ export async function loadBookingPage(params: BookingListParams, now: Date): Pro
   return { rows: (data as unknown as ViewRow[]).map(toRow), count: count ?? data.length };
 }
 
-/** Totales de la cabecera con esos filtros: solo estado, pasajeros e importe de cada reserva. */
+/**
+ * Totales de la cabecera con esos filtros, sumados en la base de datos por estado (agregados de
+ * PostgREST, activados en la migración 20261011190000): una fila por estado, no una por reserva.
+ */
 export async function loadBookingTotals(
   params: BookingListParams,
   now: Date,
-): Promise<{ status: string; pax: number; totalCents: number }[]> {
-  const rows: { status: string; pax: number; totalCents: number }[] = [];
-  const supabase = await createClient();
-  for (let from = 0; from < MAX_ROWS; from += BATCH) {
-    const { data, error } = await filteredQuery(supabase, "status, pax, total_cents", params, now).range(from, from + BATCH - 1);
-    if (error) throw new Error("No se pudieron cargar las reservas.");
-    const batch = data as unknown as Pick<ViewRow, "status" | "pax" | "total_cents">[];
-    rows.push(...batch.map((row) => ({ status: row.status ?? "", pax: row.pax ?? 0, totalCents: row.total_cents ?? 0 })));
-    if (batch.length < BATCH) return rows;
-  }
-  throw new Error(TOO_MANY);
+): Promise<{ status: string; count: number; pax: number; totalCents: number }[]> {
+  const { filters } = bookingListQuery(params, now);
+  let query = (await createClient()).from("booking_list").select("status, count(), pax:pax.sum(), total_cents:total_cents.sum()");
+  for (const filter of filters satisfies ListFilter[]) query = query.filter(filter.column, filter.operator, filter.value);
+  const { data, error } = await query;
+  if (error) throw new Error("No se pudieron cargar las reservas.");
+  const rows = data as unknown as { status: string | null; count: number; pax: number | null; total_cents: number | null }[];
+  return rows.map((row) => ({ status: row.status ?? "", count: row.count, pax: row.pax ?? 0, totalCents: row.total_cents ?? 0 }));
 }
 
 /** Todas las reservas con esos filtros (para totales y CSV), por tandas. */
