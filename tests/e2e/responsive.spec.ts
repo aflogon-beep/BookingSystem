@@ -1,4 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
+import { addDays, format, parseISO } from "date-fns";
+
+import { businessToday } from "@/lib/domain/schedule";
 
 // En móvil nada del panel puede salirse de la pantalla ni quedar cortado por su tarjeta.
 // Se comprueba a 360 px (móviles pequeños) y a 390 px con el texto al 120 % (tamaño de letra
@@ -8,8 +11,12 @@ const WIDTHS = [
   { width: 390, fontScale: 1.2 },
 ];
 
+// Mañana siempre hay salidas (el Teide sale a diario), así se ven las tarjetas de «Salidas del día».
+const TOMORROW = format(addDays(parseISO(businessToday()), 1), "yyyy-MM-dd");
+
 const ROUTES = [
   "/panel",
+  `/panel?fecha=${TOMORROW}`,
   "/panel/calendario",
   "/panel/calendario?vista=mes",
   "/panel/reservas",
@@ -32,7 +39,7 @@ const ROUTES = [
 
 // Fichas a las que se llega desde un listado: se abre la primera que haya.
 const DETAILS = [
-  { from: "/panel", link: /^\/panel\/salidas\/[0-9a-f-]{36}$/ },
+  { from: `/panel?fecha=${TOMORROW}`, link: /^\/panel\/salidas\/[0-9a-f-]{36}$/ },
   { from: "/panel/productos", link: /^\/panel\/productos\/[0-9a-f-]{36}$/ },
   { from: "/panel/reservas", link: /^\/panel\/reservas\/[A-Z0-9]+$/ },
   { from: "/panel/clientes", link: /^\/panel\/clientes\/[0-9a-f-]{36}$/ },
