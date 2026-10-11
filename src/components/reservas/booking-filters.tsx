@@ -105,7 +105,7 @@ export function BookingFilters({ params, products }: { params: BookingListParams
           type="date"
           aria-label="Desde"
           title="Salidas desde"
-          key={params.from ?? ""}
+          key={`from-${params.from ?? ""}`}
           defaultValue={params.from ?? ""}
           onChange={(event) => dateChanged(event.target, "from")}
           className="w-auto min-w-0 max-tablet:flex-1 tablet:w-[150px]"
@@ -115,7 +115,7 @@ export function BookingFilters({ params, products }: { params: BookingListParams
           type="date"
           aria-label="Hasta"
           title="Salidas hasta"
-          key={params.to ?? ""}
+          key={`to-${params.to ?? ""}`}
           defaultValue={params.to ?? ""}
           onChange={(event) => dateChanged(event.target, "to")}
           className="w-auto min-w-0 max-tablet:flex-1 tablet:w-[150px]"
