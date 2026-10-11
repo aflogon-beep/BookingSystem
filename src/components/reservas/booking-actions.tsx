@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import { CalendarClock, Mail, Undo2, UserCheck } from "lucide-react";
+import { CalendarClock, Mail, Undo2, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -11,7 +11,7 @@ import {
   saveBookingNotes,
   type BookingActionResult,
 } from "@/app/(panel)/panel/reservas/actions";
-import { setCheckedIn } from "@/app/(panel)/panel/salidas/actions";
+import { setArrival } from "@/app/(panel)/panel/salidas/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,23 +32,45 @@ function report(result: BookingActionResult | { ok: true; message?: string } | {
   else if (result.message) toast.success(result.message);
 }
 
-export function CheckInButton({ bookingId, checked, name }: { bookingId: string; checked: boolean; name: string }) {
+/** Check-in desde la ficha: llega el grupo, no se ha presentado, o deshacer. */
+export function CheckInButton({
+  bookingId,
+  name,
+  pax,
+  state,
+}: {
+  bookingId: string;
+  name: string;
+  pax: number;
+  state: "pending" | "arrived" | "partial" | "no_show";
+}) {
   const [pending, startTransition] = useTransition();
+  const first = name.split(" ")[0];
+  function save(arrived: number | null, message: string) {
+    startTransition(async () => {
+      const result = await setArrival(bookingId, arrived);
+      report(result.ok ? { ok: true, message } : result);
+    });
+  }
+  if (state !== "pending") {
+    return (
+      <Button variant="outline" size="sm" disabled={pending} onClick={() => save(null, "Check-in deshecho")}>
+        <Undo2 aria-hidden="true" />
+        Deshacer check-in
+      </Button>
+    );
+  }
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={pending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await setCheckedIn(bookingId, !checked);
-          report(result.ok ? { ok: true, message: checked ? "Check-in deshecho" : `${name.split(" ")[0]} · presentado` } : result);
-        })
-      }
-    >
-      {checked ? <Undo2 aria-hidden="true" /> : <UserCheck aria-hidden="true" />}
-      {checked ? "Deshacer check-in" : "Check-in"}
-    </Button>
+    <>
+      <Button variant="outline" size="sm" disabled={pending} onClick={() => save(pax, `${first} · presentado`)}>
+        <UserCheck aria-hidden="true" />
+        Check-in
+      </Button>
+      <Button variant="outline" size="sm" disabled={pending} onClick={() => save(0, `${first} · no se ha presentado`)}>
+        <UserX aria-hidden="true" />
+        No se presentó
+      </Button>
+    </>
   );
 }
 

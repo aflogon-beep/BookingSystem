@@ -83,14 +83,14 @@ isOneToOne: false
                   ]
                 },"bookings": {
                   Row: {
-                    "agent": string,"cancellation_sent_at": string | null,"channel": string,"checked_in": boolean,"code": string,"created_at": string,"customer_id": string,"hold_expires_at": string | null,"hotel": string,"id": string,"notes": string,"paid_cents": number,"payment_method": string | null,"payment_status": string,"reminder_sent_at": string | null,"session_id": string,"status": string,"stripe_checkout_id": string | null,"stripe_payment_intent": string | null,"total_cents": number
+                    "agent": string,"arrived_pax": number | null,"cancellation_sent_at": string | null,"channel": string,"checked_in": boolean,"code": string,"created_at": string,"customer_id": string,"hold_expires_at": string | null,"hotel": string,"id": string,"no_show": boolean,"notes": string,"paid_cents": number,"payment_method": string | null,"payment_status": string,"reminder_sent_at": string | null,"session_id": string,"status": string,"stripe_checkout_id": string | null,"stripe_payment_intent": string | null,"total_cents": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "agent"?: string,"cancellation_sent_at"?: string | null,"channel": string,"checked_in"?: boolean,"code": string,"created_at"?: string,"customer_id": string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"reminder_sent_at"?: string | null,"session_id": string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents": number
+                    "agent"?: string,"arrived_pax"?: number | null,"cancellation_sent_at"?: string | null,"channel": string,"checked_in"?: boolean,"code": string,"created_at"?: string,"customer_id": string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"no_show"?: boolean,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"reminder_sent_at"?: string | null,"session_id": string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents": number
                   }
                   Update: {
-                    "agent"?: string,"cancellation_sent_at"?: string | null,"channel"?: string,"checked_in"?: boolean,"code"?: string,"created_at"?: string,"customer_id"?: string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"reminder_sent_at"?: string | null,"session_id"?: string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents"?: number
+                    "agent"?: string,"arrived_pax"?: number | null,"cancellation_sent_at"?: string | null,"channel"?: string,"checked_in"?: boolean,"code"?: string,"created_at"?: string,"customer_id"?: string,"hold_expires_at"?: string | null,"hotel"?: string,"id"?: string,"no_show"?: boolean,"notes"?: string,"paid_cents"?: number,"payment_method"?: string | null,"payment_status"?: string,"reminder_sent_at"?: string | null,"session_id"?: string,"status"?: string,"stripe_checkout_id"?: string | null,"stripe_payment_intent"?: string | null,"total_cents"?: number
                   }
                   Relationships: [
                     {
@@ -482,6 +482,9 @@ isOneToOne: false
                            },
 "booking_move":
 { Args: { "p_booking_id": string,"p_session_id": string }; Returns: undefined
+                           },
+"booking_set_arrival":
+{ Args: { "p_arrived"?: number,"p_booking_id": string }; Returns: number
                            },
 "booking_set_checked_in":
 { Args: { "p_booking_id": string,"p_checked": boolean }; Returns: boolean

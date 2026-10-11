@@ -59,7 +59,7 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
       supabase
         .from("bookings")
         .select(
-          "id, code, status, payment_status, payment_method, total_cents, checked_in, hotel, notes, channel, agent, customers!inner(name, phone, email), booking_lines(qty, ticket_types!inner(name, sort))",
+          "id, code, status, payment_status, payment_method, total_cents, checked_in, arrived_pax, no_show, hotel, notes, channel, agent, customers!inner(name, phone, email), booking_lines(qty, ticket_types!inner(name, sort))",
         )
         .eq("session_id", sessionId)
         .in("status", ["confirmed", "cancelled"]),
@@ -116,6 +116,8 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
       paymentStatus: booking.payment_status,
       totalCents: booking.total_cents,
       checkedIn: booking.checked_in,
+      arrivedPax: booking.arrived_pax,
+      noShow: booking.no_show,
       customerName: booking.customers.name,
       phone: booking.customers.phone ?? "",
       email: booking.customers.email ?? "",

@@ -17,6 +17,7 @@ import { Pill } from "@/components/ui/pill";
 import { requireAccess } from "@/lib/auth";
 import { CHANNEL_LABELS, isEditable, isFreeCancellation, moveOptionLabel, paymentLabel } from "@/lib/domain/booking-detail";
 import { longDayLabel, toBusinessDateTime } from "@/lib/domain/calendar";
+import { arrivalLabel, arrivalState } from "@/lib/domain/manifest";
 import { formatCents } from "@/lib/domain/money";
 import { BUSINESS_TIMEZONE } from "@/lib/domain/schedule";
 
@@ -47,6 +48,7 @@ export default async function Page({ params }: PageProps<"/panel/reservas/[codig
   const cancelled = booking.status === "cancelled" || booking.status === "expired";
   const editable = isEditable(booking.status, booking.session.startsAt, now);
   const tickets = booking.lines.map((line) => `${line.qty} ${line.name}`).join(" · ");
+  const pax = booking.lines.reduce((sum, line) => sum + line.qty, 0);
 
   return (
     <section className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
@@ -77,7 +79,7 @@ export default async function Page({ params }: PageProps<"/panel/reservas/[codig
             />
           ) : null}
           {booking.status === "confirmed" ? (
-            <CheckInButton bookingId={booking.id} checked={booking.checkedIn} name={booking.customer.name} />
+            <CheckInButton bookingId={booking.id} name={booking.customer.name} pax={pax} state={arrivalState(booking)} />
           ) : null}
           {booking.status === "confirmed" && booking.customer.email ? <ResendButton bookingId={booking.id} /> : null}
           {editable ? (
@@ -174,7 +176,12 @@ function StatusPill({ booking }: { booking: BookingDetail }) {
     return <Pill className="bg-danger-soft text-danger">Cancelada</Pill>;
   }
   if (booking.status === "pending") return <Pill tone="warn">Pago web a medias</Pill>;
-  if (booking.checkedIn) return <Pill tone="ok">Presentado</Pill>;
+  const state = arrivalState(booking);
+  if (state === "no_show") return <Pill className="bg-danger-soft text-danger">No se ha presentado</Pill>;
+  if (state === "partial" || state === "arrived") {
+    const pax = booking.lines.reduce((sum, line) => sum + line.qty, 0);
+    return <Pill tone={state === "arrived" ? "ok" : "warn"}>{arrivalLabel({ ...booking, pax })}</Pill>;
+  }
   return <Pill className="bg-primary-soft text-primary">Confirmada</Pill>;
 }
 

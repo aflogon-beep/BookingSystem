@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { formatCents } from "./money";
-import { canCollect, manifestSummary, manifestText, sortManifest, ticketsLabel, type ManifestBooking } from "./manifest";
+import {
+  arrivalLabel,
+  arrivalState,
+  arrivedOf,
+  canCollect,
+  manifestSummary,
+  manifestText,
+  sortManifest,
+  ticketsLabel,
+  type ManifestBooking,
+} from "./manifest";
 
 const booking = (overrides: Partial<ManifestBooking> = {}): ManifestBooking => ({
   id: "b1",
@@ -30,6 +40,7 @@ describe("manifiesto", () => {
     expect(summary).toEqual({
       pax: 6,
       checkedIn: 2,
+      noShows: 0,
       dueCents: 4500,
       invoiceCount: 1,
       tickets: [
@@ -73,5 +84,33 @@ describe("manifiesto", () => {
         `[ ] Luis · 2 pax (2 adulto) · COBRAR ${formatCents(13800)}`,
       ].join("\n"),
     );
+  });
+});
+
+describe("llegadas por persona", () => {
+  it("cuenta solo las personas que han llegado", () => {
+    expect(arrivedOf({ checkedIn: true, pax: 4 })).toBe(4);
+    expect(arrivedOf({ checkedIn: true, arrivedPax: 2, pax: 4 })).toBe(2);
+    expect(arrivedOf({ checkedIn: false, noShow: true, pax: 4 })).toBe(0);
+  });
+
+  it("estado y texto de cada reserva", () => {
+    expect(arrivalState({ checkedIn: false })).toBe("pending");
+    expect(arrivalState({ checkedIn: true })).toBe("arrived");
+    expect(arrivalState({ checkedIn: true, arrivedPax: 1 })).toBe("partial");
+    expect(arrivalState({ checkedIn: false, noShow: true })).toBe("no_show");
+    expect(arrivalLabel({ checkedIn: true, arrivedPax: 2, pax: 4 })).toBe("Llegan 2 de 4");
+    expect(arrivalLabel({ checkedIn: false, noShow: true, pax: 4 })).toBe("No se ha presentado");
+  });
+
+  it("el resumen y el texto copiado reflejan llegadas parciales y ausencias", () => {
+    const rows = [
+      booking({ id: "a", checkedIn: true, arrivedPax: 1, customerName: "Ana" }),
+      booking({ id: "b", noShow: true, customerName: "Bea" }),
+    ];
+    expect(manifestSummary(rows)).toMatchObject({ pax: 4, checkedIn: 1, noShows: 2 });
+    const text = manifestText({ productName: "Teide", dateLabel: "lunes", time: "10:00", language: "es" }, rows);
+    expect(text).toContain("[1/2] Ana");
+    expect(text).toContain("[no vino] Bea");
   });
 });
