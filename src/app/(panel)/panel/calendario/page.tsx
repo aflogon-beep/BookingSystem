@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { MonthView } from "@/components/calendario/month-view";
 import { ProductFilter } from "@/components/calendario/product-filter";
 import type { CalendarSession } from "@/components/calendario/types";
+import { SeatLegend } from "@/components/calendario/session-status";
 import { WeekView } from "@/components/calendario/week-view";
 import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
@@ -93,7 +94,10 @@ export default async function Page({ searchParams }: PageProps<"/panel/calendari
       {view === "mes" ? (
         <MonthView days={days} month={anchor.slice(0, 7)} sessions={sessions} today={today} productId={productId} />
       ) : (
-        <WeekView days={days} sessions={sessions} today={today} />
+        <>
+          <WeekView days={days} sessions={sessions} today={today} />
+          <SeatLegend />
+        </>
       )}
     </section>
   );

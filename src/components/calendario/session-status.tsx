@@ -28,3 +28,35 @@ export function SessionStatus({ session }: { session: CalendarSession }) {
 export function calendarState(session: CalendarSession) {
   return sessionState({ ...session, started: session.past });
 }
+
+/**
+ * Semáforo de plazas (como Bokun): verde = hay sitio, ámbar = quedan pocas, rojo = completa,
+ * gris = no se vende (cerrada, sin recurso, cancelada o ya salió).
+ */
+export const SEAT_TONES = [
+  { label: "Hay plazas", className: "bg-ok" },
+  { label: "Quedan pocas", className: "bg-[#ff9f0a]" },
+  { label: "Completa", className: "bg-danger" },
+  { label: "No se vende", className: "bg-[#c7c7cc]" },
+] as const;
+
+export function seatToneClass(kind: SessionStateKind): string {
+  if (kind === "available" || kind === "panel_only") return SEAT_TONES[0].className;
+  if (kind === "few") return SEAT_TONES[1].className;
+  if (kind === "full") return SEAT_TONES[2].className;
+  return SEAT_TONES[3].className;
+}
+
+/** Leyenda del semáforo, bajo el calendario. */
+export function SeatLegend() {
+  return (
+    <ul aria-label="Leyenda de plazas" className="flex flex-wrap gap-x-4 gap-y-1 text-[0.78rem] text-muted-foreground">
+      {SEAT_TONES.map((tone) => (
+        <li key={tone.label} className="flex items-center gap-1.5">
+          <span aria-hidden="true" className={`h-[5px] w-4 rounded-full ${tone.className}`} />
+          {tone.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
