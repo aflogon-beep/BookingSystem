@@ -106,6 +106,8 @@ export function NewBookingForm({
   const [agent, setAgent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Un identificador por reserva: si el mismo envío llega dos veces, no se duplica.
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
 
   const headingLevel = mode === "page" ? "h2" : "h3";
   const product = products.find((candidate) => candidate.id === productId);
@@ -128,6 +130,20 @@ export function NewBookingForm({
       cancelled = true;
     };
   }, [productId, date, dayKey, reload]);
+
+  // Mientras el formulario está abierto, otras personas (y la web) siguen reservando: las plazas se
+  // vuelven a pedir cada 30 s y al volver a esta pestaña, para no ofrecer las que ya no hay.
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") setReload((value) => value + 1);
+    };
+    const timer = window.setInterval(refreshIfVisible, 30_000);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, []);
 
   useEffect(() => {
     onPendingChange?.(pending);
@@ -170,21 +186,30 @@ export function NewBookingForm({
     if (!session) return;
     setError(null);
     startTransition(async () => {
-      const result = await createInternalBooking({
-        sessionId: session.id,
-        lines: lines.map((line) => ({ ticketTypeId: line.ticket.id, qty: line.qty })),
-        ...customer,
-        hotel: product?.pickup ? customer.hotel : "",
-        channel,
-        agent: channel === "agency" ? agent : "",
-        payment,
-      });
+      let result: Awaited<ReturnType<typeof createInternalBooking>>;
+      try {
+        result = await createInternalBooking({
+          sessionId: session.id,
+          requestId,
+          lines: lines.map((line) => ({ ticketTypeId: line.ticket.id, qty: line.qty })),
+          ...customer,
+          hotel: product?.pickup ? customer.hotel : "",
+          channel,
+          agent: channel === "agency" ? agent : "",
+          payment,
+        });
+      } catch {
+        // Sin respuesta (conexión cortada): quizá se creó. Volver a pulsar es seguro, no se duplica.
+        setError("No hubo respuesta. Vuelve a pulsar «Confirmar reserva» (no se creará dos veces) o búscala en Reservas.");
+        return;
+      }
       if (!result.ok) {
         setError(result.error);
         // Las plazas pueden haber cambiado: vuelve a pedir las salidas del día.
         setReload((value) => value + 1);
         return;
       }
+      setRequestId(crypto.randomUUID());
       toast.success(`Reserva ${result.code} creada`);
       if (mode === "modal") router.back();
       else {

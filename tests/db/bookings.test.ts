@@ -395,3 +395,62 @@ describe("RLS de reservas", () => {
     expect((await member.db.from("booking_lines").update({ unit_price_cents: 1 }).eq("booking_id", created.id)).error?.code).toBe("42501");
   });
 });
+
+describe("reintentos y red de seguridad del aforo", () => {
+  it("la misma petición enviada dos veces (o a la vez) crea una sola reserva", async () => {
+    const { sessionId } = await createSession(3);
+    const requestId = randomUUID();
+    const person = customer();
+    const request = { channel: "web", payment: "on_site", request_id: requestId };
+    const [first, second] = await Promise.all([
+      book(sessionId, adults(2), request, adminDb, person),
+      book(sessionId, adults(2), request, adminDb, person),
+    ]);
+    expect(first.error).toBeNull();
+    expect(second.error).toBeNull();
+    const a = first.data as Created & { replayed: boolean };
+    const b = second.data as Created & { replayed: boolean };
+    expect(a.id).toBe(b.id);
+    expect([a.replayed, b.replayed].sort()).toEqual([false, true]);
+    expect(await seatsOf(sessionId)).toMatchObject({ booked_seats: 2, free_seats: 1 });
+
+    // Con la salida ya casi llena, el reintento sigue devolviendo su reserva (no da «sin plazas»).
+    const again = await bookOk(sessionId, adults(2), request, adminDb, person);
+    expect(again.id).toBe(a.id);
+  });
+
+  it("la misma petición en otra salida no crea otra reserva", async () => {
+    const { sessionId } = await createSession();
+    const { sessionId: other } = await createSession();
+    const requestId = randomUUID();
+    const created = await bookOk(sessionId, adults(1), { channel: "phone", request_id: requestId });
+    const moved = await book(other, adults(1), { channel: "phone", request_id: requestId });
+    expect(moved.error?.code).toBe("RB014");
+    expect(moved.error?.hint).toBe(created.code);
+    expect((await book(other, adults(1), { channel: "phone", request_id: "no-es-un-uuid" })).error?.code).toBe("22023");
+  });
+
+  it("ningún cambio directo en la BD pasa del aforo", async () => {
+    const { sessionId } = await createSession(3);
+    const first = await bookOk(sessionId, adults(2));
+    await adminDb.from("bookings").update({ status: "cancelled" }).eq("id", first.id);
+    await bookOk(sessionId, adults(2));
+    // Volver a confirmar la cancelada dejaría 4 en 3 plazas.
+    const reconfirm = await adminDb.from("bookings").update({ status: "confirmed" }).eq("id", first.id);
+    expect(reconfirm.error?.code).toBe("RB001");
+    expect(reconfirm.error?.hint).toBe("1");
+    // Un bloqueo web caducado que se confirma tarde (p. ej. un pago que llega tarde) tampoco.
+    const hold = await bookOk(sessionId, adults(1), { channel: "web" }, adminDb);
+    await adminDb.from("bookings").update({ hold_expires_at: new Date(Date.now() - 1000).toISOString() }).eq("id", hold.id);
+    await bookOk(sessionId, adults(1));
+    const late = await adminDb.from("bookings").update({ status: "confirmed", hold_expires_at: null }).eq("id", hold.id);
+    expect(late.error?.code).toBe("RB001");
+    // Ni subir las entradas de una reserva a mano.
+    const lines = await adminDb.from("booking_lines").update({ qty: 5 }).eq("booking_id", hold.id);
+    expect(lines.error).toBeNull(); // la reserva caducada no ocupa plazas
+    const { data: active } = await adminDb.from("bookings").select("id").eq("session_id", sessionId).eq("status", "confirmed").limit(1).single();
+    const more = await adminDb.from("booking_lines").update({ qty: 9 }).eq("booking_id", active?.id ?? "");
+    expect(more.error?.code).toBe("RB001");
+    expect(await seatsOf(sessionId)).toMatchObject({ booked_seats: 3, free_seats: 0 });
+  });
+});

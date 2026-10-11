@@ -76,6 +76,15 @@ export function canAddTicket(
   return !ticket.takesSeat || selectedSeats(tickets, quantities) < free;
 }
 
+/**
+ * ¿El error de `create_booking_hold` dice que la disponibilidad ha cambiado (sin plazas, salida
+ * cerrada o ya no existe, recurso obligatorio ocupado)? Entonces lo que se ve en pantalla está
+ * desfasado y hay que volver a cargarlo.
+ */
+export function isAvailabilityError(code: string | undefined): boolean {
+  return code === "RB001" || code === "RB002" || code === "RB012" || code === "P0002";
+}
+
 /** Mensaje para el equipo según el código de error de `create_booking_hold` (RB001 trae las libres en el HINT). */
 export function bookingErrorMessage(code: string | undefined, hint: string | undefined): string {
   switch (code) {
@@ -92,6 +101,10 @@ export function bookingErrorMessage(code: string | undefined, hint: string | und
       return `No hay ningún ${blockingNeedLabel(hint)} libre a esa hora: está en otra salida que se solapa. Elige otra salida.`;
     case "RB003":
       return "Revisa las entradas: alguna ya no se vende en este producto.";
+    case "RB014":
+      return hint && /^VT[0-9A-Z]{6}$/.test(hint)
+        ? `Esta reserva ya se había creado con el código ${hint}. Búscala en Reservas.`
+        : "Esta reserva ya se había creado. Búscala en Reservas.";
     case "P0002":
       return "Esta salida ya no existe.";
     case "42501":
