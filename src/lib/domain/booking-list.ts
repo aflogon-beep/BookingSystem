@@ -31,6 +31,9 @@ export type BookingListParams = {
   q: string;
   productId: string | null;
   channel: BookingChannel | null;
+  /** Salidas desde / hasta este día (incluido), en la hora del negocio. */
+  from: string | null;
+  to: string | null;
   limit: number;
 };
 
@@ -38,18 +41,26 @@ type RawParams = Record<string, string | string[] | undefined>;
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
-/** Filtros del listado desde la URL (?pestana=&q=&producto=&canal=&mostrar=); lo que no vale se ignora. */
+const dateParam = (value: string | undefined): string | null => (value && z.iso.date().safeParse(value).success ? value : null);
+
+/** Filtros del listado desde la URL (?pestana=&q=&producto=&canal=&desde=&hasta=&mostrar=); lo que no vale se ignora. */
 export function parseBookingListParams(raw: RawParams): BookingListParams {
   const tab = BOOKING_TABS.find((option) => option.value === first(raw.pestana))?.value ?? "proximas";
   const q = (first(raw.q) ?? "").trim().slice(0, 100);
   const product = first(raw.producto);
   const channel = BOOKING_CHANNELS.find((option) => option === first(raw.canal)) ?? null;
   const limit = Number(first(raw.mostrar));
+  let from = dateParam(first(raw.desde));
+  let to = dateParam(first(raw.hasta));
+  // Al revés, se entiende lo mismo.
+  if (from && to && from > to) [from, to] = [to, from];
   return {
     tab,
     q,
     productId: product && z.uuid().safeParse(product).success ? product : null,
     channel,
+    from,
+    to,
     limit: Number.isInteger(limit) && limit > PAGE_SIZE ? Math.min(limit, MAX_LIMIT) : PAGE_SIZE,
   };
 }
@@ -61,6 +72,8 @@ export function bookingListHref(params: BookingListParams, base = "/panel/reserv
   if (params.q) search.set("q", params.q);
   if (params.productId) search.set("producto", params.productId);
   if (params.channel) search.set("canal", params.channel);
+  if (params.from) search.set("desde", params.from);
+  if (params.to) search.set("hasta", params.to);
   if (params.limit > PAGE_SIZE) search.set("mostrar", String(params.limit));
   const query = search.toString();
   return query ? `${base}?${query}` : base;
@@ -72,7 +85,7 @@ export const GLOBAL_SEARCH_PARAM = "ir";
 /** Destino del buscador de la barra superior: todas las reservas (también pasadas y canceladas). */
 export function globalSearchHref(query: string): string {
   const q = query.trim().slice(0, 100);
-  return `${bookingListHref({ tab: "todas", q, productId: null, channel: null, limit: PAGE_SIZE })}&${GLOBAL_SEARCH_PARAM}=1`;
+  return `${bookingListHref({ tab: "todas", q, productId: null, channel: null, from: null, to: null, limit: PAGE_SIZE })}&${GLOBAL_SEARCH_PARAM}=1`;
 }
 
 /** Código de la reserva que coincide exactamente con lo buscado, si es la única encontrada. */
@@ -124,6 +137,8 @@ export function bookingListQuery(params: BookingListParams, now: Date): { filter
   if (params.productId) filters.push({ column: "product_id", operator: "eq", value: params.productId });
   if (params.channel) filters.push({ column: "channel", operator: "eq", value: params.channel });
   if (params.q) filters.push({ column: "search_text", operator: "ilike", value: ilikePattern(params.q) });
+  if (params.from) filters.push({ column: "starts_at", operator: "gte", value: rangeForDays([params.from]).from });
+  if (params.to) filters.push({ column: "starts_at", operator: "lt", value: rangeForDays([params.to]).to });
   return { filters, ascending: params.tab !== "pasadas" && params.tab !== "canceladas" };
 }
 

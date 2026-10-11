@@ -19,6 +19,9 @@ test("Reservas y Clientes se abren con sus pestañas y filtros", async ({ page }
   await expect(tabs.getByRole("link", { name: "Pasadas" })).toHaveAttribute("aria-current", "page");
   await page.getByLabel("Canal").selectOption("agency");
   await expect(page).toHaveURL(/pestana=pasadas&canal=agency$/);
+  await page.getByLabel("Desde").fill("2030-01-01");
+  await expect(page).toHaveURL(/pestana=pasadas&canal=agency&desde=2030-01-01$/);
+  await expect(page.getByLabel("Desde")).toHaveValue("2030-01-01");
 
   await page.goto("/panel/clientes");
   await expect(page.getByRole("heading", { level: 1, name: "Clientes" })).toBeVisible();
