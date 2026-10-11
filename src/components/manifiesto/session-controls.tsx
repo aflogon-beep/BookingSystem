@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
+import { CircleX, Lock, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 
 import { setSessionCapacity, setSessionStatus } from "@/app/(panel)/panel/salidas/actions";
@@ -20,10 +21,10 @@ import { cn } from "@/lib/utils";
 
 type Status = "open" | "closed" | "cancelled";
 
-const OPTIONS: { value: Status; label: string }[] = [
-  { value: "open", label: "A la venta" },
-  { value: "closed", label: "Cerrar venta" },
-  { value: "cancelled", label: "Cancelar" },
+// Cancelar va aparte, en rojo y con confirmación: no es un estado más entre los que se alterna.
+const OPTIONS: { value: Exclude<Status, "cancelled">; label: string; icon: typeof Lock }[] = [
+  { value: "open", label: "A la venta", icon: ShoppingCart },
+  { value: "closed", label: "Cerrar venta", icon: Lock },
 ];
 
 /** Estado (a la venta, cerrada, cancelada) y aforo de una salida, en el lateral del manifiesto. */
@@ -63,27 +64,43 @@ export function SessionControls({
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="group" aria-label="Estado de la salida" className="flex gap-0.5 rounded-[9px] bg-[#e8e8ed] p-[3px]">
-        {OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={status === option.value}
-            disabled={pending || status === "cancelled"}
-            onClick={() => {
-              if (option.value === status) return;
-              if (option.value === "cancelled") setConfirmCancel(true);
-              else changeStatus(option.value);
-            }}
-            className={cn(
-              "flex-1 rounded-md px-2 py-[7px] text-[0.8rem] font-medium text-muted-foreground disabled:opacity-60",
-              "aria-pressed:bg-surface aria-pressed:text-foreground aria-pressed:shadow-[0_1px_2px_rgb(16_24_40/0.12)]",
-            )}
+      {status === "cancelled" ? (
+        <p className="flex items-center gap-2 rounded-[10px] bg-danger-soft px-3 py-2.5 text-[0.86rem] font-medium text-danger">
+          <CircleX aria-hidden="true" className="size-4 shrink-0" />
+          Salida cancelada. No se puede volver a abrir.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <span aria-hidden="true" className="text-[0.8rem] font-medium text-[#2a3644]">
+            Estado de venta
+          </span>
+          <div
+            role="group"
+            aria-label="Estado de la salida"
+            className="flex gap-0.5 rounded-[11px] bg-[#e8e8ed] p-[3px]"
           >
-            {option.label}
-          </button>
-        ))}
-      </div>
+            {OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={status === option.value}
+                disabled={pending}
+                onClick={() => option.value !== status && changeStatus(option.value)}
+                className={cn(
+                  "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[0.84rem] font-medium text-muted-foreground disabled:opacity-60 tablet:min-h-9",
+                  "aria-pressed:bg-surface aria-pressed:text-primary aria-pressed:shadow-[0_1px_2px_rgb(16_24_40/0.12)]",
+                )}
+              >
+                <option.icon aria-hidden="true" className="size-4 shrink-0" />
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[0.75rem] text-faint">
+            {status === "open" ? "Se puede reservar en la web y en el panel." : "No admite reservas nuevas, ni en la web ni en el panel."}
+          </p>
+        </div>
+      )}
 
       <form
         className="flex flex-col gap-1.5"
@@ -116,6 +133,21 @@ export function SessionControls({
           Solo cambia esta salida. El aforo general está en el producto.
         </p>
       </form>
+
+      {status === "cancelled" ? null : (
+        <div className="border-t border-line-2 pt-3">
+          <Button
+            type="button"
+            variant="ghost"
+            className="-ml-2 text-danger hover:bg-danger-soft hover:text-danger"
+            disabled={pending}
+            onClick={() => setConfirmCancel(true)}
+          >
+            <CircleX aria-hidden="true" />
+            Cancelar salida
+          </Button>
+        </div>
+      )}
 
       <Dialog open={confirmCancel} onOpenChange={(open) => !pending && setConfirmCancel(open)}>
         <DialogContent>

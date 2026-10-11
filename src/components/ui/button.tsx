@@ -21,12 +21,13 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-3.5",
-        sm: "h-8 px-2.5 text-[0.8rem]",
+        // En móvil todo botón mide al menos 44 px de alto (objetivo táctil); desde tablet, el tamaño del prototipo.
+        default: "h-11 px-4 tablet:h-9 tablet:px-3.5",
+        sm: "h-11 px-3 text-[0.84rem] tablet:h-8 tablet:px-2.5 tablet:text-[0.8rem]",
         lg: "h-11 px-5 text-[0.95rem]",
         // 44 px en móvil (objetivo táctil mínimo), 36 px desde tablet.
         icon: "size-11 tablet:size-9",
-        "icon-sm": "size-8",
+        "icon-sm": "size-11 tablet:size-8",
         "icon-lg": "size-11",
       },
     },
