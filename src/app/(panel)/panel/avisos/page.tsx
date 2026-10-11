@@ -14,7 +14,7 @@ export default async function Page() {
   await requireStaff();
   const now = new Date();
   const today = businessToday(now);
-  const items = attentionItems(await loadSoonSessions(today, now), now);
+  const items = attentionItems(await loadSoonSessions(today), now);
 
   return (
     <section className="flex max-w-[720px] flex-col gap-4 tablet:gap-5">

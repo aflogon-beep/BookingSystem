@@ -17,6 +17,11 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // Volver a una pantalla del panel vista hace menos de 30 s es instantáneo: el navegador
+    // reutiliza lo que ya tenía. Guardar cualquier cambio (revalidatePath) lo vacía.
+    staleTimes: { dynamic: 30 },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

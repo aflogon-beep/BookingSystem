@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { ActivityItem, TodaySession } from "@/components/hoy/types";
 import { createClient } from "@/lib/db/server";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
@@ -17,28 +19,31 @@ const ACTIVITY_LIMIT = 7;
 /**
  * Datos de «Hoy» para un día (hora de Canarias): salidas con su ocupación, KPIs de las reservas
  * de esas salidas, avisos de las próximas 48 h (desde hoy) y la actividad reciente.
+ * Todo sale en paralelo: si el día es uno de los tres de los avisos, sus salidas se toman de ahí.
  */
 export async function loadToday(day: string, today: string, now: Date) {
   const supabase = await createClient();
   const dayRange = rangeForDays([day]);
+  const soonDays = [today, shiftDay(today, 1), shiftDay(today, 2)];
 
-  const [sessions, soon, activity] = await Promise.all([
-    loadSessions(supabase, dayRange, now),
-    loadSoonSessions(today, now),
+  const [soon, daySessions, bookings, activity] = await Promise.all([
+    loadSoonSessions(today),
+    soonDays.includes(day) ? null : loadSessions(supabase, dayRange, now),
+    loadDayBookings(supabase, dayRange),
     loadActivity(supabase),
   ]);
-  const bookings = await loadDayBookings(
-    supabase,
-    sessions.map((session) => session.id),
-  );
+  const sessions = daySessions ?? soon.filter((session) => session.date === day);
 
   return { sessions, kpis: dayKpis(sessions, bookings), soon, activity };
 }
 
-/** Salidas de las próximas 48 h (hoy, mañana y pasado, como el prototipo): las de los avisos. */
-export async function loadSoonSessions(today: string, now: Date): Promise<TodaySession[]> {
-  return loadSessions(await createClient(), rangeForDays([today, shiftDay(today, 1), shiftDay(today, 2)]), now);
-}
+/**
+ * Salidas de las próximas 48 h (hoy, mañana y pasado, como el prototipo): las de los avisos.
+ * Se cachea por petición: la campana del layout y la página de Hoy o Avisos comparten la consulta.
+ */
+export const loadSoonSessions = cache(async (today: string): Promise<TodaySession[]> =>
+  loadSessions(await createClient(), rangeForDays([today, shiftDay(today, 1), shiftDay(today, 2)]), new Date()),
+);
 
 async function loadSessions(supabase: Supabase, range: { from: string; to: string }, now: Date): Promise<TodaySession[]> {
   const [
@@ -50,7 +55,9 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
   ] = await Promise.all([
     supabase
       .from("sessions")
-      .select("id, starts_at, ends_at, language, capacity, status, products!inner(name, color, min_pax, active)")
+      .select(
+        "id, starts_at, ends_at, language, capacity, status, products!inner(name, color, min_pax, active), session_resources(resources(name, type))",
+      )
       .gte("starts_at", range.from)
       .lt("starts_at", range.to)
       .order("starts_at")
@@ -72,7 +79,6 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
   ]);
   if (error || availabilityError || staffingError) throw new Error("No se pudieron cargar las salidas.");
 
-  const guides = await loadGuideNames(supabase, rows.map((row) => row.id));
   const booked = new Map(availability.map((row) => [row.session_id, row.booked_seats ?? 0]));
   const missing = new Map<string | null, MissingByType>(
     staffing.map((row) => [
@@ -94,7 +100,7 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
       booked: booked.get(row.id) ?? 0,
       minPax: row.products.min_pax,
       missing: missing.get(row.id) ?? NOTHING_MISSING,
-      guides: guides.get(row.id) ?? [],
+      guides: guideNames(row.session_resources),
       blockingNeed: blocked.get(row.id) ?? null,
       webOpen: webSalesOpen(row.starts_at, row.products.active, cutoffHours, now),
       started: new Date(row.starts_at) <= now,
@@ -104,33 +110,28 @@ async function loadSessions(supabase: Supabase, range: { from: string; to: strin
   });
 }
 
-// Lotes de ids para no pasarse del largo de URL de PostgREST.
-const ID_CHUNK = 150;
-
-/** Nombres de los guías asignados a cada salida. */
-async function loadGuideNames(supabase: Supabase, sessionIds: readonly string[]): Promise<Map<string, string[]>> {
-  const guides = new Map<string, string[]>();
-  for (let start = 0; start < sessionIds.length; start += ID_CHUNK) {
-    const { data, error } = await supabase
-      .from("session_resources")
-      .select("session_id, resources!inner(name, type)")
-      .in("session_id", sessionIds.slice(start, start + ID_CHUNK))
-      .eq("resources.type", "guide");
-    if (error) throw new Error("No se pudieron cargar los guías de las salidas.");
-    for (const row of data) guides.set(row.session_id, [...(guides.get(row.session_id) ?? []), row.resources.name]);
-  }
-  for (const names of guides.values()) names.sort((a, b) => a.localeCompare(b, "es"));
-  return guides;
+/** Nombres de los guías asignados a una salida, en orden alfabético. */
+function guideNames(assigned: readonly { resources: { name: string; type: string } | null }[]): string[] {
+  return assigned
+    .flatMap((row) => (row.resources?.type === "guide" ? [row.resources.name] : []))
+    .sort((a, b) => a.localeCompare(b, "es"));
 }
 
-async function loadDayBookings(supabase: Supabase, sessionIds: readonly string[]): Promise<DayBooking[]> {
+// PostgREST corta cada respuesta en max_rows (1000).
+const PAGE_SIZE = 1000;
+
+/** Reservas confirmadas de las salidas de ese día (para los KPIs). */
+async function loadDayBookings(supabase: Supabase, range: { from: string; to: string }): Promise<DayBooking[]> {
   const bookings: DayBooking[] = [];
-  for (let start = 0; start < sessionIds.length; start += ID_CHUNK) {
+  for (let offset = 0; ; offset += PAGE_SIZE) {
     const { data, error } = await supabase
       .from("bookings")
-      .select("session_id, status, payment_status, total_cents, checked_in, arrived_pax, booking_lines(qty)")
-      .in("session_id", sessionIds.slice(start, start + ID_CHUNK))
-      .eq("status", "confirmed");
+      .select("id, session_id, status, payment_status, total_cents, checked_in, arrived_pax, booking_lines(qty), sessions!inner(starts_at)")
+      .eq("status", "confirmed")
+      .gte("sessions.starts_at", range.from)
+      .lt("sessions.starts_at", range.to)
+      .order("id")
+      .range(offset, offset + PAGE_SIZE - 1);
     if (error) throw new Error("No se pudieron cargar las reservas.");
     for (const row of data) {
       bookings.push({
@@ -143,8 +144,8 @@ async function loadDayBookings(supabase: Supabase, sessionIds: readonly string[]
         pax: row.booking_lines.reduce((sum, line) => sum + line.qty, 0),
       });
     }
+    if (data.length < PAGE_SIZE) return bookings;
   }
-  return bookings;
 }
 
 async function loadActivity(supabase: Supabase): Promise<ActivityItem[]> {
@@ -174,5 +175,5 @@ async function loadActivity(supabase: Supabase): Promise<ActivityItem[]> {
 
 /** Cuántos avisos hay ahora (el punto rojo de la campana). */
 export async function countAlerts(now = new Date()): Promise<number> {
-  return attentionItems(await loadSoonSessions(businessToday(now), now), now).length;
+  return attentionItems(await loadSoonSessions(businessToday(now)), now).length;
 }

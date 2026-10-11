@@ -53,9 +53,11 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
   const now = new Date();
   const today = businessToday(now);
   const day = parseDayParam((await searchParams).fecha, today);
-  const { sessions, kpis, soon, activity } = await loadToday(day, today, now);
+  const [{ sessions, kpis, soon, activity }, showSetup] = await Promise.all([
+    loadToday(day, today, now),
+    canAccess(staff.role, "ajustes") ? setupPending() : false,
+  ]);
   const attention = attentionItems(soon, now);
-  const showSetup = canAccess(staff.role, "ajustes") && (await setupPending());
 
   return (
     <section className="flex flex-col gap-4 tablet:gap-5">
