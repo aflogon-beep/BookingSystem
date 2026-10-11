@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { LoaderCircle } from "lucide-react";
 
 // Barra fina arriba mientras carga la página siguiente. No usamos loading.tsx porque
 // rompe los 404 de las fichas (responderían 200 al empezar el streaming).
@@ -70,12 +71,17 @@ function ProgressBar() {
   }, [active]);
 
   return (
-    <div
-      aria-hidden="true"
-      data-active={active || undefined}
-      className="nav-progress pointer-events-none fixed inset-x-0 top-0 z-[100] h-[3px]"
-    >
-      <div className="nav-progress-bar h-full bg-primary" />
+    <div aria-hidden="true" data-active={active || undefined} className="nav-progress pointer-events-none fixed inset-x-0 top-0 z-[100]">
+      {/* Debajo de la barra de estado del iPhone cuando el panel está instalado como app. */}
+      <div className="h-[env(safe-area-inset-top,0px)]" />
+      <div className="h-[3px] overflow-hidden bg-primary/15">
+        <div className="nav-progress-bar h-full bg-primary" />
+      </div>
+      {/* La barra sola pasa desapercibida: si tarda, un aviso bien visible bajo la cabecera. */}
+      <div className="nav-progress-pill mx-auto mt-[62px] flex w-fit items-center gap-2 rounded-full bg-foreground/88 px-3.5 py-2 text-[0.85rem] font-semibold text-white shadow-lg backdrop-blur-md">
+        <LoaderCircle className="size-4 animate-spin" />
+        Cargando…
+      </div>
     </div>
   );
 }

@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 
+import { KeyboardShortcuts } from "@/components/panel/keyboard-shortcuts";
 import { NavSub } from "@/components/panel/nav-sub";
 import { TabBar } from "@/components/panel/tab-bar";
 import { TopBar } from "@/components/panel/top-bar";
 import { Toaster } from "@/components/ui/sonner";
 import { requireStaff } from "@/lib/auth";
+import { canAccess } from "@/lib/domain/auth";
+import { type NavId, visibleNav } from "@/lib/panel-nav";
 
 import { countAlerts } from "./panel/today-data";
 
@@ -12,6 +15,18 @@ import { countAlerts } from "./panel/today-data";
 export const metadata: Metadata = {
   title: { template: "%s · Ruta Reservas", default: "Panel · Ruta Reservas" },
   robots: { index: false, follow: false },
+};
+
+// Tecla de cada sección para los atajos («?» los enseña en el panel).
+const SECTION_KEYS: Record<NavId, string> = {
+  hoy: "h",
+  calendario: "c",
+  reservas: "r",
+  clientes: "k",
+  productos: "p",
+  equipo: "e",
+  informes: "i",
+  ajustes: "a",
 };
 
 export default async function PanelLayout({ children, modal }: LayoutProps<"/">) {
@@ -35,6 +50,13 @@ export default async function PanelLayout({ children, modal }: LayoutProps<"/">)
       {modal}
       <TabBar role={staff.role} name={staff.name} />
       <Toaster />
+      <KeyboardShortcuts
+        sections={visibleNav((id) => canAccess(staff.role, id)).map((item) => ({
+          key: SECTION_KEYS[item.id],
+          label: `Ir a ${item.label}`,
+          href: item.href,
+        }))}
+      />
     </div>
   );
 }

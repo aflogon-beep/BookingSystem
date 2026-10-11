@@ -100,3 +100,16 @@ export function bookingErrorMessage(code: string | undefined, hint: string | und
       return "No se pudo crear la reserva. Inténtalo de nuevo.";
   }
 }
+
+/**
+ * Qué buscar para reconocer a un cliente que ya ha reservado: el teléfono o el email (lo más
+ * fiable) y, si aún no hay, el nombre. null si todavía no hay bastante para buscar.
+ */
+export function repeatCustomerQuery(customer: { name: string; email: string; phone: string }): string | null {
+  const phone = customer.phone.trim();
+  if (phone.replace(/\D/g, "").length >= 6) return phone;
+  const email = customer.email.trim();
+  if (email.length >= 4) return email;
+  const name = customer.name.trim();
+  return name.length >= 3 ? name : null;
+}

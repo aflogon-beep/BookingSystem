@@ -35,6 +35,15 @@ test("ficha de reserva: notas, cambio de fecha y cancelación con reembolso", as
   await expect(page.getByText("Pagado", { exact: true })).toBeVisible();
   await expect(page.getByText("Reserva creada")).toBeVisible();
 
+  // Corregir el teléfono: queda en el historial y aparece el botón de WhatsApp.
+  await page.getByRole("button", { name: "Editar" }).click();
+  const details = page.getByRole("dialog", { name: "Datos del cliente" });
+  await details.getByLabel("Teléfono").fill("612 34 56 78");
+  await details.getByRole("button", { name: "Guardar" }).click();
+  await expect(details).toBeHidden();
+  await expect(page.getByText("Datos cambiados: teléfono")).toBeVisible();
+  await expect(page.getByRole("link", { name: `WhatsApp a ${name}` })).toHaveAttribute("href", "https://wa.me/34612345678");
+
   // Notas internas: se guardan al salir del campo.
   const notes = page.getByLabel("Notas internas");
   await notes.fill("Celíaco");

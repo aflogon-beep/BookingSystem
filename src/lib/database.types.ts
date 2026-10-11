@@ -489,6 +489,12 @@ isOneToOne: false
 "booking_set_checked_in":
 { Args: { "p_booking_id": string,"p_checked": boolean }; Returns: boolean
                            },
+"booking_update_details":
+{ Args: { "p_booking_id": string,"p_details": Json }; Returns: undefined
+                           },
+"booking_update_lines":
+{ Args: { "p_booking_id": string,"p_lines": Json }; Returns: number
+                           },
 "cancel_locked_booking":
 { Args: { "p_booking_id": string,"p_reason": string,"p_refund": boolean }; Returns: number
                            },

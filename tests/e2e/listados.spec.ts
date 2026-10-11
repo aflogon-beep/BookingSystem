@@ -19,6 +19,9 @@ test("Reservas y Clientes se abren con sus pestañas y filtros", async ({ page }
   await expect(tabs.getByRole("link", { name: "Pasadas" })).toHaveAttribute("aria-current", "page");
   await page.getByLabel("Canal").selectOption("agency");
   await expect(page).toHaveURL(/pestana=pasadas&canal=agency$/);
+  await page.getByLabel("Desde").fill("2030-01-01");
+  await expect(page).toHaveURL(/pestana=pasadas&canal=agency&desde=2030-01-01$/);
+  await expect(page.getByLabel("Desde")).toHaveValue("2030-01-01");
 
   await page.goto("/panel/clientes");
   await expect(page.getByRole("heading", { level: 1, name: "Clientes" })).toBeVisible();
@@ -58,6 +61,14 @@ test("una reserva nueva sale en el listado, en el CSV y en la ficha del cliente"
   await topSearch.fill(code.toLowerCase());
   await topSearch.press("Enter");
   await expect(page).toHaveURL(new RegExp(`/panel/reservas/${code}$`));
+
+  // Con el pago pendiente se pueden cambiar las entradas: una persona más.
+  await page.getByRole("button", { name: "Cambiar entradas" }).click();
+  const lines = page.getByRole("dialog", { name: "Cambiar entradas" });
+  await lines.getByRole("button", { name: "Añadir Adulto" }).click();
+  await lines.getByRole("button", { name: "Guardar" }).click();
+  await expect(lines).toBeHidden();
+  await expect(page.getByText(/^Entradas cambiadas: /)).toBeVisible();
   await page.goto("/panel/reservas");
   await page.keyboard.press("/");
   await expect(topSearch).toBeFocused();

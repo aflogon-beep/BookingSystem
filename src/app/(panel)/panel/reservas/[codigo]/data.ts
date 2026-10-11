@@ -5,6 +5,8 @@ import { addDays } from "date-fns";
 import { createClient } from "@/lib/db/server";
 import { MOVE_WINDOW_DAYS, moveOptions, seatsOf, type MoveCandidate } from "@/lib/domain/booking-detail";
 
+export type TicketOption = { id: string; name: string; priceCents: number; takesSeat: boolean; qty: number };
+
 export type BookingDetail = {
   id: string;
   code: string;
@@ -24,6 +26,8 @@ export type BookingDetail = {
   session: { id: string; startsAt: string; language: string; status: string };
   product: { name: string; color: string; pickup: boolean; meetingPoint: string };
   lines: { name: string; qty: number }[];
+  /** Entradas que se pueden poner al editar: las del producto y las que ya tiene, con su precio. */
+  ticketOptions: TicketOption[];
   seats: number;
   events: { id: string; actor: string; text: string; at: string }[];
   moveOptions: MoveCandidate[];
@@ -37,7 +41,7 @@ export async function loadBookingDetail(code: string, now: Date): Promise<Bookin
     supabase
       .from("bookings")
       .select(
-        "id, code, status, payment_status, payment_method, total_cents, paid_cents, channel, agent, hotel, notes, checked_in, arrived_pax, no_show, customers!inner(name, email, phone), sessions!inner(id, starts_at, language, status, product_id, products!inner(name, color, pickup, meeting_point)), booking_lines(qty, takes_seat, ticket_types!inner(name, sort)), booking_events(id, actor, text, created_at)",
+        "id, code, status, payment_status, payment_method, total_cents, paid_cents, channel, agent, hotel, notes, checked_in, arrived_pax, no_show, customers!inner(name, email, phone), sessions!inner(id, starts_at, language, status, product_id, products!inner(name, color, pickup, meeting_point)), booking_lines(qty, takes_seat, unit_price_cents, ticket_type_id, ticket_types!inner(name, sort)), booking_events(id, actor, text, created_at)",
       )
       .eq("code", code)
       .maybeSingle(),
@@ -51,6 +55,7 @@ export async function loadBookingDetail(code: string, now: Date): Promise<Bookin
   const session = row.sessions;
 
   let options: MoveCandidate[] = [];
+  let ticketOptions: TicketOption[] = [];
   if (row.status === "confirmed" && new Date(session.starts_at) > now) {
     const [{ data: sessions, error: sessionsError }, { data: availability, error: availabilityError }] = await Promise.all([
       supabase
@@ -69,6 +74,30 @@ export async function loadBookingDetail(code: string, now: Date): Promise<Bookin
         .lte("starts_at", addDays(now, MOVE_WINDOW_DAYS).toISOString()),
     ]);
     if (sessionsError || availabilityError) throw new Error("No se pudieron cargar las salidas.");
+    const { data: prices, error: pricesError } = await supabase
+      .from("product_prices")
+      .select("price_cents, ticket_types!inner(id, name, sort, takes_seat)")
+      .eq("product_id", session.product_id);
+    if (pricesError) throw new Error("No se pudieron cargar los precios.");
+    // Las que ya tiene la reserva mantienen su precio (como en booking_update_lines).
+    const byId = new Map<string, TicketOption & { sort: number }>();
+    for (const price of prices) {
+      const type = price.ticket_types;
+      byId.set(type.id, { id: type.id, name: type.name, priceCents: price.price_cents, takesSeat: type.takes_seat, qty: 0, sort: type.sort });
+    }
+    for (const line of lines) {
+      byId.set(line.ticket_type_id, {
+        id: line.ticket_type_id,
+        name: line.ticket_types.name,
+        priceCents: line.unit_price_cents,
+        takesSeat: line.takes_seat,
+        qty: line.qty,
+        sort: line.ticket_types.sort,
+      });
+    }
+    ticketOptions = [...byId.values()]
+      .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name))
+      .map((option) => ({ id: option.id, name: option.name, priceCents: option.priceCents, takesSeat: option.takesSeat, qty: option.qty }));
     const free = new Map(availability.map((item) => [item.session_id, item.free_seats ?? 0]));
     options = moveOptions(
       sessions.map((item) => ({
@@ -109,6 +138,7 @@ export async function loadBookingDetail(code: string, now: Date): Promise<Bookin
     },
     lines: lines.map((line) => ({ name: line.ticket_types.name, qty: line.qty })),
     seats,
+    ticketOptions,
     events: [...row.booking_events]
       .sort((a, b) => b.created_at.localeCompare(a.created_at) || String(b.id).localeCompare(String(a.id)))
       .map((event) => ({ id: String(event.id), actor: event.actor, text: event.text, at: event.created_at })),

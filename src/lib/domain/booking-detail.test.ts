@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   bookingChangeError,
+  bookingEditError,
   isEditable,
   isFreeCancellation,
   moveOptionLabel,
@@ -101,5 +102,14 @@ describe("bookingChangeError", () => {
     expect(bookingChangeError("RB012", "vehicle")).toMatch(/ningún vehículo libre/);
     expect(bookingChangeError("RB007", undefined)).toMatch(/ya ha empezado/);
     expect(bookingChangeError(undefined, undefined)).toBe("No se pudo guardar. Inténtalo de nuevo.");
+  });
+});
+
+describe("bookingEditError", () => {
+  it("explica por qué no se puede cambiar la reserva", () => {
+    expect(bookingEditError("RB001", "2")).toBe("La salida solo tiene 2 plazas libres más.");
+    expect(bookingEditError("RB013", undefined)).toMatch(/ya está pagada/);
+    expect(bookingEditError("RB002", undefined)).toMatch(/solo se pueden quitar/);
+    expect(bookingEditError("42501", undefined)).toBe("No tienes permiso para hacer esto.");
   });
 });

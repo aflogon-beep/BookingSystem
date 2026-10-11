@@ -16,7 +16,7 @@ import {
 } from "./booking-list";
 
 const PRODUCT = "00000000-0000-4000-8000-000000000201";
-const base: BookingListParams = { tab: "proximas", q: "", productId: null, channel: null, limit: PAGE_SIZE };
+const base: BookingListParams = { tab: "proximas", q: "", productId: null, channel: null, from: null, to: null, limit: PAGE_SIZE };
 const now = new Date("2030-12-02T10:00:00Z");
 
 describe("parseBookingListParams", () => {
@@ -27,7 +27,7 @@ describe("parseBookingListParams", () => {
   it("lee pestaña, búsqueda, producto, canal y cuántas mostrar", () => {
     expect(
       parseBookingListParams({ pestana: "canceladas", q: "  Lucía ", producto: PRODUCT, canal: "agency", mostrar: "120" }),
-    ).toEqual({ tab: "canceladas", q: "Lucía", productId: PRODUCT, channel: "agency", limit: 120 });
+    ).toEqual({ tab: "canceladas", q: "Lucía", productId: PRODUCT, channel: "agency", from: null, to: null, limit: 120 });
   });
 
   it("ignora lo que no vale", () => {
@@ -196,5 +196,22 @@ describe("buscador de la barra superior", () => {
     expect(exactCodeMatch("RT-7K", [{ code: "RT-7K2P" }])).toBeNull();
     expect(exactCodeMatch("RT-7K2P", [{ code: "RT-7K2P" }, { code: "RT-7K2Q" }])).toBeNull();
     expect(exactCodeMatch("", [{ code: "RT-7K2P" }])).toBeNull();
+  });
+});
+
+describe("filtro por fechas", () => {
+  it("lee desde/hasta, ignora fechas no válidas y les da la vuelta si van al revés", () => {
+    expect(parseBookingListParams({ desde: "2030-12-01", hasta: "2030-12-07" })).toMatchObject({ from: "2030-12-01", to: "2030-12-07" });
+    expect(parseBookingListParams({ desde: "2030-12-07", hasta: "2030-12-01" })).toMatchObject({ from: "2030-12-01", to: "2030-12-07" });
+    expect(parseBookingListParams({ desde: "ayer", hasta: "2030-02-30" })).toMatchObject({ from: null, to: null });
+  });
+
+  it("va en la URL y filtra por la hora de salida en Canarias, con el último día incluido", () => {
+    const params = { ...base, tab: "todas" as const, from: "2030-12-01", to: "2030-12-07" };
+    expect(bookingListHref(params)).toBe("/panel/reservas?pestana=todas&desde=2030-12-01&hasta=2030-12-07");
+    expect(bookingListQuery(params, now).filters).toEqual([
+      { column: "starts_at", operator: "gte", value: "2030-12-01T00:00:00.000Z" },
+      { column: "starts_at", operator: "lt", value: "2030-12-08T00:00:00.000Z" },
+    ]);
   });
 });

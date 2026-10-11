@@ -135,6 +135,16 @@
 .nav-progress[data-active] .nav-progress-bar {
   animation: nav-progress 8s cubic-bezier(0.1, 0.7, 0.2, 1) 150ms both;
 }
+.nav-progress-pill {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.nav-progress[data-active] .nav-progress-pill {
+  opacity: 1;
+  transform: none;
+  transition-delay: 350ms;
+}
 @keyframes nav-progress {
   from {
     transform: scaleX(0);

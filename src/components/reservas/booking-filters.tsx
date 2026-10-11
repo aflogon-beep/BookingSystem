@@ -10,7 +10,10 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { CHANNEL_LABELS } from "@/lib/domain/booking-detail";
 import { BOOKING_CHANNELS, PAGE_SIZE, bookingListHref, type BookingListParams } from "@/lib/domain/booking-list";
 
-/** Búsqueda, producto y canal del listado de reservas. Cambian la URL (la página se vuelve a pedir). */
+// Al teclear una fecha salen años intermedios (0002, 0020…): solo cuenta con un año completo.
+const dateOrNull = (value: string): string | null => (/^20\d{2}-\d{2}-\d{2}$/.test(value) ? value : null);
+
+/** Búsqueda, producto, canal y fechas del listado de reservas. Cambian la URL (la página se vuelve a pedir). */
 export function BookingFilters({ params, products }: { params: BookingListParams; products: { id: string; name: string }[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -48,6 +51,13 @@ export function BookingFilters({ params, products }: { params: BookingListParams
   function goNow(next: Partial<BookingListParams>) {
     if (timer.current) clearTimeout(timer.current);
     go({ q: q.trim(), ...next });
+  }
+
+  // Solo navega con una fecha completa, o al borrarla (a medio teclear el valor también es "").
+  function dateChanged(input: HTMLInputElement, field: "from" | "to") {
+    const value = dateOrNull(input.value);
+    if (value) goNow({ [field]: value });
+    else if (!input.value && !input.validity.badInput && params[field]) goNow({ [field]: null });
   }
 
   return (
@@ -90,6 +100,27 @@ export function BookingFilters({ params, products }: { params: BookingListParams
           </option>
         ))}
       </NativeSelect>
+      <div role="group" aria-label="Fechas de salida" className="flex items-center gap-1.5 max-tablet:w-full">
+        <Input
+          type="date"
+          aria-label="Desde"
+          title="Salidas desde"
+          key={`from-${params.from ?? ""}`}
+          defaultValue={params.from ?? ""}
+          onChange={(event) => dateChanged(event.target, "from")}
+          className="w-auto min-w-0 max-tablet:flex-1 tablet:w-[150px]"
+        />
+        <span aria-hidden="true" className="text-muted-foreground">–</span>
+        <Input
+          type="date"
+          aria-label="Hasta"
+          title="Salidas hasta"
+          key={`to-${params.to ?? ""}`}
+          defaultValue={params.to ?? ""}
+          onChange={(event) => dateChanged(event.target, "to")}
+          className="w-auto min-w-0 max-tablet:flex-1 tablet:w-[150px]"
+        />
+      </div>
       {pending ? <LoaderCircle aria-label="Cargando" className="size-4 animate-spin text-muted-foreground" /> : null}
     </div>
   );
