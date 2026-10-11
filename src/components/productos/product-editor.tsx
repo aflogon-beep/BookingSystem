@@ -809,10 +809,10 @@ function RuleRow({
           ))}
         </NativeSelect>
       </Field>
-      <Field id={`${id}-from`} label="Desde" className="w-[150px] max-tablet:flex-1">
+      <Field id={`${id}-from`} label="Desde" className="w-[150px] max-tablet:flex-[1_1_130px]">
         <Input id={`${id}-from`} type="date" value={rule.validFrom} onChange={(event) => onChange({ validFrom: event.target.value })} />
       </Field>
-      <Field id={`${id}-to`} label="Hasta" className="w-[150px] max-tablet:flex-1">
+      <Field id={`${id}-to`} label="Hasta" className="w-[150px] max-tablet:flex-[1_1_130px]">
         <Input id={`${id}-to`} type="date" value={rule.validTo} onChange={(event) => onChange({ validTo: event.target.value })} />
       </Field>
       <Button type="button" variant="ghost" size="icon" aria-label={`Quitar regla ${index + 1}`} onClick={onRemove}>
