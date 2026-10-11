@@ -763,11 +763,11 @@ function RuleRow({
       aria-label={`Regla ${index + 1}`}
       className="flex flex-wrap items-end gap-3 border-b border-dashed border-line py-3.5 last:border-b-0"
     >
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 max-tablet:w-full">
         <span id={`${id}-days`} className="text-[0.8rem] font-medium text-[#2a3644]">
           Días
         </span>
-        <div role="group" aria-labelledby={`${id}-days`} className="flex gap-1">
+        <div role="group" aria-labelledby={`${id}-days`} className="grid grid-cols-7 gap-1 tablet:flex">
           {WEEKDAY_INITIALS.map((initial, dayIndex) => {
             const day = dayIndex + 1;
             const on = rule.weekdays.includes(day);
@@ -781,7 +781,7 @@ function RuleRow({
                   onChange({ weekdays: on ? rule.weekdays.filter((item) => item !== day) : [...rule.weekdays, day].sort((a, b) => a - b) })
                 }
                 className={cn(
-                  "size-10 rounded-[7px] border border-line bg-surface font-mono text-[0.76rem] font-medium text-muted-foreground outline-none tablet:size-[31px]",
+                  "h-10 min-w-0 rounded-[7px] border border-line bg-surface font-mono text-[0.76rem] font-medium text-muted-foreground outline-none tablet:size-[31px]",
                   "focus-visible:ring-[3px] focus-visible:ring-ring/50",
                   on && "border-primary bg-primary text-white",
                 )}
@@ -809,10 +809,10 @@ function RuleRow({
           ))}
         </NativeSelect>
       </Field>
-      <Field id={`${id}-from`} label="Desde" className="w-[150px] max-tablet:flex-1">
+      <Field id={`${id}-from`} label="Desde" className="w-[150px] max-tablet:flex-[1_1_130px]">
         <Input id={`${id}-from`} type="date" value={rule.validFrom} onChange={(event) => onChange({ validFrom: event.target.value })} />
       </Field>
-      <Field id={`${id}-to`} label="Hasta" className="w-[150px] max-tablet:flex-1">
+      <Field id={`${id}-to`} label="Hasta" className="w-[150px] max-tablet:flex-[1_1_130px]">
         <Input id={`${id}-to`} type="date" value={rule.validTo} onChange={(event) => onChange({ validTo: event.target.value })} />
       </Field>
       <Button type="button" variant="ghost" size="icon" aria-label={`Quitar regla ${index + 1}`} onClick={onRemove}>

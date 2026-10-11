@@ -12,7 +12,7 @@ export function DayPicker({ day }: { day: string }) {
       key={day}
       type="date"
       aria-label="Ir a fecha"
-      className="h-9 w-auto"
+      className="h-9 w-auto min-w-0 max-tablet:flex-1"
       defaultValue={day}
       onChange={(event) => {
         // Al teclear salen años intermedios (0002, 0020…): solo navega con un año completo.
