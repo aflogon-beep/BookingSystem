@@ -14,13 +14,14 @@ import {
   calendarHref,
   calendarTitle,
   parseCalendarParams,
+  sortCrew,
   rangeForDays,
   shiftAnchor,
   toBusinessDateTime,
   visibleDays,
   type CalendarView,
 } from "@/lib/domain/calendar";
-import type { ResourceType } from "@/lib/domain/resources";
+import { isResourceType, type ResourceType } from "@/lib/domain/resources";
 import { businessToday } from "@/lib/domain/schedule";
 import { cn } from "@/lib/utils";
 
@@ -124,7 +125,7 @@ async function loadSessionRows(
   for (let offset = 0; ; offset += PAGE_SIZE) {
     let query = supabase
       .from("sessions")
-      .select("id, starts_at, language, capacity, status, products!inner(name, color, min_pax)")
+      .select("id, starts_at, language, capacity, status, products!inner(name, color, min_pax), session_resources(resources(name, type))")
       .gte("starts_at", from)
       .lt("starts_at", to)
       .order("starts_at")
@@ -197,6 +198,7 @@ type SessionRow = {
   capacity: number;
   status: string;
   products: { name: string; color: string; min_pax: number };
+  session_resources: { resources: { name: string; type: string } | null }[];
 };
 
 function toCalendarSessions(
@@ -220,6 +222,11 @@ function toCalendarSessions(
       blockingNeed: blocked.get(row.id) ?? null,
       past: new Date(row.starts_at) < now,
       product: { name: row.products.name, color: row.products.color, minPax: row.products.min_pax },
+      crew: sortCrew(
+        row.session_resources.flatMap(({ resources: resource }) =>
+          resource && isResourceType(resource.type) ? [{ name: resource.name, type: resource.type }] : [],
+        ),
+      ),
     };
   });
 }

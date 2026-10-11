@@ -2,9 +2,9 @@ import Link from "next/link";
 import { parseISO } from "date-fns";
 
 import { cn } from "@/lib/utils";
-import { calendarHref, groupByDate, longDayLabel, occupancyLevel, occupancyTotals } from "@/lib/domain/calendar";
+import { calendarHref, groupByDate, longDayLabel, occupancyLevel, occupancyTotals, sessionSummary } from "@/lib/domain/calendar";
 
-import { calendarState } from "./session-status";
+import { STATE_LABELED, SeatLegend, calendarState, seatToneClass } from "./session-status";
 import type { CalendarSession } from "./types";
 
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -21,8 +21,8 @@ const HEAT = [
 ] as const;
 
 /**
- * Mes en cuadrícula. En escritorio cada día lista hasta 3 salidas; en tablet sin nombre y en
- * móvil solo puntos de color. Pulsar un día abre su semana.
+ * Mes en cuadrícula. En escritorio cada día lista hasta 3 salidas (cada una abre su manifiesto);
+ * en tablet sin nombre y en móvil solo puntos del semáforo. Pulsar el día abre su semana.
  */
 export function MonthView({
   days,
@@ -64,26 +64,28 @@ export function MonthView({
             const live = list.filter((session) => session.status !== "cancelled").length;
             const label = `${longDayLabel(day)}: ${live ? `${live} ${live === 1 ? "salida" : "salidas"}, ${totals.booked} de ${totals.capacity} plazas` : "sin salidas"}`;
             return (
-              <Link
+              <div
                 key={day}
-                href={calendarHref({ view: "semana", anchor: day, productId })}
-                aria-label={isToday ? `${label} (hoy)` : label}
                 className={cn(
-                  "flex min-h-16 min-w-0 flex-col gap-[3px] border-r border-b border-line-2 p-1 text-left hover:bg-[#f7fafe] tablet:min-h-[92px] tablet:px-[7px] tablet:pt-[7px] tablet:pb-2 desk:min-h-[118px] [&:nth-child(7n)]:border-r-0",
+                  "relative flex min-h-16 min-w-0 flex-col gap-[3px] border-r border-b border-line-2 p-1 text-left hover:bg-[#f7fafe] tablet:min-h-[92px] tablet:px-[7px] tablet:pt-[7px] tablet:pb-2 desk:min-h-[118px] [&:nth-child(7n)]:border-r-0",
+                  "has-[>div>a:focus-visible]:ring-[3px] has-[>div>a:focus-visible]:ring-ring/50 has-[>div>a:focus-visible]:ring-inset",
                   outside ? "bg-surface-2" : "bg-surface",
                   HEAT[occupancyLevel(totals.booked, totals.capacity)],
                 )}
               >
                 <div className="mb-0.5 flex items-center justify-between">
-                  <span
+                  {/* Todo el día abre su semana; las salidas, encima, abren su manifiesto. */}
+                  <Link
+                    href={calendarHref({ view: "semana", anchor: day, productId })}
+                    aria-label={isToday ? `${label} (hoy)` : label}
                     className={cn(
-                      "grid size-6 place-items-center rounded-full text-[0.8rem] font-semibold",
+                      "grid size-6 place-items-center rounded-full text-[0.8rem] font-semibold outline-none after:absolute after:inset-0",
                       isToday && "bg-primary text-white",
                       outside && !isToday && "text-faint",
                     )}
                   >
                     {parseISO(day).getDate()}
-                  </span>
+                  </Link>
                   {totals.capacity ? (
                     <span className="hidden font-mono text-[0.66rem] text-muted-foreground tablet:inline">
                       {totals.booked}/{totals.capacity}
@@ -92,26 +94,37 @@ export function MonthView({
                 </div>
                 {list.slice(0, MAX_LINES).map((session) => {
                   const state = calendarState(session);
-                  // No admite reservas por un motivo que no es estar completa: atenuada, con el motivo al pasar el ratón.
+                  // No admite reservas por un motivo que no es estar completa: atenuada.
                   const unsellable = state.kind === "blocked" || state.kind === "closed";
                   return (
-                    <span
+                    <Link
                       key={session.id}
+                      href={`/panel/salidas/${session.id}`}
+                      title={sessionSummary({
+                        time: session.time,
+                        productName: session.product.name,
+                        language: session.language,
+                        booked: session.booked,
+                        capacity: session.capacity,
+                        stateLabel: STATE_LABELED.has(state.kind) ? state.label : undefined,
+                        crew: session.crew,
+                      })}
                       className={cn(
-                        "hidden min-w-0 items-center gap-[5px] rounded-[4px] px-1 py-px text-[0.72rem] leading-[1.3] tablet:flex",
+                        "relative z-10 hidden min-w-0 items-center gap-[5px] overflow-hidden rounded-[4px] py-px pr-1 pl-[7px] text-[0.72rem] leading-[1.3] hover:bg-primary-soft focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none tablet:flex",
                         state.kind === "full" ? "bg-warn-soft" : "bg-surface-2",
                         state.kind === "cancelled" && "line-through opacity-45",
                         unsellable && "opacity-45",
                       )}
-                      title={unsellable ? `${state.label}: no admite reservas` : undefined}
                     >
+                      {/* Semáforo de plazas a la izquierda; el cuadrado es el color del producto. */}
+                      <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-[3px]", seatToneClass(state.kind))} />
                       <span aria-hidden="true" className="size-[7px] flex-none rounded-[3px]" style={{ background: session.product.color }} />
                       <span className="flex-none font-mono text-muted-foreground">{session.time}</span>
-                      <span className="min-w-0 flex-1 truncate max-desk:hidden">{session.product.name}</span>
+                      <span className="min-w-0 flex-1 truncate max-desk:sr-only">{session.product.name}</span>
                       <span className="flex-none font-mono text-[0.66rem] text-muted-foreground max-desk:ml-auto">
                         {session.booked}/{session.capacity}
                       </span>
-                    </span>
+                    </Link>
                   );
                 })}
                 {list.length > MAX_LINES ? (
@@ -122,32 +135,21 @@ export function MonthView({
                 {list.length ? (
                   <span aria-hidden="true" className="mt-auto flex flex-wrap gap-[3px] tablet:hidden">
                     {list.slice(0, MAX_DOTS).map((session) => (
-                      <i key={session.id} className="block size-1.5 rounded-full" style={{ background: session.product.color }} />
+                      <i key={session.id} className={cn("block size-1.5 rounded-full", seatToneClass(calendarState(session).kind))} />
                     ))}
                   </span>
                 ) : null}
-              </Link>
+              </div>
             );
           })}
         </div>
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[0.8rem] text-muted-foreground">
-        <LegendItem color="#cce3fa">Ocupación baja</LegendItem>
-        <LegendItem color="#0071e3">Alta</LegendItem>
-        <LegendItem color="#ff9f0a">Casi completo</LegendItem>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.8rem] text-muted-foreground">
+        <SeatLegend />
         <span className="tabular-nums tablet:ml-auto">
           {monthCount} {monthCount === 1 ? "salida" : "salidas"} · {monthTotals.booked}/{monthTotals.capacity} plazas ({percent}%)
         </span>
       </div>
     </>
-  );
-}
-
-function LegendItem({ color, children }: { color: string; children: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <i aria-hidden="true" className="size-2.5 rounded-[3px]" style={{ background: color }} />
-      {children}
-    </span>
   );
 }
