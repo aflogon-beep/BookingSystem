@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, Copy, Mountain, MoreVertical } from "lucide-react";
+import { CalendarDays, Copy, Mountain, MoreVertical, Printer } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { toast } from "sonner";
 
@@ -40,6 +40,11 @@ export function ManifestMenu({ copyText, productId, dayHref }: { copyText: strin
           <DropdownMenu.Item className={itemClass} onSelect={copy}>
             <Copy aria-hidden="true" />
             Copiar manifiesto
+          </DropdownMenu.Item>
+          {/* Para el guía: sale sin barras ni botones (estilos print: de la página). */}
+          <DropdownMenu.Item className={itemClass} onSelect={() => window.print()}>
+            <Printer aria-hidden="true" />
+            Imprimir o guardar PDF
           </DropdownMenu.Item>
           <DropdownMenu.Item asChild className={itemClass}>
             <Link href={`/panel/productos/${productId}`}>

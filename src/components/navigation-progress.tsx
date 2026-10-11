@@ -9,6 +9,15 @@ const START_EVENT = "navigation-progress:start";
 // Si la navegación no cambia la URL (error, misma página), la barra no se queda colgada.
 const MAX_MS = 10_000;
 
+// Cambios de página dentro de la app desde que se abrió (para «Volver» a la pantalla anterior).
+let inAppNavigations = 0;
+let lastUrl: string | null = null;
+
+/** true si se ha llegado aquí navegando por la app (no abriendo un enlace o recargando). */
+export function hasInAppHistory(): boolean {
+  return inAppNavigations > 0;
+}
+
 /** Para navegaciones con router.push/replace, que no pasan por un clic en un enlace. */
 export function startNavigationProgress() {
   window.dispatchEvent(new Event(START_EVENT));
@@ -34,6 +43,11 @@ function ProgressBar() {
   // URL desde la que empezó la carga: en cuanto la URL cambia, la barra se apaga sola.
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const active = startedAt === current;
+
+  useEffect(() => {
+    if (lastUrl !== null && lastUrl !== current) inAppNavigations += 1;
+    lastUrl = current;
+  }, [current]);
 
   useEffect(() => {
     const start = () => setStartedAt(`${window.location.pathname}?${new URLSearchParams(window.location.search).toString()}`);
