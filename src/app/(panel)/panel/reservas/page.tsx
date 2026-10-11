@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Download, Globe, Handshake, Phone, Plus, SearchX, Store, type LucideIcon } from "lucide-react";
 
 import { BookingStatusPill, PaymentPill } from "@/components/reservas/booking-pills";
@@ -10,7 +11,17 @@ import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
 import { initials } from "@/lib/domain/resources";
 import { CHANNEL_LABELS } from "@/lib/domain/booking-detail";
-import { BOOKING_TABS, MAX_LIMIT, PAGE_SIZE, bookingListHref, bookingListSummary, listDateLabel, parseBookingListParams } from "@/lib/domain/booking-list";
+import {
+  BOOKING_TABS,
+  GLOBAL_SEARCH_PARAM,
+  MAX_LIMIT,
+  PAGE_SIZE,
+  bookingListHref,
+  bookingListSummary,
+  exactCodeMatch,
+  listDateLabel,
+  parseBookingListParams,
+} from "@/lib/domain/booking-list";
 import { formatCents } from "@/lib/domain/money";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +33,8 @@ const CHANNEL_ICONS: Record<string, LucideIcon> = { web: Globe, phone: Phone, de
 
 export default async function Page({ searchParams }: PageProps<"/panel/reservas">) {
   await requireAccess("reservas");
-  const params = parseBookingListParams(await searchParams);
+  const raw = await searchParams;
+  const params = parseBookingListParams(raw);
   const now = new Date();
   const supabase = await createClient();
   const [{ rows, count }, totals, { data: products, error }] = await Promise.all([
@@ -31,6 +43,9 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
     supabase.from("products").select("id, name").order("name"),
   ]);
   if (error) throw new Error("No se pudieron cargar los productos.");
+  // Desde el buscador de arriba, un código exacto lleva directo a la reserva.
+  const code = raw[GLOBAL_SEARCH_PARAM] === "1" ? exactCodeMatch(params.q, rows) : null;
+  if (code) redirect(`/panel/reservas/${code}`);
   const summary = bookingListSummary(totals);
 
   return (

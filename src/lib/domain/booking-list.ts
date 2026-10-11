@@ -66,6 +66,23 @@ export function bookingListHref(params: BookingListParams, base = "/panel/reserv
   return query ? `${base}?${query}` : base;
 }
 
+/** Parámetro que añade el buscador de la barra superior: si el texto es un código exacto, abre la reserva. */
+export const GLOBAL_SEARCH_PARAM = "ir";
+
+/** Destino del buscador de la barra superior: todas las reservas (también pasadas y canceladas). */
+export function globalSearchHref(query: string): string {
+  const q = query.trim().slice(0, 100);
+  return `${bookingListHref({ tab: "todas", q, productId: null, channel: null, limit: PAGE_SIZE })}&${GLOBAL_SEARCH_PARAM}=1`;
+}
+
+/** Código de la reserva que coincide exactamente con lo buscado, si es la única encontrada. */
+export function exactCodeMatch(query: string, rows: readonly { code: string }[]): string | null {
+  const wanted = query.trim().toUpperCase();
+  const [only, ...rest] = rows;
+  if (!wanted || !only || rest.length) return null;
+  return only.code.toUpperCase() === wanted ? only.code : null;
+}
+
 export type ListFilter = { column: string; operator: "eq" | "neq" | "gte" | "lt" | "ilike"; value: string };
 
 /**
