@@ -37,6 +37,21 @@ test.describe("navegación del panel", () => {
     await expect(bar).not.toHaveAttribute("data-active");
   });
 
+  test("escritorio: atajos de teclado para ir a cada sección", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "escritorio", "solo en escritorio");
+    await page.goto("/panel");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await page.keyboard.press("?");
+    const help = page.getByRole("dialog", { name: "Atajos de teclado" });
+    await expect(help).toBeVisible();
+    await expect(help.getByText("Ir a Reservas")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(help).toBeHidden();
+    await page.keyboard.press("r");
+    await expect(page).toHaveURL(/\/panel\/reservas$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Reservas" })).toBeVisible();
+  });
+
   test("tablet: la navegación pasa a una segunda fila con todas las secciones", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "tablet", "solo en tablet");
     await page.goto("/panel/clientes");
