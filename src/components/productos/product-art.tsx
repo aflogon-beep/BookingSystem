@@ -7,17 +7,29 @@ export function ProductArt({
   color,
   photoUrl,
   className,
+  priority = false,
 }: {
   seed: string;
   color: string;
   photoUrl: string | null;
   className?: string;
+  /** La foto principal de la página: se pide la primera. El resto se carga al acercarse a ella. */
+  priority?: boolean;
 }) {
   const classes = cn("block h-[150px] w-full object-cover", className);
   if (photoUrl) {
     // Fotos de Supabase Storage: next/image necesitaría configurar el dominio y no aporta aquí.
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={photoUrl} alt="" decoding="async" className={classes} />;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photoUrl}
+        alt=""
+        decoding="async"
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
+        className={classes}
+      />
+    );
   }
   const { sky, sun, layers } = artShapes(seed, color);
   const gradientId = `art-${seed.replace(/[^a-z0-9-]/gi, "")}`;
