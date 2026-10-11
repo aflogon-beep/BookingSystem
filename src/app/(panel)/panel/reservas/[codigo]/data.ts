@@ -18,6 +18,8 @@ export type BookingDetail = {
   hotel: string;
   notes: string;
   checkedIn: boolean;
+  arrivedPax: number | null;
+  noShow: boolean;
   customer: { name: string; email: string; phone: string };
   session: { id: string; startsAt: string; language: string; status: string };
   product: { name: string; color: string; pickup: boolean; meetingPoint: string };
@@ -35,7 +37,7 @@ export async function loadBookingDetail(code: string, now: Date): Promise<Bookin
     supabase
       .from("bookings")
       .select(
-        "id, code, status, payment_status, payment_method, total_cents, paid_cents, channel, agent, hotel, notes, checked_in, customers!inner(name, email, phone), sessions!inner(id, starts_at, language, status, product_id, products!inner(name, color, pickup, meeting_point)), booking_lines(qty, takes_seat, ticket_types!inner(name, sort)), booking_events(id, actor, text, created_at)",
+        "id, code, status, payment_status, payment_method, total_cents, paid_cents, channel, agent, hotel, notes, checked_in, arrived_pax, no_show, customers!inner(name, email, phone), sessions!inner(id, starts_at, language, status, product_id, products!inner(name, color, pickup, meeting_point)), booking_lines(qty, takes_seat, ticket_types!inner(name, sort)), booking_events(id, actor, text, created_at)",
       )
       .eq("code", code)
       .maybeSingle(),
@@ -95,6 +97,8 @@ export async function loadBookingDetail(code: string, now: Date): Promise<Bookin
     hotel: row.hotel,
     notes: row.notes,
     checkedIn: row.checked_in,
+    arrivedPax: row.arrived_pax,
+    noShow: row.no_show,
     customer: { name: row.customers.name, email: row.customers.email ?? "", phone: row.customers.phone ?? "" },
     session: { id: session.id, startsAt: session.starts_at, language: session.language, status: session.status },
     product: {

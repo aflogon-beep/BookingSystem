@@ -1,5 +1,6 @@
 import { addDays, format, isValid, parseISO } from "date-fns";
 
+import { arrivedOf } from "@/lib/domain/manifest";
 import { RESOURCE_TYPES, RESOURCE_TYPE_TEXT, type ResourceType } from "@/lib/domain/resources";
 
 export type DayBooking = {
@@ -9,6 +10,8 @@ export type DayBooking = {
   totalCents: number;
   pax: number;
   checkedIn: boolean;
+  /** Si solo ha llegado parte del grupo. */
+  arrivedPax?: number | null;
 };
 
 export type DaySessionSummary = { id: string; status: string };
@@ -51,7 +54,7 @@ export function dayKpis(sessions: readonly DaySessionSummary[], bookings: readon
   const live = sessions.filter((session) => session.status !== "cancelled");
   const confirmed = bookings.filter((booking) => booking.status === "confirmed");
   const pax = confirmed.reduce((sum, booking) => sum + booking.pax, 0);
-  const checkedIn = confirmed.reduce((sum, booking) => sum + (booking.checkedIn ? booking.pax : 0), 0);
+  const checkedIn = confirmed.reduce((sum, booking) => sum + arrivedOf(booking), 0);
   return {
     sessions: live.length,
     sessionsWithBookings: live.filter((session) => confirmed.some((booking) => booking.sessionId === session.id)).length,

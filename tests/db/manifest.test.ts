@@ -136,6 +136,65 @@ describe("check-in", () => {
   });
 });
 
+describe("llegadas por persona", () => {
+  async function arrival(id: string) {
+    const { data, error } = await adminDb.from("bookings").select("checked_in, arrived_pax, no_show").eq("id", id).single();
+    if (error) throw error;
+    return data;
+  }
+
+  it("marca parte del grupo, no presentado y deshacer, con historial", async () => {
+    const sessionId = await createSession();
+    const id = await book(sessionId, 4);
+
+    expect((await member.db.rpc("booking_set_arrival", { p_booking_id: id, p_arrived: 3 })).data).toBe(3);
+    expect(await arrival(id)).toEqual({ checked_in: true, arrived_pax: 3, no_show: false });
+    // Todo el grupo: arrived_pax vuelve a null.
+    await member.db.rpc("booking_set_arrival", { p_booking_id: id, p_arrived: 4 });
+    expect(await arrival(id)).toEqual({ checked_in: true, arrived_pax: null, no_show: false });
+    await member.db.rpc("booking_set_arrival", { p_booking_id: id, p_arrived: 0 });
+    expect(await arrival(id)).toEqual({ checked_in: false, arrived_pax: null, no_show: true });
+    // Repetirlo no duplica el historial.
+    await member.db.rpc("booking_set_arrival", { p_booking_id: id, p_arrived: 0 });
+    await member.db.rpc("booking_set_arrival", { p_booking_id: id });
+    expect(await arrival(id)).toEqual({ checked_in: false, arrived_pax: null, no_show: false });
+    expect(await events(id)).toEqual([
+      "Marta Guía: Reserva creada",
+      "Marta Guía: Check-in: llegan 3 de 4",
+      "Marta Guía: Check-in realizado",
+      "Marta Guía: No se ha presentado",
+      "Marta Guía: Check-in deshecho",
+    ]);
+  });
+
+  it("no acepta más personas de las de la reserva ni cambios sin ser del equipo", async () => {
+    const sessionId = await createSession();
+    const id = await book(sessionId, 2);
+    expect((await member.db.rpc("booking_set_arrival", { p_booking_id: id, p_arrived: 3 })).error?.code).toBe("22023");
+    expect((await outsider.db.rpc("booking_set_arrival", { p_booking_id: id, p_arrived: 1 })).error).not.toBeNull();
+    expect((await anonDb().rpc("booking_set_arrival", { p_booking_id: id, p_arrived: 1 })).error).not.toBeNull();
+    const direct = await member.db.from("bookings").update({ no_show: true }).eq("id", id);
+    expect(direct.error).not.toBeNull();
+    expect(await arrival(id)).toEqual({ checked_in: false, arrived_pax: null, no_show: false });
+  });
+
+  it("«Marcar todos» no marca a los no presentados y mover la reserva lo reinicia", async () => {
+    const [first, second] = await createSessions(10, ["10:00", "12:00"]);
+    if (!first || !second) throw new Error("Sin salidas");
+    const absent = await book(first, 1);
+    const partial = await book(first, 3);
+    await member.db.rpc("booking_set_arrival", { p_booking_id: absent, p_arrived: 0 });
+    await member.db.rpc("booking_set_arrival", { p_booking_id: partial, p_arrived: 2 });
+
+    expect((await member.db.rpc("session_check_in_all", { p_session_id: first })).data).toBe(0);
+    expect(await arrival(absent)).toMatchObject({ no_show: true });
+
+    const moved = await member.db.rpc("booking_move", { p_booking_id: partial, p_session_id: second });
+    expect(moved.error).toBeNull();
+    expect(await arrival(partial)).toEqual({ checked_in: false, arrived_pax: null, no_show: false });
+  });
+});
+
 describe("cobro en destino", () => {
   it("cobra el total de una reserva pendiente una sola vez", async () => {
     const sessionId = await createSession();

@@ -128,7 +128,7 @@ async function loadDayBookings(supabase: Supabase, sessionIds: readonly string[]
   for (let start = 0; start < sessionIds.length; start += ID_CHUNK) {
     const { data, error } = await supabase
       .from("bookings")
-      .select("session_id, status, payment_status, total_cents, checked_in, booking_lines(qty)")
+      .select("session_id, status, payment_status, total_cents, checked_in, arrived_pax, booking_lines(qty)")
       .in("session_id", sessionIds.slice(start, start + ID_CHUNK))
       .eq("status", "confirmed");
     if (error) throw new Error("No se pudieron cargar las reservas.");
@@ -139,6 +139,7 @@ async function loadDayBookings(supabase: Supabase, sessionIds: readonly string[]
         paymentStatus: row.payment_status,
         totalCents: row.total_cents,
         checkedIn: row.checked_in,
+        arrivedPax: row.arrived_pax,
         pax: row.booking_lines.reduce((sum, line) => sum + line.qty, 0),
       });
     }

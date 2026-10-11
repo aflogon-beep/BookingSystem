@@ -56,6 +56,23 @@ export async function setCheckedIn(bookingId: string, checked: boolean): Promise
   return error ? fail(error.code) : done();
 }
 
+/**
+ * Llegada de una reserva: null = aún no ha llegado, 0 = no se ha presentado, n = han llegado n
+ * personas (todas o parte del grupo). La base de datos comprueba que n no pase del grupo.
+ */
+export async function setArrival(bookingId: string, arrived: number | null): Promise<ManifestActionResult> {
+  await requireAccess("hoy");
+  const parsed = z.number().int().min(0).max(1000).nullable().safeParse(arrived);
+  if (!uuid.safeParse(bookingId).success || !parsed.success) return fail(undefined);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc(
+    "booking_set_arrival",
+    parsed.data === null ? { p_booking_id: bookingId } : { p_booking_id: bookingId, p_arrived: parsed.data },
+  );
+  if (error?.code === "22023") return { ok: false, error: "Son más personas de las que tiene la reserva." };
+  return error ? fail(error.code) : done();
+}
+
 export async function checkInAll(sessionId: string): Promise<ManifestActionResult> {
   await requireAccess("hoy");
   if (!uuid.safeParse(sessionId).success) return fail(undefined);

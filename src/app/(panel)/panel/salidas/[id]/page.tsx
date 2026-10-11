@@ -10,7 +10,7 @@ import { PhoneLinks } from "@/components/contact-buttons";
 import { EmptyState } from "@/components/empty-state";
 import { EquipmentBox } from "@/components/manifiesto/equipment-box";
 import { ManifestMenu } from "@/components/manifiesto/manifest-menu";
-import { CheckAllButton, CheckInToggle, CollectButton } from "@/components/manifiesto/passenger-actions";
+import { ArrivalControl, CheckAllButton, CollectButton } from "@/components/manifiesto/passenger-actions";
 import { SessionControls } from "@/components/manifiesto/session-controls";
 import { ProductArt } from "@/components/productos/product-art";
 import { STATE_PILL_CLASS, STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
@@ -43,6 +43,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
   const rows = sortManifest(bookings);
   const live = rows.filter(isLive);
   const summary = manifestSummary(rows);
+  const waiting = summary.pax - summary.checkedIn - summary.noShows;
   const state = sessionState(session);
   const language = isLanguageCode(session.language) ? LANGUAGES[session.language] : session.language.toUpperCase();
   const dayLabel = longDayLabel(session.date);
@@ -161,7 +162,8 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
           detail={
             <>
               <Meter label="Presentados" value={summary.checkedIn} max={summary.pax} className="bg-ok" />
-              {summary.pax - summary.checkedIn > 0 ? `${summary.pax - summary.checkedIn} por llegar` : summary.pax ? "Han llegado todos" : "Sin pasajeros"}
+              {waiting > 0 ? `${waiting} por llegar` : summary.pax ? (summary.noShows ? "Nadie más por llegar" : "Han llegado todos") : "Sin pasajeros"}
+              {summary.noShows ? ` · ${summary.noShows} no ${summary.noShows === 1 ? "vino" : "vinieron"}` : null}
             </>
           }
         >
@@ -193,7 +195,7 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
               <table className="w-full text-[0.86rem]">
                 <thead>
                   <tr className="border-b border-line-2 text-left text-[0.72rem] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
-                    <th scope="col" className="w-[60px] px-3 py-2.5 tablet:px-4">
+                    <th scope="col" className="w-[92px] px-3 py-2.5 tablet:px-4">
                       Llegó
                     </th>
                     <th scope="col" className="px-2 py-2.5">
@@ -372,10 +374,19 @@ function PassengerRow({ row, session }: { row: ManifestRow; session: ManifestSes
   return (
     <tr
       aria-label={row.customerName}
-      className={cn("border-b border-line-2 last:border-b-0", !live && "opacity-50", live && row.checkedIn && "bg-ok-soft/40")}
+      className={cn("border-b border-line-2 last:border-b-0", !live && "opacity-50", live && row.checkedIn && "bg-ok-soft/40", live && row.noShow && "bg-danger-soft/40")}
     >
       <td className="px-3 py-2.5 tablet:px-4">
-        {live ? <CheckInToggle bookingId={row.id} checked={row.checkedIn} name={row.customerName} /> : null}
+        {live ? (
+          <ArrivalControl
+            bookingId={row.id}
+            name={row.customerName}
+            pax={paxOf(row)}
+            checkedIn={row.checkedIn}
+            arrivedPax={row.arrivedPax ?? null}
+            noShow={row.noShow ?? false}
+          />
+        ) : null}
       </td>
       <td className="max-w-[220px] px-2 py-2.5">
         <Link href={`/panel/reservas/${row.code}`} className="block truncate font-semibold underline-offset-2 hover:underline">

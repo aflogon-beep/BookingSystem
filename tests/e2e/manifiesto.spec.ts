@@ -50,6 +50,15 @@ test("del día al manifiesto: reserva, check-in, cobro, aforo y estado de la sal
   await expect(checkIn).toHaveAttribute("aria-pressed", "false");
   await checkIn.click();
   await expect(checkIn).toHaveAttribute("aria-pressed", "true");
+  // «No se ha presentado» desde la flecha; un toque lo deshace y otro vuelve a marcar la llegada.
+  await row.getByRole("button", { name: `Más opciones de llegada de ${name}` }).click();
+  await page.getByRole("menuitem", { name: "No se ha presentado" }).click();
+  await expect(checkIn).toHaveAttribute("title", "No se ha presentado");
+  await expect(checkIn).toHaveAttribute("aria-pressed", "false");
+  await checkIn.click();
+  await expect(checkIn).toHaveAttribute("title", "Por llegar");
+  await checkIn.click();
+  await expect(checkIn).toHaveAttribute("aria-pressed", "true");
 
   // Cobro en efectivo.
   await row.getByRole("button", { name: /^Cobrar / }).click();

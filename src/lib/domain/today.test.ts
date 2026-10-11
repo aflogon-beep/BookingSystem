@@ -47,6 +47,11 @@ describe("fecha del día", () => {
 });
 
 describe("KPIs del día", () => {
+  it("en el check-in cuenta solo las personas que han llegado", () => {
+    const kpis = dayKpis([{ id: "s1", status: "open" }], [booking({ pax: 4, checkedIn: true, arrivedPax: 3 }), booking({ pax: 2 })]);
+    expect(kpis).toMatchObject({ pax: 6, checkedIn: 3, checkInPercent: 50 });
+  });
+
   it("cuenta solo reservas confirmadas y salidas no canceladas", () => {
     const kpis = dayKpis(
       [
