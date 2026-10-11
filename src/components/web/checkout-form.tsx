@@ -44,6 +44,9 @@ export function WebCheckoutForm({
   const [customer, setCustomer] = useState({ name: "", email: "", phone: "", hotel: "", trap: "" });
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Un identificador por formulario: si se envía dos veces (doble clic, o se corta la conexión y se
+  // vuelve a pulsar), la reserva no se duplica.
+  const [requestId] = useState(() => crypto.randomUUID());
 
   const field = (name: keyof typeof customer) => ({
     id: `${id}-${name}`,
@@ -61,7 +64,15 @@ export function WebCheckoutForm({
         startTransition(async () => {
           try {
             // Si sale bien, el servidor lleva a la confirmación.
-            const result = await createWebBooking({ locale, slug, sessionId, lines, expectedTotalCents: totalCents, customer });
+            const result = await createWebBooking({
+              locale,
+              slug,
+              sessionId,
+              requestId,
+              lines,
+              expectedTotalCents: totalCents,
+              customer,
+            });
             setError(result.error);
           } catch (caught) {
             unstable_rethrow(caught);

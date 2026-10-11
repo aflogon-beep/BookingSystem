@@ -4,6 +4,7 @@ import {
   bookingErrorMessage,
   canAddTicket,
   defaultPayment,
+  isAvailabilityError,
   isPaymentAllowed,
   paymentMethodFor,
   paymentNote,
@@ -59,6 +60,8 @@ describe("errores al crear la reserva", () => {
     expect(bookingErrorMessage("RB002", undefined)).toBe("Esta salida ya no admite reservas.");
     expect(bookingErrorMessage("RB012", "guide")).toMatch(/No hay ningún guía libre a esa hora/);
     expect(bookingErrorMessage("42501", undefined)).toBe("No tienes permiso para crear reservas.");
+    expect(bookingErrorMessage("RB014", "VT7K3M9Q")).toBe("Esta reserva ya se había creado con el código VT7K3M9Q. Búscala en Reservas.");
+    expect(bookingErrorMessage("RB014", "<b>")).toBe("Esta reserva ya se había creado. Búscala en Reservas.");
     expect(bookingErrorMessage("XX000", undefined)).toBe("No se pudo crear la reserva. Inténtalo de nuevo.");
   });
 });
@@ -69,5 +72,12 @@ describe("cliente que repite", () => {
     expect(repeatCustomerQuery({ name: "Ana", email: "ana@x.es", phone: "61" })).toBe("ana@x.es");
     expect(repeatCustomerQuery({ name: " Ana ", email: "", phone: "" })).toBe("Ana");
     expect(repeatCustomerQuery({ name: "An", email: "an", phone: "" })).toBeNull();
+  });
+});
+
+describe("isAvailabilityError", () => {
+  it("reconoce los errores de disponibilidad desfasada", () => {
+    for (const code of ["RB001", "RB002", "RB012", "P0002"]) expect(isAvailabilityError(code)).toBe(true);
+    for (const code of ["RB003", "RB008", "RB014", "42501", undefined]) expect(isAvailabilityError(code)).toBe(false);
   });
 });

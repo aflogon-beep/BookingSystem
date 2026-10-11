@@ -8,7 +8,7 @@ import type { DaySession } from "@/components/reservas/types";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
 import { sendBookingConfirmation, sendBookingEmail, sendCancellations } from "@/lib/email/booking-emails";
-import { bookingErrorMessage, isPaymentAllowed, paymentMethodFor, type PaymentOption } from "@/lib/domain/booking-form";
+import { bookingErrorMessage, isAvailabilityError, isPaymentAllowed, paymentMethodFor, type PaymentOption } from "@/lib/domain/booking-form";
 import { bookingChangeError, bookingEditError } from "@/lib/domain/booking-detail";
 import { ilikePattern } from "@/lib/domain/booking-list";
 import { rangeForDays, toBusinessDateTime } from "@/lib/domain/calendar";
@@ -81,6 +81,8 @@ const optionalText = (max: number) => z.string().trim().max(max).optional().defa
 const bookingSchema = z
   .object({
     sessionId: z.uuid(),
+    // Identificador de este envío del formulario: si se repite, no se crea otra reserva.
+    requestId: z.uuid(),
     lines: z
       .array(z.object({ ticketTypeId: z.uuid(), qty: z.int().min(1).max(100) }))
       .min(1, "Añade al menos una entrada")
@@ -107,9 +109,12 @@ const bookingSchema = z
 export type NewBookingInput = z.input<typeof bookingSchema>;
 export type CreateBookingResult = { ok: true; code: string } | { ok: false; error: string };
 
-const createdSchema = z.object({ id: z.uuid(), code: z.string() });
+const createdSchema = z.object({ id: z.uuid(), code: z.string(), replayed: z.boolean().optional().default(false) });
 
-/** Crea una reserva confirmada desde el panel. Plazas, precios y total los decide la BD. */
+/**
+ * Crea una reserva confirmada desde el panel. Plazas, precios y total los decide la BD. Si el mismo
+ * formulario se envía dos veces (requestId), devuelve la reserva que ya creó.
+ */
 export async function createInternalBooking(input: NewBookingInput): Promise<CreateBookingResult> {
   await requireAccess("reservas");
   const parsed = bookingSchema.safeParse(input);
@@ -127,13 +132,18 @@ export async function createInternalBooking(input: NewBookingInput): Promise<Cre
       agent: data.agent,
       hotel: data.hotel,
       notes: data.notes,
+      request_id: data.requestId,
     },
   });
-  if (error) return { ok: false, error: bookingErrorMessage(error.code, error.hint) };
+  if (error) {
+    // Las plazas han cambiado: Hoy y el Calendario que hay detrás también tienen que verlo.
+    if (isAvailabilityError(error.code)) revalidatePath("/panel", "layout");
+    return { ok: false, error: bookingErrorMessage(error.code, error.hint) };
+  }
 
   const result = createdSchema.safeParse(created);
   if (!result.success) return { ok: false, error: "No se pudo crear la reserva. Inténtalo de nuevo." };
-  after(() => sendBookingConfirmation(result.data.id));
+  if (!result.data.replayed) after(() => sendBookingConfirmation(result.data.id));
   revalidatePath("/panel", "layout");
   return { ok: true, code: result.data.code };
 }
