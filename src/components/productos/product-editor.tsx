@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { deleteProduct, saveProduct } from "@/app/(panel)/panel/productos/actions";
 import { FieldHint } from "@/components/ajustes/box";
+import { startNavigationProgress } from "@/components/navigation-progress";
 import { ProductArt } from "@/components/productos/product-art";
 import { Button } from "@/components/ui/button";
 import {
@@ -247,6 +248,7 @@ export function ProductEditor({ product, ticketTypes, languages, currency, avail
         return;
       }
       toast.success("Producto guardado");
+      startNavigationProgress();
       router.push("/panel/productos");
     });
   }
@@ -1008,6 +1010,7 @@ function DeleteProduct({ id, name }: { id: string; name: string }) {
       }
       setOpen(false);
       toast.success(`«${name}» eliminado`);
+      startNavigationProgress();
       router.push("/panel/productos");
     });
   }

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { NavigationProgress } from "@/components/navigation-progress";
 import { getLocale } from "@/lib/i18n";
 
 const geistSans = Geist({
@@ -33,7 +34,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col font-sans text-sm">{children}</body>
+      <body className="flex min-h-full flex-col font-sans text-sm">
+        <NavigationProgress />
+        {children}
+      </body>
     </html>
   );
 }

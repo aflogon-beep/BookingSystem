@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 
 import { createInternalBooking, loadDaySessions } from "@/app/(panel)/panel/reservas/actions";
+import { startNavigationProgress } from "@/components/navigation-progress";
 import { ProductArt } from "@/components/productos/product-art";
 import { STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
 import { Button } from "@/components/ui/button";
@@ -185,7 +186,10 @@ export function NewBookingForm({
       }
       toast.success(`Reserva ${result.code} creada`);
       if (mode === "modal") router.back();
-      else router.push(calendarHref({ view: "semana", anchor: date, productId: null }));
+      else {
+        startNavigationProgress();
+        router.push(calendarHref({ view: "semana", anchor: date, productId: null }));
+      }
     });
   }
 
