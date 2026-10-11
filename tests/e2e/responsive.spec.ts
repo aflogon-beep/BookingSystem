@@ -92,6 +92,7 @@ async function overflowing(page: Page): Promise<string[]> {
         if (clipStyle.overflowX === "auto" || clipStyle.overflowX === "scroll") continue;
         if (clipStyle.textOverflow === "ellipsis") continue;
         const clipRect = clipper.getBoundingClientRect();
+        if (clipRect.width <= 1 || clipRect.height <= 1) continue; // dentro de un «sr-only»: solo para lectores de pantalla
         left = Math.max(0, clipRect.left);
         right = Math.min(viewport, clipRect.right);
       }
