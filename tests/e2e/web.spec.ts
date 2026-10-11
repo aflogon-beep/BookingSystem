@@ -73,10 +73,19 @@ test("del listado a la ficha y a la confirmación", async ({ page, browser }, te
   await expect(ticket).toContainText("Recogida en Hotel Mencey");
   await expect(ticket).toContainText("2 Adulto · 1 Niño");
 
-  // Con el código solo, otro navegador no ve la reserva.
+  // Añadir al calendario: enlace a Google Calendar y el .ics de la propia reserva.
+  await expect(page.getByRole("navigation", { name: "Pasos de la reserva" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Google Calendar" })).toHaveAttribute("href", /^https:\/\/calendar\.google\.com\//);
+  const icsUrl = new URL(`${page.url()}/calendario`);
+  const ics = await page.request.get(icsUrl.toString());
+  expect(ics.headers()["content-type"]).toContain("text/calendar");
+  expect(await ics.text()).toContain("SUMMARY:");
+
+  // Con el código solo, otro navegador no ve la reserva ni su calendario.
   const other = await browser.newContext();
   const response = await (await other.newPage()).goto(page.url());
   expect(response?.status()).toBe(404);
+  expect((await other.request.get(icsUrl.toString())).status()).toBe(404);
   await other.close();
 });
 

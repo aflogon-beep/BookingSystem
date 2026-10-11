@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { ProductArt } from "@/components/productos/product-art";
 import { Button } from "@/components/ui/button";
+import { BookingSteps } from "@/components/web/booking-steps";
 import { WebCheckoutForm } from "@/components/web/checkout-form";
 import { longDayLabel } from "@/lib/domain/calendar";
 import { formatCents } from "@/lib/domain/money";
@@ -69,6 +70,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
           {text.change}
         </Link>
       </Button>
+      <BookingSteps steps={text.steps} current={2} label={text.stepsLabel} />
       <h1 className="mb-4 text-[1.35rem]">{text.checkoutTitle}</h1>
       <div className="grid grid-cols-1 items-start gap-[26px] desk:grid-cols-[minmax(0,1fr)_340px]">
         <aside
