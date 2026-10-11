@@ -15,4 +15,8 @@ export type CalendarSession = {
   blockingNeed: ResourceType | null;
   past: boolean;
   product: { name: string; color: string; minPax: number };
+  /** Equipo asignado (guías primero), para las iniciales de la tarjeta. */
+  crew: CrewMember[];
 };
+
+export type CrewMember = { name: string; type: ResourceType };

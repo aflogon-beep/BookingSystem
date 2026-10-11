@@ -9,7 +9,9 @@ import {
   occupancyTotals,
   parseCalendarParams,
   rangeForDays,
+  sessionSummary,
   shiftAnchor,
+  sortCrew,
   toBusinessDateTime,
   visibleDays,
   weekdayLabel,
@@ -153,5 +155,31 @@ describe("occupancyTotals", () => {
 describe("longDayLabel", () => {
   it("día de la semana, número y mes", () => {
     expect(longDayLabel("2026-10-14")).toBe("miércoles 14 de octubre");
+  });
+});
+
+describe("sortCrew", () => {
+  it("pone guías, luego vehículos y material, y ordena por nombre", () => {
+    const crew = sortCrew([
+      { name: "Minibús 1", type: "vehicle" as const },
+      { name: "Lucía", type: "guide" as const },
+      { name: "Radioguías", type: "equipment" as const },
+      { name: "Ana", type: "guide" as const },
+    ]);
+    expect(crew.map((member) => member.name)).toEqual(["Ana", "Lucía", "Minibús 1", "Radioguías"]);
+  });
+});
+
+describe("sessionSummary", () => {
+  const base = { time: "16:30", productName: "Teide", language: "es", booked: 12, capacity: 16 };
+
+  it("resume la salida con su equipo", () => {
+    expect(sessionSummary({ ...base, stateLabel: "Completa", crew: [{ name: "Ana" }, { name: "Minibús 1" }] })).toBe(
+      "16:30 · Teide · ES · 12/16 plazas · Completa · Ana, Minibús 1",
+    );
+  });
+
+  it("avisa si no tiene equipo", () => {
+    expect(sessionSummary({ ...base, crew: [] })).toBe("16:30 · Teide · ES · 12/16 plazas · Sin equipo asignado");
   });
 });

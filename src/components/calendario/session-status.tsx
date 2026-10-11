@@ -1,27 +1,28 @@
 import { STATE_PILL_CLASS } from "@/components/salidas/session-state-style";
 import { Pill } from "@/components/ui/pill";
+import { cn } from "@/lib/utils";
 import { sessionState, type SessionStateKind } from "@/lib/domain/session-state";
 
 import type { CalendarSession } from "./types";
 
 // Estados que se ven en la tarjeta; «Ya salió» ya se nota porque la tarjeta sale atenuada.
-const SHOWN = new Set<SessionStateKind>(["cancelled", "closed", "blocked", "full"]);
+export const STATE_LABELED = new Set<SessionStateKind>(["cancelled", "closed", "blocked", "full"]);
 
 /** Estado de la salida (la misma regla que Hoy) o, si se vende con normalidad, su aviso. */
-export function SessionStatus({ session }: { session: CalendarSession }) {
+export function SessionStatus({ session, className }: { session: CalendarSession; className?: string }) {
   const state = calendarState(session);
-  if (SHOWN.has(state.kind)) {
+  if (STATE_LABELED.has(state.kind)) {
     return (
-      <Pill tone={state.tone === "warn" ? "warn" : "neutral"} className={STATE_PILL_CLASS[state.tone]}>
+      <Pill tone={state.tone === "warn" ? "warn" : "neutral"} className={cn(STATE_PILL_CLASS[state.tone], className)}>
         {state.label}
       </Pill>
     );
   }
   if (session.status !== "cancelled" && session.booked > 0 && session.unstaffed) {
-    return <Pill className="bg-danger-soft text-danger">Sin equipo</Pill>;
+    return <Pill className={cn("bg-danger-soft text-danger", className)}>Sin equipo</Pill>;
   }
-  if (session.status !== "cancelled" && session.booked > 0 && session.booked < session.product.minPax) return <Pill tone="warn">Bajo mín.</Pill>;
-  if (state.kind === "few") return <Pill tone="warn">{state.label}</Pill>;
+  if (session.status !== "cancelled" && session.booked > 0 && session.booked < session.product.minPax) return <Pill tone="warn" className={className}>Bajo mín.</Pill>;
+  if (state.kind === "few") return <Pill tone="warn" className={className}>{state.label}</Pill>;
   return null;
 }
 

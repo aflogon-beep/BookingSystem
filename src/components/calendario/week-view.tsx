@@ -2,9 +2,10 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { groupByDate, occupancyTotals, weekdayLabel } from "@/lib/domain/calendar";
+import { groupByDate, occupancyTotals, sessionSummary, weekdayLabel } from "@/lib/domain/calendar";
 
-import { SessionStatus, calendarState, seatToneClass } from "./session-status";
+import { CrewAvatars } from "./crew-avatars";
+import { STATE_LABELED, SessionStatus, calendarState, seatToneClass } from "./session-status";
 import type { CalendarSession } from "./types";
 
 /** Semana en columnas: 7 en escritorio, 4 en tablet y 1 en móvil. */
@@ -50,20 +51,31 @@ function WeekCard({ session }: { session: CalendarSession }) {
   const percent = session.capacity ? Math.min(100, (session.booked / session.capacity) * 100) : 0;
   return (
     <li
+      title={sessionSummary({
+        time: session.time,
+        productName: session.product.name,
+        language: session.language,
+        booked: session.booked,
+        capacity: session.capacity,
+        stateLabel: STATE_LABELED.has(state.kind) ? state.label : undefined,
+        crew: session.crew,
+      })}
       className={cn(
-        "relative flex w-full flex-col gap-1.5 rounded-xl border border-black/6 bg-surface px-2.5 py-[9px] shadow-[0_1px_2px_rgb(16_24_40/0.04)] hover:border-line",
+        "relative flex w-full flex-col gap-1.5 overflow-hidden rounded-xl border border-black/6 bg-surface py-[9px] pr-2.5 pl-3.5 shadow-[0_1px_2px_rgb(16_24_40/0.04)] hover:border-line hover:shadow-[0_2px_8px_rgb(16_24_40/0.08)]",
         "has-[a:focus-visible]:ring-[3px] has-[a:focus-visible]:ring-ring/50",
         session.past && "opacity-55",
+        session.status === "cancelled" && "bg-surface-2",
       )}
     >
+      {/* Franja del color del producto, como los bloques de FareHarbor. */}
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1" style={{ background: session.product.color }} />
       <div className="flex items-center justify-between text-[0.8rem]">
-        <span className="font-mono tabular-nums">{session.time}</span>
+        <span className={cn("font-mono font-semibold tabular-nums", session.status === "cancelled" && "line-through")}>{session.time}</span>
         <span className="rounded-[4px] border border-line bg-surface px-[5px] py-px font-mono text-[0.68rem] font-medium text-muted-foreground">
           {session.language.toUpperCase()}
         </span>
       </div>
-      <div className="flex items-baseline gap-1.5 text-[0.82rem] leading-tight font-semibold">
-        <span aria-hidden="true" className="size-2.5 flex-none rounded-[3px]" style={{ background: session.product.color }} />
+      <div className="text-[0.82rem] leading-tight font-semibold">
         {/* Toda la tarjeta abre el manifiesto de la salida. */}
         <Link
           href={`/panel/salidas/${session.id}`}
@@ -87,8 +99,9 @@ function WeekCard({ session }: { session: CalendarSession }) {
         <span className="font-mono tabular-nums">
           {session.booked}/{session.capacity}
         </span>
-        <SessionStatus session={session} />
+        <CrewAvatars crew={session.crew} />
       </div>
+      <SessionStatus session={session} className="self-start" />
       {state.panelBookable ? (
         // Por encima del enlace de la tarjeta: reservar sin pasar por el manifiesto.
         <Link

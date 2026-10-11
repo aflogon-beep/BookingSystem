@@ -119,3 +119,38 @@ export function longDayLabel(day: string, locale: "es" | "en" = "es"): string {
     ? format(parseISO(day), "EEEE d MMMM", { locale: enGB })
     : format(parseISO(day), "EEEE d 'de' MMMM", { locale: es });
 }
+
+const CREW_ORDER = ["guide", "vehicle", "equipment"] as const;
+
+/** Equipo de una salida en orden de lectura: guías, vehículos y material; dentro, por nombre. */
+export function sortCrew<T extends { name: string; type: (typeof CREW_ORDER)[number] }>(crew: readonly T[]): T[] {
+  return [...crew].sort(
+    (a, b) => CREW_ORDER.indexOf(a.type) - CREW_ORDER.indexOf(b.type) || a.name.localeCompare(b.name, "es"),
+  );
+}
+
+/**
+ * Texto al pasar el ratón por una salida del calendario:
+ * «16:30 · Teide al atardecer · ES · 12/16 plazas · Completa · Ana López, Minibús 1».
+ */
+export function sessionSummary(session: {
+  time: string;
+  productName: string;
+  language: string;
+  booked: number;
+  capacity: number;
+  /** Estado que no es la venta normal («Completa», «Cerrada»…); vacío si se vende con normalidad. */
+  stateLabel?: string;
+  crew: readonly { name: string }[];
+}): string {
+  return [
+    session.time,
+    session.productName,
+    session.language.toUpperCase(),
+    `${session.booked}/${session.capacity} plazas`,
+    session.stateLabel,
+    session.crew.length ? session.crew.map((member) => member.name).join(", ") : "Sin equipo asignado",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
