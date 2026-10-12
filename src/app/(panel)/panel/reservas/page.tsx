@@ -5,6 +5,7 @@ import { Download, Globe, Handshake, Phone, Plus, SearchX, Store, type LucideIco
 
 import { BookingStatusPill, PaymentPill } from "@/components/reservas/booking-pills";
 import { BookingFilters } from "@/components/reservas/booking-filters";
+import { BookingPulse } from "@/components/reservas/booking-pulse";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
@@ -19,13 +20,14 @@ import {
   bookingListHref,
   bookingListSummary,
   exactCodeMatch,
-  listDateLabel,
   parseBookingListParams,
 } from "@/lib/domain/booking-list";
+import { dayGroupLabel, groupByDay, showsPulse, type DayGroup } from "@/lib/domain/booking-pulse";
 import { formatCents } from "@/lib/domain/money";
+import { businessToday } from "@/lib/domain/schedule";
 import { cn } from "@/lib/utils";
 
-import { loadBookingPage, loadBookingTotals, type BookingListRow } from "./list-data";
+import { loadBookingPage, loadBookingPulse, loadBookingTotals, type BookingListRow } from "./list-data";
 
 export const metadata: Metadata = { title: "Reservas" };
 
@@ -36,10 +38,12 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
   const raw = await searchParams;
   const params = parseBookingListParams(raw);
   const now = new Date();
+  const today = businessToday(now);
   const supabase = await createClient();
-  const [{ rows, count }, totals, { data: products, error }] = await Promise.all([
+  const [{ rows, count }, totals, pulse, { data: products, error }] = await Promise.all([
     loadBookingPage(params, now),
     loadBookingTotals(params, now),
+    showsPulse(params) ? loadBookingPulse(params, now, today) : null,
     supabase.from("products").select("id, name").order("name"),
   ]);
   if (error) throw new Error("No se pudieron cargar los productos.");
@@ -47,16 +51,12 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
   const code = raw[GLOBAL_SEARCH_PARAM] === "1" ? exactCodeMatch(params.q, rows) : null;
   if (code) redirect(`/panel/reservas/${code}`);
   const summary = bookingListSummary(totals);
+  const groups = groupByDay(rows);
 
   return (
     <section className="flex flex-col gap-4 tablet:gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[1.25rem] tablet:text-[1.45rem]">Reservas</h1>
-          <p className="mt-[3px] text-[0.86rem] text-muted-foreground">
-            {count === 1 ? "1 reserva" : `${count} reservas`} · {summary.pax === 1 ? "1 pasajero" : `${summary.pax} pasajeros`} · {formatCents(summary.totalCents)}
-          </p>
-        </div>
+        <h1 className="text-[1.25rem] tablet:text-[1.45rem]">Reservas</h1>
         <div className="flex gap-2">
           <Button asChild variant="outline">
             <a href={bookingListHref({ ...params, limit: PAGE_SIZE }, "/panel/reservas/csv")} download>
@@ -72,6 +72,8 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
           </Button>
         </div>
       </div>
+
+      <BookingPulse params={params} summary={summary} pulse={pulse} today={today} />
 
       <div className="overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card">
         <nav aria-label="Estado de las reservas" className="flex gap-1 overflow-x-auto border-b border-line-2 px-2">
@@ -104,7 +106,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
                       Reserva
                     </th>
                     <th scope="col" className="px-2 py-2.5">
-                      Salida
+                      Hora
                     </th>
                     <th scope="col" className="px-2 py-2.5 max-tablet:hidden">
                       Producto
@@ -123,11 +125,24 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
                     </th>
                   </tr>
                 </thead>
-                <tbody className="max-tablet:block">
-                  {rows.map((row) => (
-                    <BookingRow key={row.id} row={row} />
-                  ))}
-                </tbody>
+                {groups.map((group, index) => (
+                  <tbody
+                    key={group.date}
+                    aria-label={dayGroupLabel(group.date, today).title}
+                    className="day-group-in max-tablet:block"
+                    style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}
+                  >
+                    <DayHeader
+                      group={group}
+                      today={today}
+                      // El último día puede seguir en «Mostrar más»: sus cifras son «al menos».
+                      partial={index === groups.length - 1 && count > rows.length}
+                    />
+                    {group.rows.map((row) => (
+                      <BookingRow key={row.id} row={row} />
+                    ))}
+                  </tbody>
+                ))}
               </table>
             </div>
             {count > rows.length && params.limit < MAX_LIMIT ? (
@@ -158,6 +173,29 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
         )}
       </div>
     </section>
+  );
+}
+
+/** Cabecera de cada día del listado: «Hoy · lunes 12 oct» y sus reservas, pasajeros e importe. */
+function DayHeader({ group, today, partial }: { group: DayGroup<BookingListRow>; today: string; partial: boolean }) {
+  const label = dayGroupLabel(group.date, today);
+  const plus = partial ? "+" : "";
+  return (
+    <tr className="border-b border-line-2 bg-surface-2/70 max-tablet:block">
+      <th scope="colgroup" colSpan={7} className="px-3 py-2 text-left font-normal max-tablet:block tablet:px-4">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          {group.date === today ? <span aria-hidden="true" className="size-2 rounded-full bg-primary shadow-[0_0_0_3px_var(--blue-soft)]" /> : null}
+          <span className={cn("text-[0.84rem] font-semibold first-letter:uppercase", group.date === today && "text-primary-dark")}>{label.title}</span>
+          {label.detail ? <span className="text-[0.8rem] text-muted-foreground">{label.detail}</span> : null}
+          <span className="ml-auto text-[0.76rem] text-muted-foreground tabular-nums">
+            {group.bookings}
+            {plus} {group.bookings === 1 && !partial ? "reserva" : "reservas"} · {group.pax}
+            {plus} pax · {formatCents(group.totalCents)}
+            {plus}
+          </span>
+        </span>
+      </th>
+    </tr>
   );
 }
 
@@ -195,8 +233,8 @@ function BookingRow({ row }: { row: BookingListRow }) {
         </div>
       </td>
       <td className="px-2 py-2.5 whitespace-nowrap max-tablet:col-start-1 max-tablet:px-3 max-tablet:pt-0.5 max-tablet:text-[0.8rem]">
-        <span className="first-letter:uppercase">{listDateLabel(row.date)}</span>{" "}
-        <span className="font-mono text-muted-foreground">{row.time}</span>
+        {/* El día va en la cabecera del grupo: aquí basta la hora. */}
+        <span className="font-mono font-medium">{row.time}</span>
         {/* En móvil no cabe la columna de pasajeros: va debajo de la fecha. */}
         <span className="block text-[0.76rem] text-muted-foreground tablet:hidden">
           {row.pax} {row.pax === 1 ? "pasajero" : "pasajeros"}

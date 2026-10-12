@@ -143,19 +143,23 @@ export function bookingListQuery(params: BookingListParams, now: Date): { filter
 }
 
 /**
- * Totales de la cabecera: reservas, y pasajeros e importe de las no canceladas. Cada fila es una
- * reserva o, si trae `count`, un grupo de `count` reservas con sus sumas.
+ * Totales de la cabecera: reservas, y pasajeros, importe y lo ya cobrado de las no canceladas. Cada
+ * fila es una reserva o, si trae `count`, un grupo de `count` reservas con sus sumas.
  */
-export function bookingListSummary(rows: readonly { status: string; pax: number; totalCents: number; count?: number }[]): {
+export function bookingListSummary(
+  rows: readonly { status: string; pax: number; totalCents: number; paidCents?: number; count?: number }[],
+): {
   bookings: number;
   pax: number;
   totalCents: number;
+  collectedCents: number;
 } {
   const live = rows.filter((row) => row.status !== "cancelled");
   return {
     bookings: rows.reduce((sum, row) => sum + (row.count ?? 1), 0),
     pax: live.reduce((sum, row) => sum + row.pax, 0),
     totalCents: live.reduce((sum, row) => sum + row.totalCents, 0),
+    collectedCents: live.reduce((sum, row) => sum + (row.paidCents ?? 0), 0),
   };
 }
 

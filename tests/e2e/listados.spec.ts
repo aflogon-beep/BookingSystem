@@ -23,6 +23,17 @@ test("Reservas y Clientes se abren con sus pestañas y filtros", async ({ page }
   await expect(page).toHaveURL(/pestana=pasadas&canal=agency&desde=2030-01-01$/);
   await expect(page.getByLabel("Desde")).toHaveValue("2030-01-01");
 
+  // El pulso de 14 días: pulsar un día filtra el listado a ese día y volver a pulsarlo lo quita.
+  await page.goto("/panel/reservas");
+  const pulse = page.getByRole("list", { name: "Pasajeros por día" });
+  await expect(pulse.getByRole("listitem")).toHaveCount(14);
+  const today = businessToday();
+  await pulse.getByRole("link", { name: /^Hoy/ }).click();
+  await expect(page).toHaveURL(new RegExp(`pestana=hoy&desde=${today}&hasta=${today}$`));
+  await expect(pulse.getByRole("link", { name: /^Hoy/ })).toHaveAttribute("aria-current", "date");
+  await pulse.getByRole("link", { name: /^Hoy/ }).click();
+  await expect(page).toHaveURL(/\/panel\/reservas$/);
+
   await page.goto("/panel/clientes");
   await expect(page.getByRole("heading", { level: 1, name: "Clientes" })).toBeVisible();
   await expect(page.getByText(/repiten$/)).toBeVisible();
@@ -52,7 +63,10 @@ test("una reserva nueva sale en el listado, en el CSV y en la ficha del cliente"
   const row = page.getByRole("row", { name });
   await expect(row).toBeVisible();
   await expect(row.getByText("Pendiente")).toBeVisible();
-  await expect(page.getByText(/^1 reserva · 1 pasajero ·/)).toBeVisible();
+  // Las cifras de arriba cuentan hasta su valor: 1 reserva, 1 pasajero y nada cobrado aún.
+  const summary = page.getByRole("region", { name: "Resumen de las reservas" });
+  await expect(summary).toContainText(/Reservas\s*1\s*Pasajeros\s*1\s*Importe/);
+  await expect(summary).toContainText("Faltan");
 
   // El buscador de arriba encuentra la reserva por nombre y abre la ficha con el código exacto.
   const code = ((await row.getByRole("link").first().getAttribute("href")) ?? "").split("/").pop() ?? "";

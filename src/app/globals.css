@@ -189,3 +189,48 @@
     opacity: 0;
   }
 }
+
+/* Pulso de Reservas (src/components/reservas/booking-pulse.tsx): las barras crecen desde abajo una
+   tras otra, el anillo de lo cobrado se dibuja y los días del listado entran deslizándose. */
+.pulse-bar {
+  transform-origin: bottom;
+  animation: pulse-grow 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes pulse-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: none;
+  }
+}
+.pulse-ring {
+  transition: stroke-dashoffset 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: pulse-ring 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes pulse-ring {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+.day-group-in {
+  animation: day-group-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes day-group-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-bar,
+  .pulse-ring,
+  .day-group-in {
+    animation: none;
+    transition: none;
+  }
+}
