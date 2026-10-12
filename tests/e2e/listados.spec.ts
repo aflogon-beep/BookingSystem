@@ -63,7 +63,10 @@ test("una reserva nueva sale en el listado, en el CSV y en la ficha del cliente"
   const row = page.getByRole("row", { name });
   await expect(row).toBeVisible();
   await expect(row.getByText("Pendiente")).toBeVisible();
-  await expect(page.getByText(/^1 reserva · 1 pasajero ·/)).toBeVisible();
+  // Las cifras de arriba cuentan hasta su valor: 1 reserva, 1 pasajero y nada cobrado aún.
+  const summary = page.getByRole("region", { name: "Resumen de las reservas" });
+  await expect(summary).toContainText(/Reservas\s*1\s*Pasajeros\s*1\s*Importe/);
+  await expect(summary).toContainText("Faltan");
 
   // El buscador de arriba encuentra la reserva por nombre y abre la ficha con el código exacto.
   const code = ((await row.getByRole("link").first().getAttribute("href")) ?? "").split("/").pop() ?? "";
