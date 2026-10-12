@@ -234,3 +234,29 @@
     transition: none;
   }
 }
+
+/* Cabecera de Hoy (src/components/hoy/day-hero.tsx): un degradado suave arriba y las salidas de la
+   línea del día que crecen desde su hora una tras otra. */
+.day-hero {
+  background-image: radial-gradient(120% 90% at 0% 0%, var(--blue-soft) 0%, transparent 55%);
+}
+.timeline-block {
+  transform-origin: left;
+  animation: timeline-grow 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.timeline-cancelled {
+  background: repeating-linear-gradient(135deg, var(--surface) 0 5px, var(--line-2) 5px 10px);
+}
+@keyframes timeline-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .timeline-block {
+    animation: none;
+  }
+}
