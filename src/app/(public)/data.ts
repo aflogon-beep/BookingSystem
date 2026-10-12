@@ -9,6 +9,7 @@ import { toBusinessDateTime } from "@/lib/domain/calendar";
 import { localizedText, type Locale } from "@/lib/domain/i18n";
 import type { LegalInfo } from "@/lib/domain/legal";
 import { minPrice, productPhotoUrl } from "@/lib/domain/product";
+import { contentFromRow, localizeContent, photosFromRows, stopsFromRows, type WebContent } from "@/lib/domain/product-page";
 import { businessToday, GENERATION_DAYS, localToInstant } from "@/lib/domain/schedule";
 import { distinctLanguages, isWebBookable, type WebSession } from "@/lib/domain/storefront";
 import { getPublicEnv } from "@/lib/env";
@@ -76,13 +77,16 @@ export type WebProduct = {
   pickup: boolean;
   color: string;
   photoUrl: string | null;
+  /** Portada y galería, en orden. */
+  photoUrls: string[];
   languages: string[];
   fromCents: number;
   tickets: WebTicket[];
+  content: WebContent;
 };
 
 const PRODUCT_FIELDS =
-  "id, slug, name, description, meeting_point, name_en, description_en, meeting_point_en, place, duration_min, capacity, pickup, color, photo_path, product_prices(ticket_type_id, price_cents), schedule_rules(language, valid_to)";
+  "id, slug, name, description, meeting_point, name_en, description_en, meeting_point_en, place, duration_min, capacity, pickup, color, photo_path, product_prices(ticket_type_id, price_cents), schedule_rules(language, valid_to), tagline, tagline_en, highlights, highlights_en, included, included_en, not_included, not_included_en, bring, bring_en, good_to_know, good_to_know_en, difficulty, product_stops(position, title, title_en, description, description_en, duration_min), product_photos(path, position)";
 
 type ProductRow = {
   id: string;
@@ -101,6 +105,28 @@ type ProductRow = {
   photo_path: string | null;
   product_prices: { ticket_type_id: string; price_cents: number }[];
   schedule_rules: { language: string; valid_to: string | null }[];
+  tagline: string;
+  tagline_en: string;
+  highlights: string[];
+  highlights_en: string[];
+  included: string[];
+  included_en: string[];
+  not_included: string[];
+  not_included_en: string[];
+  bring: string[];
+  bring_en: string[];
+  good_to_know: string;
+  good_to_know_en: string;
+  difficulty: string | null;
+  product_stops: {
+    position: number;
+    title: string;
+    title_en: string;
+    description: string;
+    description_en: string;
+    duration_min: number | null;
+  }[];
+  product_photos: { path: string; position: number }[];
 };
 
 async function loadTicketTypes() {
@@ -143,12 +169,14 @@ function toWebProduct(row: ProductRow, ticketTypes: Awaited<ReturnType<typeof lo
     pickup: row.pickup,
     color: row.color,
     photoUrl: row.photo_path ? productPhotoUrl(supabaseUrl, row.photo_path) : null,
+    photoUrls: photosFromRows(row.photo_path, row.product_photos).map((path) => productPhotoUrl(supabaseUrl, path)),
     // Solo los idiomas de reglas que siguen vigentes.
     languages: distinctLanguages(
       row.schedule_rules.filter((rule) => !rule.valid_to || rule.valid_to >= today).map((rule) => rule.language),
     ),
     fromCents: minPrice(tickets),
     tickets,
+    content: localizeContent(locale, contentFromRow(row), stopsFromRows(row.product_stops)),
   };
 }
 

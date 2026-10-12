@@ -165,6 +165,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"product_photos": {
+                  Row: {
+                    "created_at": string,"id": string,"path": string,"position": number,"product_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"path": string,"position": number,"product_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"path"?: string,"position"?: number,"product_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "product_photos_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"product_prices": {
                   Row: {
                     "created_at": string,"price_cents": number,"product_id": string,"ticket_type_id": string
@@ -191,16 +211,36 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"products": {
+                },"product_stops": {
                   Row: {
-                    "active": boolean,"capacity": number,"color": string,"created_at": string,"description": string,"description_en": string,"duration_min": number,"id": string,"meeting_point": string,"meeting_point_en": string,"min_pax": number,"name": string,"name_en": string,"photo_path": string | null,"pickup": boolean,"place": string,"slug": string
+                    "description": string,"description_en": string,"duration_min": number | null,"id": string,"position": number,"product_id": string,"title": string,"title_en": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"capacity": number,"color"?: string,"created_at"?: string,"description"?: string,"description_en"?: string,"duration_min": number,"id"?: string,"meeting_point"?: string,"meeting_point_en"?: string,"min_pax"?: number,"name": string,"name_en"?: string,"photo_path"?: string | null,"pickup"?: boolean,"place"?: string,"slug": string
+                    "description"?: string,"description_en"?: string,"duration_min"?: number | null,"id"?: string,"position": number,"product_id": string,"title": string,"title_en"?: string
                   }
                   Update: {
-                    "active"?: boolean,"capacity"?: number,"color"?: string,"created_at"?: string,"description"?: string,"description_en"?: string,"duration_min"?: number,"id"?: string,"meeting_point"?: string,"meeting_point_en"?: string,"min_pax"?: number,"name"?: string,"name_en"?: string,"photo_path"?: string | null,"pickup"?: boolean,"place"?: string,"slug"?: string
+                    "description"?: string,"description_en"?: string,"duration_min"?: number | null,"id"?: string,"position"?: number,"product_id"?: string,"title"?: string,"title_en"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "product_stops_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"products": {
+                  Row: {
+                    "active": boolean,"bring": (string)[],"bring_en": (string)[],"capacity": number,"color": string,"created_at": string,"description": string,"description_en": string,"difficulty": string | null,"duration_min": number,"good_to_know": string,"good_to_know_en": string,"highlights": (string)[],"highlights_en": (string)[],"id": string,"included": (string)[],"included_en": (string)[],"meeting_point": string,"meeting_point_en": string,"min_pax": number,"name": string,"name_en": string,"not_included": (string)[],"not_included_en": (string)[],"photo_path": string | null,"pickup": boolean,"place": string,"slug": string,"tagline": string,"tagline_en": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"bring"?: (string)[],"bring_en"?: (string)[],"capacity": number,"color"?: string,"created_at"?: string,"description"?: string,"description_en"?: string,"difficulty"?: string | null,"duration_min": number,"good_to_know"?: string,"good_to_know_en"?: string,"highlights"?: (string)[],"highlights_en"?: (string)[],"id"?: string,"included"?: (string)[],"included_en"?: (string)[],"meeting_point"?: string,"meeting_point_en"?: string,"min_pax"?: number,"name": string,"name_en"?: string,"not_included"?: (string)[],"not_included_en"?: (string)[],"photo_path"?: string | null,"pickup"?: boolean,"place"?: string,"slug": string,"tagline"?: string,"tagline_en"?: string
+                  }
+                  Update: {
+                    "active"?: boolean,"bring"?: (string)[],"bring_en"?: (string)[],"capacity"?: number,"color"?: string,"created_at"?: string,"description"?: string,"description_en"?: string,"difficulty"?: string | null,"duration_min"?: number,"good_to_know"?: string,"good_to_know_en"?: string,"highlights"?: (string)[],"highlights_en"?: (string)[],"id"?: string,"included"?: (string)[],"included_en"?: (string)[],"meeting_point"?: string,"meeting_point_en"?: string,"min_pax"?: number,"name"?: string,"name_en"?: string,"not_included"?: (string)[],"not_included_en"?: (string)[],"photo_path"?: string | null,"pickup"?: boolean,"place"?: string,"slug"?: string,"tagline"?: string,"tagline_en"?: string
                   }
                   Relationships: [
                     
@@ -519,6 +559,9 @@ isOneToOne: false
 "is_staff":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"jsonb_text_array":
+{ Args: { "value": Json }; Returns: (string)[]
+                           },
 "lock_booking_with_session":
 { Args: { "p_booking_id": string,"p_other_session_id"?: string }; Returns: string
                            },
@@ -563,6 +606,9 @@ isOneToOne: false
                            },
 "staff_actor":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"text_list_ok":
+{ Args: { "items": (string)[],"max_items": number,"max_len": number }; Returns: boolean
                            }
           }
           Enums: {

@@ -4,6 +4,7 @@ import { loadEditorContext } from "@/app/(panel)/panel/productos/editor-data";
 import { ProductEditor } from "@/components/productos/product-editor";
 import { requireAccess } from "@/lib/auth";
 import { PRODUCT_COLORS } from "@/lib/domain/product";
+import { EMPTY_CONTENT } from "@/lib/domain/product-page";
 import { DEFAULT_NEEDS, DEFAULT_NEEDS_REQUIRED } from "@/lib/domain/resources";
 
 export const metadata: Metadata = { title: "Nuevo producto" };
@@ -29,12 +30,14 @@ export default async function Page() {
     minPax: 1,
     pickup: false,
     color: PRODUCT_COLORS[productCount % PRODUCT_COLORS.length] ?? PRODUCT_COLORS[0],
-    photoPath: null,
+    photos: [],
     active: true,
     prices: firstTicketType ? [{ ticketTypeId: firstTicketType.id, priceCents: 0 }] : [],
     rules: [{ weekdays: [1, 2, 3, 4, 5], times: ["10:00"], language: languages[0] ?? "es", validFrom: null, validTo: null }],
     needs: DEFAULT_NEEDS,
     needsRequired: DEFAULT_NEEDS_REQUIRED,
+    content: EMPTY_CONTENT,
+    stops: [],
   };
 
   return (

@@ -72,6 +72,49 @@ set name_en = 'Anaga laurel forest',
     meeting_point_en = 'Cruz del Carmen visitor centre'
 where id = '00000000-0000-4000-8000-000000000202';
 
+-- Ficha web del Teide y de Anaga (La Laguna se queda sin ella: la web muestra lo básico).
+update public.products
+set tagline = 'Mar de nubes, puesta de sol a 2.300 m y un cielo Starlight con telescopio',
+    tagline_en = 'Sea of clouds, sunset at 2,300 m and a Starlight sky through a telescope',
+    highlights = '{"Atardecer sobre el mar de nubes desde el Parque Nacional","Observación de estrellas con astrónomo y telescopio profesional","Grupo reducido de 16 personas como máximo","Ropa de abrigo y chocolate caliente incluidos"}',
+    highlights_en = '{"Sunset over the sea of clouds in the National Park","Stargazing with an astronomer and a professional telescope","Small group of 16 people at most","Warm clothing and hot chocolate included"}',
+    included = '{"Transporte en minibús con aire acondicionado","Guía titulado","Telescopio y punteros láser","Chaqueta de abrigo","Chocolate caliente"}',
+    included_en = '{"Air-conditioned minibus transport","Licensed guide","Telescope and laser pointers","Warm jacket","Hot chocolate"}',
+    not_included = '{"Cena","Teleférico del Teide"}',
+    not_included_en = '{"Dinner","Teide cable car"}',
+    bring = '{"Calzado cómodo","Ropa de abrigo extra","Cámara de fotos","Agua"}',
+    bring_en = '{"Comfortable shoes","Extra warm clothing","Camera","Water"}',
+    good_to_know = 'A más de 2.000 m puede hacer frío incluso en verano. No recomendado para embarazadas ni personas con problemas respiratorios. Si el cielo está cubierto, cambiamos la fecha o devolvemos el importe.',
+    good_to_know_en = 'Above 2,000 m it can be cold even in summer. Not recommended for pregnant women or people with breathing problems. If the sky is overcast, we will change the date or refund you.',
+    difficulty = 'easy'
+where id = '00000000-0000-4000-8000-000000000201';
+update public.products
+set tagline = 'Senderismo entre bosques de niebla milenarios y caseríos con vistas al Atlántico',
+    tagline_en = 'Hiking through ancient cloud forests and hamlets overlooking the Atlantic',
+    highlights = '{"Bosque de laurisilva, Reserva de la Biosfera","Caserío tradicional y queso de cabra","Miradores sobre la costa norte"}',
+    highlights_en = '{"Laurel forest, a Biosphere Reserve","Traditional hamlet and goat cheese","Viewpoints over the north coast"}',
+    included = '{"Guía de montaña","Degustación de queso","Seguro de actividad"}',
+    not_included = '{"Comida"}',
+    bring = '{"Botas de montaña","Chubasquero","Agua y algo de comer"}',
+    difficulty = 'moderate'
+where id = '00000000-0000-4000-8000-000000000202';
+insert into public.product_stops (product_id, position, title, title_en, description, description_en, duration_min) values
+  ('00000000-0000-4000-8000-000000000201', 1, 'Salida desde La Laguna', 'Departure from La Laguna',
+   'Recogida en el punto de encuentro o en tu hotel y subida por el bosque de La Esperanza.',
+   'Pickup at the meeting point or your hotel and drive up through La Esperanza forest.', 60),
+  ('00000000-0000-4000-8000-000000000201', 2, 'Mirador de Chipeque', 'Chipeque viewpoint',
+   'Primera parada para ver el mar de nubes desde arriba.', 'First stop to see the sea of clouds from above.', 15),
+  ('00000000-0000-4000-8000-000000000201', 3, 'Atardecer en las Cañadas del Teide', 'Sunset at Las Cañadas del Teide',
+   'Paseo corto entre coladas de lava mientras el sol se esconde tras La Gomera.',
+   'Short walk among lava flows while the sun sets behind La Gomera.', 60),
+  ('00000000-0000-4000-8000-000000000201', 4, 'Observación de estrellas', 'Stargazing',
+   'Constelaciones, planetas y la Vía Láctea con telescopio y chocolate caliente.',
+   'Constellations, planets and the Milky Way through a telescope, with hot chocolate.', 90),
+  ('00000000-0000-4000-8000-000000000201', 5, 'Regreso', 'Return', '', '', null),
+  ('00000000-0000-4000-8000-000000000202', 1, 'Cruz del Carmen', 'Cruz del Carmen', 'Encuentro en el centro de visitantes y explicación del parque.', '', 15),
+  ('00000000-0000-4000-8000-000000000202', 2, 'Sendero de los Sentidos', 'Path of the Senses', 'Bosque de laurisilva entre musgos y helechos.', '', 120),
+  ('00000000-0000-4000-8000-000000000202', 3, 'Caserío de Chinamada', 'Chinamada hamlet', 'Casas cueva y degustación de queso de cabra.', '', 60);
+
 -- Equipo del prototipo y lo que necesita cada salida.
 insert into public.resources (id, name, type, seats, languages) values
   ('00000000-0000-4000-8000-000000000301', 'Ana Pérez', 'guide', 1, '{es,en}'),

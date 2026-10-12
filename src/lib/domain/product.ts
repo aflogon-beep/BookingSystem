@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { PRODUCT_PAGE_LIMITS, productContentSchema, productStopsSchema } from "@/lib/domain/product-page";
 import { needsRequiredSchema, productNeedsSchema } from "@/lib/domain/resources";
 import { parseTimes } from "@/lib/domain/schedule";
 
@@ -177,16 +178,35 @@ export const productInputSchema = z
     // Si no llega, save_product deja como estaba lo que necesita cada salida.
     needs: productNeedsSchema.optional(),
     needsRequired: needsRequiredSchema.optional(),
+    // Ficha web. Si no llega, save_product la deja como estaba.
+    content: productContentSchema.optional(),
+    stops: productStopsSchema.optional(),
+    /** Galería sin la portada (photoPath), en orden. */
+    gallery: z
+      .array(z.string().regex(PRODUCT_PHOTO_PATH, { error: "Foto no válida." }))
+      .max(PRODUCT_PAGE_LIMITS.photos - 1, { error: `Como mucho ${PRODUCT_PAGE_LIMITS.photos} fotos.` })
+      .optional(),
   })
   .refine((product) => product.minPax <= product.capacity, {
     error: "El mínimo para salir no puede ser mayor que el aforo.",
     path: ["minPax"],
-  });
+  })
+  .refine((product) => !product.gallery?.length || product.photoPath !== null, {
+    error: "La primera foto es la portada: falta.",
+    path: ["gallery"],
+  })
+  .refine(
+    (product) => {
+      const all = [product.photoPath, ...(product.gallery ?? [])].filter(Boolean);
+      return new Set(all).size === all.length;
+    },
+    { error: "Hay una foto repetida.", path: ["gallery"] },
+  );
 
 export type ProductInput = z.input<typeof productInputSchema>;
 export type ProductData = z.output<typeof productInputSchema>;
 
-export type ProductTab = "general" | "precios" | "horarios" | "equipo";
+export type ProductTab = "general" | "fotos" | "ficha" | "precios" | "horarios" | "equipo";
 
 /** Pestaña del editor donde está el campo con error, para llevar ahí al usuario. */
 export function tabForIssue(path: readonly PropertyKey[]): ProductTab {
@@ -194,6 +214,8 @@ export function tabForIssue(path: readonly PropertyKey[]): ProductTab {
   if (field === "prices") return "precios";
   if (field === "rules") return "horarios";
   if (field === "needs" || field === "needsRequired") return "equipo";
+  if (field === "photoPath" || field === "gallery") return "fotos";
+  if (field === "content" || field === "stops") return "ficha";
   return "general";
 }
 

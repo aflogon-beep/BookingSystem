@@ -13,6 +13,7 @@ import {
   type ProductData,
   type ProductTab,
 } from "@/lib/domain/product";
+import { contentToRpc, stopsToRpc, unusedPhotos } from "@/lib/domain/product-page";
 import { generationWindow } from "@/lib/domain/schedule";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -21,7 +22,11 @@ export type SaveProductResult = { ok: true; id: string } | { ok: false; error: s
 const SAVE_FAILED = "No se pudo guardar. Inténtalo de nuevo.";
 const idSchema = z.uuid();
 // Respuesta de save_product.
-const savedSchema = z.object({ id: z.uuid(), previous_photo_path: z.string().nullable() });
+const savedSchema = z.object({
+  id: z.uuid(),
+  previous_photo_path: z.string().nullable(),
+  previous_photo_paths: z.array(z.string()).optional(),
+});
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -29,9 +34,9 @@ function refresh() {
   revalidatePath("/panel/productos", "layout");
 }
 
-/** Borra una foto que ya no usa ningún producto. Si falla, solo queda un archivo huérfano. */
-async function removePhoto(supabase: Supabase, path: string | null) {
-  if (path) await supabase.storage.from(PRODUCT_PHOTO_BUCKET).remove([path]);
+/** Borra fotos que ya no usa ningún producto. Si falla, solo quedan archivos huérfanos. */
+async function removePhotos(supabase: Supabase, paths: readonly string[]) {
+  if (paths.length) await supabase.storage.from(PRODUCT_PHOTO_BUCKET).remove([...paths]);
 }
 
 /**
@@ -63,6 +68,9 @@ function rpcArgs(product: ProductData) {
       active: product.active,
       ...(product.needs ? { needs: product.needs } : {}),
       ...(product.needsRequired ? { needs_required: product.needsRequired } : {}),
+      ...(product.content ? { content: contentToRpc(product.content) } : {}),
+      ...(product.stops ? { stops: stopsToRpc(product.stops) } : {}),
+      ...(product.gallery ? { gallery: product.gallery } : {}),
     },
     p_prices: product.prices.map((price) => ({ ticket_type_id: price.ticketTypeId, price_cents: price.priceCents })),
     p_rules: product.rules.map((rule) => ({
@@ -111,9 +119,11 @@ export async function saveProduct(id: string | null, input: unknown): Promise<Sa
     if (error?.code === "P0002") return { ok: false, error: "Este producto ya no existe.", tab: "general" };
     const saved = savedSchema.safeParse(data);
     if (error || !saved.success) return { ok: false, error: SAVE_FAILED, tab: "general" };
-    // La foto anterior se lee en la misma transacción, con la fila bloqueada.
-    const previous = saved.data.previous_photo_path;
-    if (previous !== product.photoPath) await removePhoto(supabase, previous);
+    // Las fotos anteriores se leen en la misma transacción, con la fila bloqueada.
+    const previous = saved.data.previous_photo_paths ?? [saved.data.previous_photo_path].filter((path) => path !== null);
+    // Sin galería en la petición, save_product la deja como estaba: se conserva.
+    const kept = product.gallery ?? previous;
+    await removePhotos(supabase, unusedPhotos(previous, [product.photoPath, ...kept]));
     await regenerateSessions(supabase, id);
     refresh();
     return { ok: true, id };
@@ -153,11 +163,16 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
   if (!idSchema.safeParse(id).success) return { ok: false, error: "Producto no válido." };
 
   const supabase = await createClient();
+  // La galería se borra en cascada con el producto: sus rutas se leen antes.
+  const { data: gallery } = await supabase.from("product_photos").select("path").eq("product_id", id);
   const { data, error } = await supabase.from("products").delete().eq("id", id).select("photo_path");
   // 23503: sus salidas tienen reservas (bookings.session_id es «restrict»).
   if (error?.code === "23503") return { ok: false, error: "Tiene reservas: desactívalo en lugar de eliminarlo." };
   if (error || data.length !== 1) return { ok: false, error: "No se pudo eliminar. Inténtalo de nuevo." };
-  await removePhoto(supabase, data[0]?.photo_path ?? null);
+  await removePhotos(
+    supabase,
+    [data[0]?.photo_path ?? null, ...(gallery ?? []).map((photo) => photo.path)].filter((path) => path !== null),
+  );
   refresh();
   return { ok: true };
 }

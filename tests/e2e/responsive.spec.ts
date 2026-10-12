@@ -35,6 +35,9 @@ const ROUTES = [
   "/panel/ajustes/entradas",
   "/panel/ajustes/politicas",
   "/panel/ajustes/usuarios",
+  // Ficha pública con galería, itinerario y barra fija de reservar.
+  "/experiencias/teide-atardecer-estrellas",
+  "/en/experiencias/teide-atardecer-estrellas",
 ];
 
 // Fichas a las que se llega desde un listado: se abre la primera que haya.
@@ -148,7 +151,7 @@ test.describe("panel sin desbordes en móvil", () => {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(href!);
       if (fontScale !== 1) await page.addStyleTag({ content: `html { font-size: ${fontScale * 100}% !important; }` });
-      for (const tab of ["Entradas y precios", "Horarios", "Equipo"]) {
+      for (const tab of ["Fotos", "Ficha web", "Entradas y precios", "Horarios", "Equipo"]) {
         await page.getByRole("tab", { name: tab }).click();
         const problems = await overflowing(page);
         expect.soft(problems, `${href} pestaña ${tab} a ${width} px`).toEqual([]);

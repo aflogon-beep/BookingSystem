@@ -81,8 +81,27 @@ test("crea, edita, retira de la venta y elimina un producto con foto", async ({ 
   await expect(page).toHaveURL(/\/panel\/productos\/nuevo$/);
   await page.getByLabel("Nombre del tour").fill(name);
   await page.getByLabel("Descripción", { exact: true }).fill("Ruta de prueba por Anaga.");
-  await page.getByLabel("Foto del tour").setInputFiles({ name: "foto.png", mimeType: "image/png", buffer: PNG });
-  await expect(page.getByRole("button", { name: "Quitar foto" })).toBeVisible();
+
+  // Fotos: dos a la vez; la primera es la portada.
+  await tab(page, "Fotos").click();
+  await page.getByLabel("Añadir fotos").setInputFiles([
+    { name: "foto.png", mimeType: "image/png", buffer: PNG },
+    { name: "otra.png", mimeType: "image/png", buffer: PNG },
+  ]);
+  const photos = page.getByRole("list", { name: "Fotos del tour" });
+  await expect(photos.getByRole("listitem")).toHaveCount(2);
+  await expect(photos.getByRole("listitem", { name: "Foto 1, portada" })).toBeVisible();
+  await page.getByRole("button", { name: "Usar foto 2 de portada" }).click();
+  await expect(photos.getByRole("listitem", { name: "Foto 1, portada" })).toBeVisible();
+
+  // Ficha web: frase corta, destacados e itinerario.
+  await tab(page, "Ficha web").click();
+  await page.getByLabel("Frase corta", { exact: true }).fill("Bosque de niebla y miradores");
+  await page.getByLabel("Lo más destacado", { exact: true }).fill("Laurisilva\n\nCaserío tradicional");
+  await page.getByRole("button", { name: "Añadir parada" }).click();
+  await page.getByRole("listitem", { name: "Parada 1" }).getByLabel("Título", { exact: true }).fill("Cruz del Carmen");
+  await page.getByRole("listitem", { name: "Parada 1" }).getByLabel("Duración (min)").fill("20");
+  await page.getByRole("button", { name: "Añadir parada" }).click();
 
   await tab(page, "Entradas y precios").click();
   await page.getByLabel("Precio de Adulto").fill("25,50");
@@ -116,11 +135,20 @@ test("crea, edita, retira de la venta y elimina un producto con foto", async ({ 
   await expect(card.getByText("desde 25,50 €")).toBeVisible();
   await expect(card.locator("img")).toHaveAttribute("src", /\/storage\/v1\/object\/public\/product-photos\/.+\.png$/);
 
-  // Editar: los cambios se guardan y la foto se puede quitar.
+  // Editar: la ficha web se guardó (la parada vacía no cuenta) y las fotos se pueden quitar.
   await card.getByRole("link", { name: `Editar ${name}` }).click();
   await expect(page.getByLabel("Nombre del tour")).toHaveValue(name);
   await page.getByLabel("Aforo por salida").fill("8");
-  await page.getByRole("button", { name: "Quitar foto" }).click();
+  await tab(page, "Ficha web").click();
+  await expect(page.getByLabel("Frase corta", { exact: true })).toHaveValue("Bosque de niebla y miradores");
+  await expect(page.getByLabel("Lo más destacado", { exact: true })).toHaveValue("Laurisilva\nCaserío tradicional");
+  await expect(page.getByRole("list", { name: "Paradas del itinerario" }).getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByRole("listitem", { name: "Parada 1" }).getByLabel("Duración (min)")).toHaveValue("20");
+  await tab(page, "Fotos").click();
+  await expect(page.getByRole("list", { name: "Fotos del tour" }).getByRole("listitem")).toHaveCount(2);
+  await page.getByRole("button", { name: "Quitar foto 1" }).click();
+  await page.getByRole("button", { name: "Quitar foto 1" }).click();
+  await expect(page.getByText("Sin fotos", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Guardar producto" }).click();
   await expect(page).toHaveURL(/\/panel\/productos$/);
   await expect(card.getByText("8 plazas")).toBeVisible();

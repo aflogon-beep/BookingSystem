@@ -3,7 +3,22 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useRef, useState, useTransition, type KeyboardEvent, type ReactNode } from "react";
-import { ArrowLeft, Clock, ImageUp, Languages, LoaderCircle, Plus, Save, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Clock,
+  ImageUp,
+  Languages,
+  LoaderCircle,
+  Plus,
+  Save,
+  Star,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { deleteProduct, saveProduct } from "@/app/(panel)/panel/productos/actions";
@@ -52,6 +67,17 @@ import {
   type ProductNeeds,
   type ResourceType,
 } from "@/lib/domain/resources";
+import {
+  DIFFICULTIES,
+  DIFFICULTY_TEXT,
+  PRODUCT_PAGE_LIMITS,
+  isDifficulty,
+  linesToList,
+  listToLines,
+  moveItem,
+  type ProductContent,
+  type ProductStop,
+} from "@/lib/domain/product-page";
 import { LANGUAGES, isLanguageCode } from "@/lib/domain/settings";
 import { WEEKDAY_INITIALS, WEEKDAY_NAMES, parseTimes, previewSessions, shortDateLabel } from "@/lib/domain/schedule";
 import { getPublicEnv } from "@/lib/env";
@@ -73,15 +99,37 @@ export type EditorProduct = {
   minPax: number;
   pickup: boolean;
   color: string;
-  photoPath: string | null;
+  /** Fotos en orden: la primera es la portada. */
+  photos: string[];
   active: boolean;
   prices: { ticketTypeId: string; priceCents: number }[];
   rules: { weekdays: number[]; times: string[]; language: string; validFrom: string | null; validTo: string | null }[];
   needs: ProductNeeds;
   needsRequired: NeedsRequired;
+  content: ProductContent;
+  stops: ProductStop[];
 };
 
 type DraftRule = { key: number; weekdays: number[]; timesRaw: string; language: string; validFrom: string; validTo: string };
+
+type DraftStop = { key: number; title: string; titleEn: string; description: string; descriptionEn: string; durationRaw: string };
+
+/** Ficha web: las listas se editan como texto, una por línea. */
+type DraftContent = {
+  tagline: string;
+  taglineEn: string;
+  highlights: string;
+  highlightsEn: string;
+  included: string;
+  includedEn: string;
+  notIncluded: string;
+  notIncludedEn: string;
+  bring: string;
+  bringEn: string;
+  goodToKnow: string;
+  goodToKnowEn: string;
+  difficulty: string;
+};
 
 type Draft = {
   name: string;
@@ -96,17 +144,21 @@ type Draft = {
   minPax: string;
   pickup: boolean;
   color: string;
-  photoPath: string | null;
+  photos: string[];
   prices: Record<string, { on: boolean; raw: string }>;
   rules: DraftRule[];
   /** «Esta actividad necesita recursos»: si no, se guardan todos a 0. */
   usesResources: boolean;
   needs: Record<ResourceType, string>;
   needsRequired: NeedsRequired;
+  content: DraftContent;
+  stops: DraftStop[];
 };
 
 const TABS: { id: ProductTab; label: string }[] = [
   { id: "general", label: "General" },
+  { id: "fotos", label: "Fotos" },
+  { id: "ficha", label: "Ficha web" },
   { id: "precios", label: "Entradas y precios" },
   { id: "horarios", label: "Horarios" },
   { id: "equipo", label: "Equipo" },
@@ -117,6 +169,42 @@ const PREVIEW_MAX_CHIPS = 36;
 
 let ruleKey = 0;
 const nextRuleKey = () => ++ruleKey;
+
+function toDraftContent(content: ProductContent): DraftContent {
+  return {
+    tagline: content.tagline,
+    taglineEn: content.taglineEn,
+    highlights: listToLines(content.highlights),
+    highlightsEn: listToLines(content.highlightsEn),
+    included: listToLines(content.included),
+    includedEn: listToLines(content.includedEn),
+    notIncluded: listToLines(content.notIncluded),
+    notIncludedEn: listToLines(content.notIncludedEn),
+    bring: listToLines(content.bring),
+    bringEn: listToLines(content.bringEn),
+    goodToKnow: content.goodToKnow,
+    goodToKnowEn: content.goodToKnowEn,
+    difficulty: content.difficulty ?? "",
+  };
+}
+
+function fromDraftContent(content: DraftContent): ProductContent {
+  return {
+    tagline: content.tagline,
+    taglineEn: content.taglineEn,
+    highlights: linesToList(content.highlights),
+    highlightsEn: linesToList(content.highlightsEn),
+    included: linesToList(content.included),
+    includedEn: linesToList(content.includedEn),
+    notIncluded: linesToList(content.notIncluded),
+    notIncludedEn: linesToList(content.notIncludedEn),
+    bring: linesToList(content.bring),
+    bringEn: linesToList(content.bringEn),
+    goodToKnow: content.goodToKnow,
+    goodToKnowEn: content.goodToKnowEn,
+    difficulty: isDifficulty(content.difficulty) ? content.difficulty : null,
+  };
+}
 
 function toDraft(product: EditorProduct, ticketTypes: readonly EditorTicketType[]): Draft {
   const prices: Draft["prices"] = {};
@@ -137,7 +225,7 @@ function toDraft(product: EditorProduct, ticketTypes: readonly EditorTicketType[
     minPax: String(product.minPax),
     pickup: product.pickup,
     color: product.color,
-    photoPath: product.photoPath,
+    photos: [...product.photos],
     prices,
     rules: product.rules.map((rule) => ({
       key: nextRuleKey(),
@@ -153,6 +241,15 @@ function toDraft(product: EditorProduct, ticketTypes: readonly EditorTicketType[
       RESOURCE_TYPES.map((type) => [type, String(needsAnyResource(product.needs) ? product.needs[type] : DEFAULT_NEEDS[type])]),
     ) as Record<ResourceType, string>,
     needsRequired: { ...product.needsRequired },
+    content: toDraftContent(product.content),
+    stops: product.stops.map((stop) => ({
+      key: nextRuleKey(),
+      title: stop.title,
+      titleEn: stop.titleEn,
+      description: stop.description,
+      descriptionEn: stop.descriptionEn,
+      durationRaw: stop.durationMin === null ? "" : String(stop.durationMin),
+    })),
   };
 }
 
@@ -188,7 +285,8 @@ function buildInput(draft: Draft, active: boolean, ticketTypes: readonly EditorT
       minPax: toNumber(draft.minPax),
       pickup: draft.pickup,
       color: draft.color as ProductInput["color"],
-      photoPath: draft.photoPath,
+      photoPath: draft.photos[0] ?? null,
+      gallery: draft.photos.slice(1),
       active,
       prices,
       rules: draft.rules.map((rule) => ({
@@ -206,6 +304,17 @@ function buildInput(draft: Draft, active: boolean, ticketTypes: readonly EditorT
           }
         : { guide: 0, vehicle: 0, equipment: 0 },
       needsRequired: draft.needsRequired,
+      content: fromDraftContent(draft.content),
+      // Una parada sin nada escrito no cuenta.
+      stops: draft.stops
+        .filter((stop) => [stop.title, stop.titleEn, stop.description, stop.descriptionEn, stop.durationRaw].some((value) => value.trim()))
+        .map((stop) => ({
+          title: stop.title,
+          titleEn: stop.titleEn,
+          description: stop.description,
+          descriptionEn: stop.descriptionEn,
+          durationMin: stop.durationRaw.trim() ? toNumber(stop.durationRaw) : null,
+        })),
     },
   };
 }
@@ -282,13 +391,11 @@ export function ProductEditor({ product, ticketTypes, languages, currency, avail
             aria-labelledby={`${baseId}-tab-${tab}`}
             className="p-4 tablet:p-5"
           >
-            {tab === "general" ? (
-              <GeneralTab
-                draft={draft}
-                update={update}
-                photo={{ uploading, setUploading, unsaved: unsavedPhotos }}
-              />
+            {tab === "general" ? <GeneralTab draft={draft} update={update} /> : null}
+            {tab === "fotos" ? (
+              <PhotosTab draft={draft} setDraft={setDraft} uploading={uploading} setUploading={setUploading} unsaved={unsavedPhotos} />
             ) : null}
+            {tab === "ficha" ? <PageTab draft={draft} setDraft={setDraft} /> : null}
             {tab === "precios" ? (
               <PricesTab draft={draft} update={update} ticketTypes={ticketTypes} currency={currency} />
             ) : null}
@@ -391,9 +498,7 @@ function Field({
 
 type TabProps = { draft: Draft; update: (patch: Partial<Draft>) => void };
 
-type PhotoState = { uploading: boolean; setUploading: (uploading: boolean) => void; unsaved: Set<string> };
-
-function GeneralTab({ draft, update, photo }: TabProps & { photo: PhotoState }) {
+function GeneralTab({ draft, update }: TabProps) {
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3.5">
       <Field id="pf-name" label="Nombre del tour" className="col-span-full">
@@ -405,10 +510,10 @@ function GeneralTab({ draft, update, photo }: TabProps & { photo: PhotoState }) 
           onChange={(event) => update({ name: event.target.value })}
         />
       </Field>
-      <Field id="pf-desc" label="Descripción" hint="Se muestra al cliente en la web de reservas." className="col-span-full">
+      <Field id="pf-desc" label="Descripción" hint="Se muestra al cliente en la web de reservas. Separa párrafos con una línea en blanco." className="col-span-full">
         <textarea
           id="pf-desc"
-          rows={3}
+          rows={5}
           value={draft.description}
           maxLength={PRODUCT_LIMITS.description}
           aria-describedby="pf-desc-hint"
@@ -510,7 +615,6 @@ function GeneralTab({ draft, update, photo }: TabProps & { photo: PhotoState }) 
           />
         </Field>
       </fieldset>
-      <PhotoField draft={draft} update={update} {...photo} />
       <div className="col-span-full flex flex-col gap-1.5">
         <span id="pf-color" className="text-[0.8rem] font-medium text-[#2a3644]">
           Color
@@ -540,85 +644,463 @@ function GeneralTab({ draft, update, photo }: TabProps & { photo: PhotoState }) 
   );
 }
 
-/**
- * Sube la foto directamente a Storage desde el navegador (las políticas solo dejan al equipo).
- * El producto guarda solo la ruta, y el servidor la valida al guardar.
- */
-function PhotoField({ draft, update, uploading, setUploading, unsaved }: TabProps & PhotoState) {
-  const inputRef = useRef<HTMLInputElement>(null);
+type PhotosTabProps = {
+  draft: Draft;
+  setDraft: (update: (draft: Draft) => Draft) => void;
+  uploading: boolean;
+  setUploading: (uploading: boolean) => void;
+  unsaved: Set<string>;
+};
 
-  async function discardUnsaved(path: string | null) {
-    if (!path || !unsaved.has(path)) return;
+/**
+ * Galería del producto. Las fotos se suben directamente a Storage desde el navegador (las
+ * políticas solo dejan al equipo); el producto guarda solo las rutas, y el servidor las valida al
+ * guardar. La primera foto es la portada (tarjetas, cabecera de la web y vista previa).
+ */
+function PhotosTab({ draft, setDraft, uploading, setUploading, unsaved }: PhotosTabProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { supabaseUrl } = getPublicEnv();
+  const free = PRODUCT_PAGE_LIMITS.photos - draft.photos.length;
+
+  async function discardUnsaved(path: string) {
+    if (!unsaved.has(path)) return;
     unsaved.delete(path);
     await createClient().storage.from(PRODUCT_PHOTO_BUCKET).remove([path]);
   }
 
-  async function upload(original: File) {
-    if (!photoExtension(original.type)) return toast.error("La foto tiene que ser JPG, PNG o WebP");
-    setUploading(true);
+  async function uploadOne(original: File): Promise<string | null> {
+    if (!photoExtension(original.type)) {
+      toast.error(`«${original.name}» no es JPG, PNG ni WebP`);
+      return null;
+    }
     // Se reduce antes de subirla: la web carga mucho más rápido y caben fotos de más de 5 MB.
     const file = await compressPhoto(original);
     const extension = photoExtension(file.type);
     if (!extension) {
-      setUploading(false);
-      return toast.error("La foto tiene que ser JPG, PNG o WebP");
+      toast.error(`«${original.name}» no es JPG, PNG ni WebP`);
+      return null;
     }
     if (file.size > PRODUCT_PHOTO_MAX_BYTES) {
-      setUploading(false);
-      return toast.error("La foto pesa más de 5 MB");
+      toast.error(`«${original.name}» pesa más de 5 MB`);
+      return null;
     }
     const path = `${crypto.randomUUID()}.${extension}`;
     const { error } = await createClient()
       .storage.from(PRODUCT_PHOTO_BUCKET)
       .upload(path, file, { contentType: file.type, cacheControl: "31536000" });
-    setUploading(false);
-    if (error) return toast.error("No se pudo subir la foto. Inténtalo de nuevo.");
-    const previous = draft.photoPath;
+    if (error) {
+      toast.error("No se pudo subir una foto. Inténtalo de nuevo.");
+      return null;
+    }
     unsaved.add(path);
-    update({ photoPath: path });
-    await discardUnsaved(previous);
+    return path;
+  }
+
+  async function upload(files: File[]) {
+    if (!files.length) return;
+    if (files.length > free) toast.error(`Caben ${PRODUCT_PAGE_LIMITS.photos} fotos: se suben las ${free} primeras.`);
+    setUploading(true);
+    for (const file of files.slice(0, free)) {
+      const path = await uploadOne(file);
+      if (path) setDraft((current) => ({ ...current, photos: [...current.photos, path] }));
+    }
+    setUploading(false);
+  }
+
+  const move = (from: number, to: number) => setDraft((current) => ({ ...current, photos: moveItem(current.photos, from, to) }));
+
+  function remove(path: string) {
+    setDraft((current) => ({ ...current, photos: current.photos.filter((item) => item !== path) }));
+    void discardUnsaved(path);
   }
 
   return (
-    <div className="col-span-full flex flex-col gap-1.5">
-      <span className="text-[0.8rem] font-medium text-[#2a3644]">Imagen</span>
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="max-w-[46ch] text-[0.84rem] text-muted-foreground">
+          La primera es la <b className="font-medium text-foreground">portada</b>: sale en las tarjetas y arriba en la web. El
+          resto forman la galería, en este orden.
+        </p>
         <input
           ref={inputRef}
           type="file"
+          multiple
           accept="image/jpeg,image/png,image/webp"
-          aria-label="Foto del tour"
+          aria-label="Añadir fotos"
           className="sr-only"
           onChange={(event) => {
-            const file = event.target.files?.[0];
+            const files = [...(event.target.files ?? [])];
             event.target.value = "";
-            if (file) void upload(file);
+            void upload(files);
           }}
         />
-        <Button type="button" variant="outline" disabled={uploading} onClick={() => inputRef.current?.click()}>
+        <Button type="button" variant="outline" disabled={uploading || free <= 0} onClick={() => inputRef.current?.click()}>
           {uploading ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <ImageUp aria-hidden="true" />}
-          {draft.photoPath ? "Cambiar foto" : "Subir foto"}
+          {uploading ? "Subiendo…" : "Añadir fotos"}
         </Button>
-        {draft.photoPath ? (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              const previous = draft.photoPath;
-              update({ photoPath: null });
-              void discardUnsaved(previous);
-            }}
-          >
-            <X aria-hidden="true" />
-            Quitar foto
-          </Button>
-        ) : null}
       </div>
+
+      {draft.photos.length ? (
+        <ol aria-label="Fotos del tour" className="grid grid-cols-2 gap-2.5 tablet:grid-cols-3">
+          {draft.photos.map((path, index) => {
+            const n = index + 1;
+            return (
+              <li
+                key={path}
+                aria-label={index === 0 ? `Foto ${n}, portada` : `Foto ${n}`}
+                className={cn(
+                  "group relative overflow-hidden rounded-xl border border-black/5 bg-surface-2",
+                  index === 0 && "col-span-2 tablet:row-span-2",
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={productPhotoUrl(supabaseUrl, path)}
+                  alt=""
+                  className={cn("block w-full object-cover", index === 0 ? "aspect-[16/10] tablet:h-full" : "aspect-[4/3]")}
+                />
+                {index === 0 ? (
+                  <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-white/92 px-2 py-0.5 text-[0.72rem] font-semibold shadow-sm">
+                    <Star aria-hidden="true" className="size-3 fill-current text-warn" />
+                    Portada
+                  </span>
+                ) : null}
+                <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-between gap-1">
+                  <div className="flex gap-1">
+                    <PhotoButton label={`Mover foto ${n} antes`} disabled={index === 0} onClick={() => move(index, index - 1)}>
+                      <ChevronLeft aria-hidden="true" />
+                    </PhotoButton>
+                    <PhotoButton
+                      label={`Mover foto ${n} después`}
+                      disabled={index === draft.photos.length - 1}
+                      onClick={() => move(index, index + 1)}
+                    >
+                      <ChevronRight aria-hidden="true" />
+                    </PhotoButton>
+                    {index > 0 ? (
+                      <PhotoButton label={`Usar foto ${n} de portada`} onClick={() => move(index, 0)}>
+                        <Star aria-hidden="true" />
+                      </PhotoButton>
+                    ) : null}
+                  </div>
+                  <PhotoButton label={`Quitar foto ${n}`} onClick={() => remove(path)}>
+                    <X aria-hidden="true" />
+                  </PhotoButton>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-line px-4 py-10 text-center outline-none hover:bg-surface-2 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          <ImageUp aria-hidden="true" className="size-6 text-muted-foreground" />
+          <b className="font-semibold">Sin fotos</b>
+          <span className="text-[0.84rem] text-muted-foreground">Sin fotos se usa una ilustración con el color del tour.</span>
+        </button>
+      )}
       <FieldHint>
-        {draft.photoPath ? "La foto se verá en la web de reservas." : "Sin foto se usa una ilustración con el color del tour."}{" "}
-        JPG, PNG o WebP de hasta 5 MB.
+        Hasta {PRODUCT_PAGE_LIMITS.photos} fotos JPG, PNG o WebP; se reducen solas antes de subirlas. Mejor en horizontal.
       </FieldHint>
     </div>
+  );
+}
+
+function PhotoButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="grid size-9 place-items-center rounded-full bg-white/92 text-foreground shadow-sm outline-none hover:bg-white focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-40 [&_svg]:size-4"
+    >
+      {children}
+    </button>
+  );
+}
+
+const TEXTAREA =
+  "w-full min-w-0 rounded-[10px] border border-input bg-surface px-3 py-2 text-[0.95rem] text-foreground outline-none placeholder:text-faint focus-visible:border-[#66aaf0] focus-visible:ring-[3px] focus-visible:ring-primary/15 tablet:text-sm";
+
+/** Ficha web: lo que ve el cliente en la página del tour, además de la descripción. */
+function PageTab({ draft, setDraft }: { draft: Draft; setDraft: (update: (draft: Draft) => Draft) => void }) {
+  const content = draft.content;
+  const set = (patch: Partial<DraftContent>) => setDraft((current) => ({ ...current, content: { ...current.content, ...patch } }));
+
+  const lists: { key: "highlights" | "included" | "notIncluded" | "bring"; label: string; placeholder: string; max: number }[] = [
+    {
+      key: "highlights",
+      label: "Lo más destacado",
+      placeholder: "Atardecer sobre el mar de nubes\nObservación de estrellas con telescopio",
+      max: PRODUCT_PAGE_LIMITS.highlights,
+    },
+    { key: "included", label: "Incluye", placeholder: "Transporte\nGuía titulado\nChocolate caliente", max: PRODUCT_PAGE_LIMITS.list },
+    { key: "notIncluded", label: "No incluye", placeholder: "Comida\nPropinas", max: PRODUCT_PAGE_LIMITS.list },
+    { key: "bring", label: "Qué llevar", placeholder: "Calzado cómodo\nRopa de abrigo", max: PRODUCT_PAGE_LIMITS.list },
+  ];
+
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-[0.84rem] text-muted-foreground">
+        Todo es opcional: en la web solo se ve lo que rellenes. En las listas, escribe una cosa por línea.
+      </p>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5">
+        <Field id="pw-tagline" label="Frase corta" hint="Va bajo el nombre, en grande. Ej.: «Mar de nubes y cielo Starlight»." className="col-span-full">
+          <Input
+            id="pw-tagline"
+            value={content.tagline}
+            maxLength={PRODUCT_PAGE_LIMITS.tagline}
+            aria-describedby="pw-tagline-hint"
+            onChange={(event) => set({ tagline: event.target.value })}
+          />
+        </Field>
+        {lists.map((item) => (
+          <Field
+            key={item.key}
+            id={`pw-${item.key}`}
+            label={item.label}
+            hint={`Una por línea · hasta ${item.max}`}
+            className={item.key === "highlights" ? "col-span-full" : undefined}
+          >
+            <textarea
+              id={`pw-${item.key}`}
+              rows={4}
+              value={content[item.key]}
+              placeholder={item.placeholder}
+              aria-describedby={`pw-${item.key}-hint`}
+              onChange={(event) => set({ [item.key]: event.target.value })}
+              className={TEXTAREA}
+            />
+          </Field>
+        ))}
+        <Field id="pw-difficulty" label="Dificultad">
+          <NativeSelect id="pw-difficulty" value={content.difficulty} onChange={(event) => set({ difficulty: event.target.value })}>
+            <option value="">Sin indicar</option>
+            {DIFFICULTIES.map((difficulty) => (
+              <option key={difficulty} value={difficulty}>
+                {DIFFICULTY_TEXT.es[difficulty]}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field
+          id="pw-know"
+          label="Información importante"
+          hint="Lo que conviene saber antes de reservar: requisitos, accesibilidad, qué pasa si llueve…"
+          className="col-span-full"
+        >
+          <textarea
+            id="pw-know"
+            rows={3}
+            value={content.goodToKnow}
+            maxLength={PRODUCT_PAGE_LIMITS.goodToKnow}
+            aria-describedby="pw-know-hint"
+            onChange={(event) => set({ goodToKnow: event.target.value })}
+            className={TEXTAREA}
+          />
+        </Field>
+      </div>
+
+      <StopsEditor draft={draft} setDraft={setDraft} />
+
+      <fieldset className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5 rounded-xl border border-line-2 p-3.5">
+        <legend className="px-1 text-[0.8rem] font-medium text-[#2a3644]">
+          En inglés <span className="font-normal text-muted-foreground">(web en inglés; si lo dejas vacío, se ve en español)</span>
+        </legend>
+        <Field id="pw-tagline-en" label="Frase corta en inglés" className="col-span-full">
+          <Input
+            id="pw-tagline-en"
+            lang="en"
+            value={content.taglineEn}
+            maxLength={PRODUCT_PAGE_LIMITS.tagline}
+            onChange={(event) => set({ taglineEn: event.target.value })}
+          />
+        </Field>
+        {lists.map((item) => {
+          const key = `${item.key}En` as const;
+          return (
+            <Field key={key} id={`pw-${key}`} label={`${item.label} en inglés`} className={item.key === "highlights" ? "col-span-full" : undefined}>
+              <textarea
+                id={`pw-${key}`}
+                lang="en"
+                rows={3}
+                value={content[key]}
+                onChange={(event) => set({ [key]: event.target.value })}
+                className={TEXTAREA}
+              />
+            </Field>
+          );
+        })}
+        <Field id="pw-know-en" label="Información importante en inglés" className="col-span-full">
+          <textarea
+            id="pw-know-en"
+            lang="en"
+            rows={3}
+            value={content.goodToKnowEn}
+            maxLength={PRODUCT_PAGE_LIMITS.goodToKnow}
+            onChange={(event) => set({ goodToKnowEn: event.target.value })}
+            className={TEXTAREA}
+          />
+        </Field>
+      </fieldset>
+    </div>
+  );
+}
+
+function StopsEditor({ draft, setDraft }: { draft: Draft; setDraft: (update: (draft: Draft) => Draft) => void }) {
+  const setStops = (change: (stops: DraftStop[]) => DraftStop[]) => setDraft((current) => ({ ...current, stops: change(current.stops) }));
+  const updateStop = (key: number, patch: Partial<DraftStop>) =>
+    setStops((stops) => stops.map((stop) => (stop.key === key ? { ...stop, ...patch } : stop)));
+  const full = draft.stops.length >= PRODUCT_PAGE_LIMITS.stops;
+
+  return (
+    <section aria-labelledby="pw-stops" className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 id="pw-stops" className="text-[0.95rem]">
+            Itinerario
+          </h3>
+          <p className="text-[0.8rem] text-muted-foreground">Las paradas del recorrido, en orden. La duración es opcional.</p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={full}
+          onClick={() =>
+            setStops((stops) => [
+              ...stops,
+              { key: nextRuleKey(), title: "", titleEn: "", description: "", descriptionEn: "", durationRaw: "" },
+            ])
+          }
+        >
+          <Plus aria-hidden="true" />
+          Añadir parada
+        </Button>
+      </div>
+      {draft.stops.length ? (
+        <ol aria-label="Paradas del itinerario" className="flex flex-col">
+          {draft.stops.map((stop, index) => {
+            const id = `ps${stop.key}`;
+            const n = index + 1;
+            return (
+              <li key={stop.key} aria-label={`Parada ${n}`} className="relative flex gap-3 pb-4 last:pb-0">
+                <div aria-hidden="true" className="flex flex-col items-center">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-[0.78rem] font-semibold text-white">
+                    {n}
+                  </span>
+                  {index < draft.stops.length - 1 ? <span className="mt-1 w-px flex-1 bg-line" /> : null}
+                </div>
+                <div className="grid min-w-0 flex-1 grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 rounded-xl border border-line p-3">
+                  <Field id={`${id}-title`} label="Título" className="col-span-full">
+                    <Input
+                      id={`${id}-title`}
+                      value={stop.title}
+                      maxLength={PRODUCT_PAGE_LIMITS.stopTitle}
+                      placeholder="Ej.: Mirador de Chipeque"
+                      onChange={(event) => updateStop(stop.key, { title: event.target.value })}
+                    />
+                  </Field>
+                  <Field id={`${id}-desc`} label="Qué se hace" className="col-span-full">
+                    <textarea
+                      id={`${id}-desc`}
+                      rows={2}
+                      value={stop.description}
+                      maxLength={PRODUCT_PAGE_LIMITS.stopDescription}
+                      onChange={(event) => updateStop(stop.key, { description: event.target.value })}
+                      className={TEXTAREA}
+                    />
+                  </Field>
+                  <Field id={`${id}-dur`} label="Duración (min)">
+                    <Input
+                      id={`${id}-dur`}
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={1440}
+                      value={stop.durationRaw}
+                      onChange={(event) => updateStop(stop.key, { durationRaw: event.target.value })}
+                    />
+                  </Field>
+                  <Field id={`${id}-title-en`} label="Título en inglés">
+                    <Input
+                      id={`${id}-title-en`}
+                      lang="en"
+                      value={stop.titleEn}
+                      maxLength={PRODUCT_PAGE_LIMITS.stopTitle}
+                      onChange={(event) => updateStop(stop.key, { titleEn: event.target.value })}
+                    />
+                  </Field>
+                  <Field id={`${id}-desc-en`} label="Qué se hace, en inglés" className="col-span-full">
+                    <textarea
+                      id={`${id}-desc-en`}
+                      lang="en"
+                      rows={2}
+                      value={stop.descriptionEn}
+                      maxLength={PRODUCT_PAGE_LIMITS.stopDescription}
+                      onChange={(event) => updateStop(stop.key, { descriptionEn: event.target.value })}
+                      className={TEXTAREA}
+                    />
+                  </Field>
+                  <div className="col-span-full flex flex-wrap justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Subir parada ${n}`}
+                      disabled={index === 0}
+                      onClick={() => setStops((stops) => moveItem(stops, index, index - 1))}
+                    >
+                      <ChevronUp aria-hidden="true" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Bajar parada ${n}`}
+                      disabled={index === draft.stops.length - 1}
+                      onClick={() => setStops((stops) => moveItem(stops, index, index + 1))}
+                    >
+                      <ChevronDown aria-hidden="true" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Quitar parada ${n}`}
+                      onClick={() => setStops((stops) => stops.filter((item) => item.key !== stop.key))}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <div className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-line px-4 py-6 text-center">
+          <b className="font-semibold">Sin itinerario</b>
+          <span className="text-[0.84rem] text-muted-foreground">Añade las paradas para que el cliente vea el recorrido.</span>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -965,7 +1447,8 @@ function SessionsPreview({ draft, today }: { draft: Draft; today: string }) {
 }
 
 function CustomerPreview({ draft, seed, ticketTypes }: { draft: Draft; seed: string; ticketTypes: readonly EditorTicketType[] }) {
-  const photoUrl = draft.photoPath ? productPhotoUrl(getPublicEnv().supabaseUrl, draft.photoPath) : null;
+  const cover = draft.photos[0];
+  const photoUrl = cover ? productPhotoUrl(getPublicEnv().supabaseUrl, cover) : null;
   const prices = ticketTypes
     .map((ticketType) => draft.prices[ticketType.id])
     .filter((price) => price?.on)
@@ -981,6 +1464,7 @@ function CustomerPreview({ draft, seed, ticketTypes }: { draft: Draft; seed: str
         <ProductArt seed={seed} color={draft.color} photoUrl={photoUrl} />
         <div className="flex flex-col gap-2 px-4 py-3.5">
           <h2 className="text-[1rem]">{draft.name.trim() || "Nombre del tour"}</h2>
+          {draft.content.tagline.trim() ? <p className="text-[0.86rem] font-medium text-[#2a3644]">{draft.content.tagline}</p> : null}
           <p className="line-clamp-3 text-[0.84rem] text-muted-foreground">{draft.description.trim() || "Descripción del tour"}</p>
           <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[0.78rem] text-muted-foreground">
             {Number.isInteger(duration) && duration > 0 ? (
