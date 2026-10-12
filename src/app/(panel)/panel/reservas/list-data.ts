@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/db/server";
 import { bookingListQuery, type BookingListParams, type ListFilter } from "@/lib/domain/booking-list";
+import { buildPulse, pulseFilters, pulseWindow, type Pulse } from "@/lib/domain/booking-pulse";
 import { toBusinessDateTime } from "@/lib/domain/calendar";
 import { ticketsLabel, type ManifestLine } from "@/lib/domain/manifest";
 
@@ -124,14 +125,47 @@ export async function loadBookingPage(params: BookingListParams, now: Date): Pro
 export async function loadBookingTotals(
   params: BookingListParams,
   now: Date,
-): Promise<{ status: string; count: number; pax: number; totalCents: number }[]> {
+): Promise<{ status: string; count: number; pax: number; totalCents: number; paidCents: number }[]> {
   const { filters } = bookingListQuery(params, now);
-  let query = (await createClient()).from("booking_list").select("status, count(), pax:pax.sum(), total_cents:total_cents.sum()");
+  let query = (await createClient())
+    .from("booking_list")
+    .select("status, count(), pax:pax.sum(), total_cents:total_cents.sum(), paid_cents:paid_cents.sum()");
   for (const filter of filters satisfies ListFilter[]) query = query.filter(filter.column, filter.operator, filter.value);
   const { data, error } = await query;
   if (error) throw new Error("No se pudieron cargar las reservas.");
-  const rows = data as unknown as { status: string | null; count: number; pax: number | null; total_cents: number | null }[];
-  return rows.map((row) => ({ status: row.status ?? "", count: row.count, pax: row.pax ?? 0, totalCents: row.total_cents ?? 0 }));
+  const rows = data as unknown as { status: string | null; count: number; pax: number | null; total_cents: number | null; paid_cents: number | null }[];
+  return rows.map((row) => ({
+    status: row.status ?? "",
+    count: row.count,
+    pax: row.pax ?? 0,
+    totalCents: row.total_cents ?? 0,
+    paidCents: row.paid_cents ?? 0,
+  }));
+}
+
+/**
+ * Datos del «pulso» (pasajeros por día y producto en la ventana del gráfico), sumados en la base de
+ * datos por salida y producto: unas decenas de filas, no una por reserva.
+ */
+export async function loadBookingPulse(params: BookingListParams, now: Date, today: string): Promise<Pulse> {
+  const days = pulseWindow(params, today);
+  let query = (await createClient())
+    .from("booking_list")
+    .select("starts_at, product_name, product_color, count(), pax:pax.sum()");
+  for (const filter of pulseFilters(params, days, now)) query = query.filter(filter.column, filter.operator, filter.value);
+  const { data, error } = await query;
+  if (error) throw new Error("No se pudieron cargar las reservas.");
+  const rows = data as unknown as { starts_at: string | null; product_name: string | null; product_color: string | null; count: number; pax: number | null }[];
+  return buildPulse(
+    rows.map((row) => ({
+      startsAt: row.starts_at ?? "",
+      productName: row.product_name ?? "",
+      productColor: row.product_color ?? "#999999",
+      bookings: row.count,
+      pax: row.pax ?? 0,
+    })),
+    days,
+  );
 }
 
 /** Todas las reservas con esos filtros (para totales y CSV), por tandas. */

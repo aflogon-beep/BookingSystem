@@ -23,6 +23,17 @@ test("Reservas y Clientes se abren con sus pestañas y filtros", async ({ page }
   await expect(page).toHaveURL(/pestana=pasadas&canal=agency&desde=2030-01-01$/);
   await expect(page.getByLabel("Desde")).toHaveValue("2030-01-01");
 
+  // El pulso de 14 días: pulsar un día filtra el listado a ese día y volver a pulsarlo lo quita.
+  await page.goto("/panel/reservas");
+  const pulse = page.getByRole("list", { name: "Pasajeros por día" });
+  await expect(pulse.getByRole("listitem")).toHaveCount(14);
+  const today = businessToday();
+  await pulse.getByRole("link", { name: /^Hoy/ }).click();
+  await expect(page).toHaveURL(new RegExp(`pestana=hoy&desde=${today}&hasta=${today}$`));
+  await expect(pulse.getByRole("link", { name: /^Hoy/ })).toHaveAttribute("aria-current", "date");
+  await pulse.getByRole("link", { name: /^Hoy/ }).click();
+  await expect(page).toHaveURL(/\/panel\/reservas$/);
+
   await page.goto("/panel/clientes");
   await expect(page.getByRole("heading", { level: 1, name: "Clientes" })).toBeVisible();
   await expect(page.getByText(/repiten$/)).toBeVisible();
