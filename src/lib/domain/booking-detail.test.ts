@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  balanceSummary,
   bookingChangeError,
   bookingEditError,
+  cancellationNote,
   isEditable,
   isFreeCancellation,
   moveOptionLabel,
@@ -111,5 +113,24 @@ describe("bookingEditError", () => {
     expect(bookingEditError("RB013", undefined)).toMatch(/ya está pagada/);
     expect(bookingEditError("RB002", undefined)).toMatch(/solo se pueden quitar/);
     expect(bookingEditError("42501", undefined)).toBe("No tienes permiso para hacer esto.");
+  });
+});
+
+describe("balanceSummary", () => {
+  it("muestra lo cobrado o lo que falta", () => {
+    expect(balanceSummary({ paymentStatus: "paid", totalCents: 5000, paidCents: 5000 })).toMatchObject({ label: "Cobrado", tone: "ok" });
+    expect(balanceSummary({ paymentStatus: "pending", totalCents: 5000, paidCents: 0 }).value).toMatch(/^50\s€$/);
+    expect(balanceSummary({ paymentStatus: "pending", totalCents: 5000, paidCents: 0 }).tone).toBe("warn");
+    expect(balanceSummary({ paymentStatus: "invoice", totalCents: 5000, paidCents: 0 })).toMatchObject({ label: "Por cobrar", value: "Factura" });
+    expect(balanceSummary({ paymentStatus: "refunded", totalCents: 5000, paidCents: 4500 })).toMatchObject({ label: "Devuelto", tone: "neutral" });
+  });
+});
+
+describe("cancellationNote", () => {
+  const at = new Date("2026-10-12T08:00:00Z");
+  it("dice si se está dentro del plazo", () => {
+    expect(cancellationNote("2026-10-14T08:00:00Z", at, 24)).toBe("Dentro del plazo de cancelación gratuita (hasta 24 h antes).");
+    expect(cancellationNote("2026-10-12T20:00:00Z", at, 24)).toMatch(/^Fuera del plazo/);
+    expect(cancellationNote("2026-10-12T09:00:00Z", at, 0)).toBe("Cancelación gratuita hasta la salida.");
   });
 });

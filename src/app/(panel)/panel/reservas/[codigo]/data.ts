@@ -25,7 +25,7 @@ export type BookingDetail = {
   customer: { name: string; email: string; phone: string };
   session: { id: string; startsAt: string; language: string; status: string };
   product: { name: string; color: string; pickup: boolean; meetingPoint: string };
-  lines: { name: string; qty: number }[];
+  lines: { name: string; qty: number; unitCents: number }[];
   /** Entradas que se pueden poner al editar: las del producto y las que ya tiene, con su precio. */
   ticketOptions: TicketOption[];
   seats: number;
@@ -136,7 +136,7 @@ export async function loadBookingDetail(code: string, now: Date): Promise<Bookin
       pickup: session.products.pickup,
       meetingPoint: session.products.meeting_point,
     },
-    lines: lines.map((line) => ({ name: line.ticket_types.name, qty: line.qty })),
+    lines: lines.map((line) => ({ name: line.ticket_types.name, qty: line.qty, unitCents: line.unit_price_cents })),
     seats,
     ticketOptions,
     events: [...row.booking_events]

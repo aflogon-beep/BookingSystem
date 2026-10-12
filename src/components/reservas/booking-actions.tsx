@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import { CalendarClock, Mail, Minus, Pencil, Plus, Undo2, UserCheck, UserX, Users } from "lucide-react";
+import { CalendarClock, Mail, Minus, Pencil, Plus, Undo2, UserCheck, UserX, Users, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { formatCents } from "@/lib/domain/money";
+import { cn } from "@/lib/utils";
 
 function report(result: BookingActionResult | { ok: true; message?: string } | { ok: false; error: string }) {
   if (!result.ok) toast.error(result.error);
@@ -42,11 +43,13 @@ export function CheckInButton({
   name,
   pax,
   state,
+  className,
 }: {
   bookingId: string;
   name: string;
   pax: number;
   state: "pending" | "arrived" | "partial" | "no_show";
+  className?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const first = name.split(" ")[0];
@@ -58,7 +61,7 @@ export function CheckInButton({
   }
   if (state !== "pending") {
     return (
-      <Button variant="outline" size="sm" disabled={pending} onClick={() => save(null, "Check-in deshecho")}>
+      <Button variant="outline" size="sm" className={className} disabled={pending} onClick={() => save(null, "Check-in deshecho")}>
         <Undo2 aria-hidden="true" />
         Deshacer check-in
       </Button>
@@ -66,11 +69,11 @@ export function CheckInButton({
   }
   return (
     <>
-      <Button variant="outline" size="sm" disabled={pending} onClick={() => save(pax, `${first} · presentado`)}>
+      <Button variant="outline" size="sm" className={className} disabled={pending} onClick={() => save(pax, `${first} · presentado`)}>
         <UserCheck aria-hidden="true" />
         Check-in
       </Button>
-      <Button variant="outline" size="sm" disabled={pending} onClick={() => save(0, `${first} · no se ha presentado`)}>
+      <Button variant="outline" size="sm" className={className} disabled={pending} onClick={() => save(0, `${first} · no se ha presentado`)}>
         <UserX aria-hidden="true" />
         No se presentó
       </Button>
@@ -78,12 +81,13 @@ export function CheckInButton({
   );
 }
 
-export function ResendButton({ bookingId }: { bookingId: string }) {
+export function ResendButton({ bookingId, className }: { bookingId: string; className?: string }) {
   const [pending, startTransition] = useTransition();
   return (
     <Button
       variant="outline"
       size="sm"
+      className={className}
       disabled={pending}
       onClick={() => startTransition(async () => report(await resendBookingConfirmation(bookingId)))}
     >
@@ -101,6 +105,7 @@ export function CancelBookingButton({
   paidCents,
   freeCancellation,
   cancelHours,
+  className,
 }: {
   bookingId: string;
   code: string;
@@ -109,6 +114,7 @@ export function CancelBookingButton({
   paidCents: number;
   freeCancellation: boolean;
   cancelHours: number;
+  className?: string;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -124,8 +130,9 @@ export function CancelBookingButton({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-danger">
-          Cancelar
+        <Button variant="outline" size="sm" className={cn("text-danger hover:border-danger/40 hover:bg-danger-soft", className)}>
+          <XCircle aria-hidden="true" />
+          Cancelar reserva
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -198,15 +205,16 @@ export function MoveBookingForm({ bookingId, options }: { bookingId: string; opt
       <label htmlFor={`${id}-session`} className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
         Cambiar de fecha
       </label>
-      <div className="flex gap-2">
-        <NativeSelect id={`${id}-session`} name="session" className="min-w-0 flex-1" disabled={pending}>
+      <p className="-mt-1 text-[0.8rem] text-muted-foreground">Salidas del mismo producto con plazas para toda la reserva.</p>
+      <div className="flex flex-col gap-2 tablet:flex-row">
+        <NativeSelect id={`${id}-session`} name="session" className="w-full min-w-0 tablet:flex-1" disabled={pending}>
           {options.map((option) => (
             <option key={option.id} value={option.id}>
               {option.label}
             </option>
           ))}
         </NativeSelect>
-        <Button type="submit" variant="outline" disabled={pending}>
+        <Button type="submit" variant="outline" disabled={pending} className="w-full tablet:w-auto">
           <CalendarClock aria-hidden="true" />
           Mover
         </Button>
@@ -227,7 +235,7 @@ export function NotesField({ bookingId, notes }: { bookingId: string; notes: str
       </label>
       <textarea
         id={`${id}-notes`}
-        rows={2}
+        rows={3}
         maxLength={2000}
         defaultValue={notes}
         disabled={pending}

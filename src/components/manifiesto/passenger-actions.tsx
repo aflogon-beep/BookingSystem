@@ -156,19 +156,21 @@ export function CollectButton({
   totalCents,
   customerName,
   tickets,
+  className,
 }: {
   bookingId: string;
   code: string;
   totalCents: number;
   customerName: string;
   tickets: string;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-warn">
+        <Button variant="outline" size="sm" className={cn("text-warn", className)}>
           <HandCoins aria-hidden="true" />
           Cobrar {formatCents(totalCents)}
         </Button>

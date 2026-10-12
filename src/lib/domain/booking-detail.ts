@@ -151,3 +151,29 @@ export function bookingEditError(code: string | undefined, hint: string | undefi
       return bookingChangeError(code, hint);
   }
 }
+
+/** Tercera cifra de la cabecera de la ficha: lo cobrado o lo que falta por cobrar. */
+export function balanceSummary(booking: {
+  paymentStatus: string;
+  totalCents: number;
+  paidCents: number;
+}): { label: string; value: string; tone: "ok" | "warn" | "neutral" } {
+  switch (booking.paymentStatus) {
+    case "paid":
+      return { label: "Cobrado", value: formatCents(booking.paidCents), tone: "ok" };
+    case "refunded":
+      return { label: "Devuelto", value: formatCents(booking.paidCents), tone: "neutral" };
+    case "invoice":
+      return { label: "Por cobrar", value: "Factura", tone: "neutral" };
+    default:
+      return { label: "Por cobrar", value: formatCents(Math.max(booking.totalCents - booking.paidCents, 0)), tone: "warn" };
+  }
+}
+
+/** Texto junto a «Cancelar reserva»: el plazo de cancelación gratuita y si aún se está dentro. */
+export function cancellationNote(startsAt: string, now: Date, cancelHours: number): string {
+  if (cancelHours <= 0) return "Cancelación gratuita hasta la salida.";
+  return isFreeCancellation(startsAt, now, cancelHours)
+    ? `Dentro del plazo de cancelación gratuita (hasta ${cancelHours} h antes).`
+    : `Fuera del plazo de cancelación gratuita (${cancelHours} h antes): por defecto no se reembolsa.`;
+}

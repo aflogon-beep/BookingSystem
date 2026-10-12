@@ -62,7 +62,7 @@ test("ficha de reserva: notas, cambio de fecha y cancelación con reembolso", as
   );
 
   // Cancelar con reembolso (dentro del plazo de cancelación gratuita).
-  await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await page.getByRole("button", { name: "Cancelar reserva" }).click();
   const cancel = page.getByRole("dialog", { name: "Cancelar reserva" });
   // Se marca a mano: viene marcada dentro del plazo, pero ajustes.spec.ts cambia el plazo un momento.
   await cancel.getByRole("checkbox", { name: /^Reembolsar / }).check();
@@ -71,7 +71,7 @@ test("ficha de reserva: notas, cambio de fecha y cancelación con reembolso", as
   await expect(page.getByText("Cancelada", { exact: true })).toBeVisible();
   await expect(page.getByText("Reembolsado", { exact: true })).toBeVisible();
   await expect(page.getByText(/^Reembolsado \d+/).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Cancelar", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Cancelar reserva" })).toHaveCount(0);
   await expect(page.getByLabel("Cambiar de fecha")).toHaveCount(0);
 });
 
