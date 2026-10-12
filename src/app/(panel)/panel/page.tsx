@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CalendarX2, ChevronLeft, ChevronRight, Handshake, Globe, Phone, Plus, Sparkles, Store, type LucideIcon } from "lucide-react";
 
 import { AttentionList } from "@/components/hoy/attention-list";
+import { DayHero } from "@/components/hoy/day-hero";
 import { DayPicker } from "@/components/hoy/day-picker";
 import { FeedItem } from "@/components/hoy/feed-item";
 import { SessionRow } from "@/components/hoy/session-row";
@@ -99,6 +100,15 @@ export default async function Page({ searchParams }: PageProps<"/panel">) {
       </div>
 
       {showSetup ? <SetupBanner /> : null}
+
+      <DayHero
+        sessions={sessions}
+        kind={dayLabel(day, today)}
+        staffName={staff.name}
+        pax={kpis.pax}
+        checkedIn={kpis.checkedIn}
+        initialNow={now.toISOString()}
+      />
 
       <Kpis kpis={kpis} day={day} isToday={day === today} />
 
