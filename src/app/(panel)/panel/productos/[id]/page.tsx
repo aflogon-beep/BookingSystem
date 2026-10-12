@@ -5,6 +5,7 @@ import { z } from "zod";
 import { loadEditorContext } from "@/app/(panel)/panel/productos/editor-data";
 import { ProductEditor } from "@/components/productos/product-editor";
 import { requireAccess } from "@/lib/auth";
+import { contentFromRow, photosFromRows, stopsFromRows } from "@/lib/domain/product-page";
 import { needsFromRows, requiredFromRows } from "@/lib/domain/resources";
 
 export const metadata: Metadata = { title: "Editar producto" };
@@ -18,7 +19,7 @@ export default async function Page({ params }: PageProps<"/panel/productos/[id]"
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, name, description, meeting_point, name_en, description_en, meeting_point_en, place, duration_min, capacity, min_pax, pickup, color, photo_path, active, product_prices(ticket_type_id, price_cents), schedule_rules(weekdays, times, language, valid_from, valid_to, created_at), product_needs(resource_type, qty, required)",
+      "id, name, description, meeting_point, name_en, description_en, meeting_point_en, place, duration_min, capacity, min_pax, pickup, color, photo_path, active, product_prices(ticket_type_id, price_cents), schedule_rules(weekdays, times, language, valid_from, valid_to, created_at), product_needs(resource_type, qty, required), tagline, tagline_en, highlights, highlights_en, included, included_en, not_included, not_included_en, bring, bring_en, good_to_know, good_to_know_en, difficulty, product_stops(position, title, title_en, description, description_en, duration_min), product_photos(path, position)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -39,7 +40,7 @@ export default async function Page({ params }: PageProps<"/panel/productos/[id]"
     minPax: data.min_pax,
     pickup: data.pickup,
     color: data.color,
-    photoPath: data.photo_path,
+    photos: photosFromRows(data.photo_path, data.product_photos),
     active: data.active,
     prices: data.product_prices.map((price) => ({ ticketTypeId: price.ticket_type_id, priceCents: price.price_cents })),
     rules: data.schedule_rules
@@ -53,6 +54,8 @@ export default async function Page({ params }: PageProps<"/panel/productos/[id]"
       })),
     needs: needsFromRows(data.product_needs),
     needsRequired: requiredFromRows(data.product_needs),
+    content: contentFromRow(data),
+    stops: stopsFromRows(data.product_stops),
   };
 
   return (

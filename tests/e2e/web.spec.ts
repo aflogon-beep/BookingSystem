@@ -165,3 +165,44 @@ test("una experiencia que no existe da 404", async ({ page }) => {
   expect((await page.goto("/experiencias/no-existe"))?.status()).toBe(404);
   expect((await page.goto("/experiencias/Mal%20slug"))?.status()).toBe(404);
 });
+
+test("la ficha muestra lo más destacado, el itinerario y qué incluye, también en inglés", async ({ page }) => {
+  await page.goto("/experiencias/teide-atardecer-estrellas");
+  await expect(page.getByText("Mar de nubes, puesta de sol a 2.300 m y un cielo Starlight con telescopio")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lo más destacado" })).toBeVisible();
+  await expect(page.getByText("Grupo reducido de 16 personas como máximo")).toBeVisible();
+
+  const itinerary = page.getByRole("region", { name: "Itinerario" });
+  await expect(itinerary.getByRole("heading", { level: 3 })).toHaveText([
+    "Salida desde La Laguna",
+    "Mirador de Chipeque",
+    "Atardecer en las Cañadas del Teide",
+    "Observación de estrellas",
+    "Regreso",
+  ]);
+  await expect(itinerary.getByText("1 h 30 min")).toBeVisible();
+
+  const included = page.getByRole("region", { name: "Qué incluye" });
+  await expect(included.getByText("Telescopio y punteros láser")).toBeVisible();
+  await expect(included.getByText("Teleférico del Teide")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Abrir en Google Maps" })).toHaveAttribute(
+    "href",
+    "https://www.google.com/maps/search/?api=1&query=Plaza%20del%20Cristo%2C%20La%20Laguna",
+  );
+  await expect(page.getByRole("list", { name: "Detalles" }).getByText("Fácil")).toBeVisible();
+  await expect(page.getByText("Información importante")).toBeVisible();
+
+  await page.goto("/en/experiencias/teide-atardecer-estrellas");
+  await expect(page.getByRole("heading", { name: "Highlights" })).toBeVisible();
+  await expect(page.getByText("Stargazing with an astronomer and a professional telescope")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Itinerary" }).getByRole("heading", { name: "Chipeque viewpoint" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "What's included" }).getByText("Hot chocolate")).toBeVisible();
+});
+
+test("una ficha sin contenido extra se ve sin secciones vacías", async ({ page }) => {
+  await page.goto("/experiencias/la-laguna-patrimonio");
+  await expect(page.getByRole("heading", { level: 1, name: "La Laguna, ciudad Patrimonio" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Itinerario" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Qué incluye" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Sobre la experiencia" })).toBeVisible();
+});

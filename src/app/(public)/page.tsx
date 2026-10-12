@@ -39,6 +39,9 @@ export default async function HomePage() {
                   className="h-[190px] rounded-2xl group-hover:brightness-[1.04] group-hover:saturate-[1.1]"
                 />
                 <b className="text-base font-semibold">{product.name}</b>
+                {product.content.tagline ? (
+                  <span className="line-clamp-2 text-[0.86rem] text-muted-foreground">{product.content.tagline}</span>
+                ) : null}
                 <span className="flex flex-wrap gap-x-3.5 gap-y-1 text-[0.8rem] text-muted-foreground">
                   <span className="inline-flex items-center gap-1">
                     <Clock aria-hidden="true" className="size-4" />
