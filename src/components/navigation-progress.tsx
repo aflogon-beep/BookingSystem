@@ -31,6 +31,8 @@ function isNavigationClick(event: MouseEvent): boolean {
   if (!(anchor instanceof HTMLAnchorElement)) return false;
   if (anchor.target && anchor.target !== "_self") return false;
   if (anchor.hasAttribute("download")) return false;
+  // Enlaces que con un clic normal no navegan (la vista previa de una reserva).
+  if (anchor.hasAttribute("data-no-progress")) return false;
   const url = new URL(anchor.href, window.location.href);
   if (url.origin !== window.location.origin) return false;
   // Solo cambia el ancla (#equipo): no hay carga.

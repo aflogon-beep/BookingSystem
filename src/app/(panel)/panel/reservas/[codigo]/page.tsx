@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ChevronRight, Clock3, History, MapPin, Ticket, UserRound, type LucideIcon } from "lucide-react";
 
 import { BackLink } from "@/components/back-link";
+import { BookingArrivalPill } from "@/components/reservas/booking-pills";
 import { ContactButtons } from "@/components/contact-buttons";
 import { CollectButton } from "@/components/manifiesto/passenger-actions";
 import {
@@ -28,7 +29,7 @@ import {
   paymentLabel,
 } from "@/lib/domain/booking-detail";
 import { longDayLabel, toBusinessDateTime } from "@/lib/domain/calendar";
-import { arrivalLabel, arrivalState } from "@/lib/domain/manifest";
+import { arrivalState } from "@/lib/domain/manifest";
 import { formatCents } from "@/lib/domain/money";
 import { BUSINESS_TIMEZONE } from "@/lib/domain/schedule";
 import { cn } from "@/lib/utils";
@@ -96,7 +97,7 @@ export default async function Page({ params }: PageProps<"/panel/reservas/[codig
               </p>
               <h1 className="mt-0.5 text-[1.3rem] leading-tight break-words tablet:text-[1.5rem]">{booking.customer.name}</h1>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                <StatusPill booking={booking} />
+                <BookingArrivalPill booking={{ ...booking, pax }} />
                 <PaymentPill booking={booking} />
               </div>
             </div>
@@ -348,20 +349,6 @@ function Details({ items, className }: { items: [string, React.ReactNode][]; cla
       ))}
     </dl>
   );
-}
-
-function StatusPill({ booking }: { booking: BookingDetail }) {
-  if (booking.status === "cancelled" || booking.status === "expired") {
-    return <Pill className="bg-danger-soft text-danger">Cancelada</Pill>;
-  }
-  if (booking.status === "pending") return <Pill tone="warn">Pago web a medias</Pill>;
-  const state = arrivalState(booking);
-  if (state === "no_show") return <Pill className="bg-danger-soft text-danger">No se ha presentado</Pill>;
-  if (state === "partial" || state === "arrived") {
-    const pax = booking.lines.reduce((sum, line) => sum + line.qty, 0);
-    return <Pill tone={state === "arrived" ? "ok" : "warn"}>{arrivalLabel({ ...booking, pax })}</Pill>;
-  }
-  return <Pill className="bg-primary-soft text-primary">Confirmada</Pill>;
 }
 
 function PaymentPill({ booking }: { booking: BookingDetail }) {
