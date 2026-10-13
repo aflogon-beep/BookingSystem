@@ -4,7 +4,7 @@ import { enGB, es } from "date-fns/locale";
 
 import { BUSINESS_TIMEZONE, localToInstant } from "@/lib/domain/schedule";
 
-export type CalendarView = "semana" | "mes";
+export type CalendarView = "dia" | "semana" | "mes";
 
 export type CalendarParams = { view: CalendarView; anchor: string; productId: string | null };
 
@@ -24,7 +24,8 @@ export function parseCalendarParams(
   search: Record<string, string | string[] | undefined>,
   today: string,
 ): CalendarParams {
-  const view = first(search.vista) === "mes" ? "mes" : "semana";
+  const rawView = first(search.vista);
+  const view = rawView === "mes" || rawView === "dia" ? rawView : "semana";
   const rawDate = first(search.fecha);
   const parsed = rawDate && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? parseISO(rawDate) : null;
   const anchor = parsed && isValid(parsed) && ymd(parsed) === rawDate ? rawDate : today;
@@ -32,17 +33,21 @@ export function parseCalendarParams(
   return { view, anchor, productId: rawProduct && UUID.test(rawProduct) ? rawProduct.toLowerCase() : null };
 }
 
-/** Días que se ven: la semana (lunes a domingo) o el mes completo en semanas enteras. */
+/**
+ * Días que se cargan: la semana (lunes a domingo) o el mes completo en semanas enteras. La vista
+ * «Día» carga su semana para la tira de días de arriba.
+ */
 export function visibleDays(view: CalendarView, anchor: string): string[] {
   const date = parseISO(anchor);
-  const start = view === "semana" ? startOfISOWeek(date) : startOfISOWeek(startOfMonth(date));
-  const end = view === "semana" ? addDays(start, 6) : addDays(startOfISOWeek(endOfMonth(date)), 6);
+  const start = view === "mes" ? startOfISOWeek(startOfMonth(date)) : startOfISOWeek(date);
+  const end = view === "mes" ? addDays(startOfISOWeek(endOfMonth(date)), 6) : addDays(start, 6);
   return Array.from({ length: differenceInCalendarDays(end, start) + 1 }, (_, index) => ymd(addDays(start, index)));
 }
 
 /** Fecha a la que llevan «anterior» (-1) y «siguiente» (1). */
 export function shiftAnchor(view: CalendarView, anchor: string, direction: -1 | 1): string {
   const date = parseISO(anchor);
+  if (view === "dia") return ymd(addDays(date, direction));
   return ymd(view === "semana" ? addDays(date, 7 * direction) : startOfMonth(addMonths(date, direction)));
 }
 
@@ -65,6 +70,7 @@ export function toBusinessDateTime(instant: string): { date: string; time: strin
 /** «13 oct – 19 oct» para la semana; «octubre de 2026» para el mes. */
 export function calendarTitle(view: CalendarView, anchor: string): string {
   if (view === "mes") return format(parseISO(anchor), "LLLL 'de' yyyy", { locale: es });
+  if (view === "dia") return longDayLabel(anchor);
   const days = visibleDays("semana", anchor);
   const label = (day: string) => format(parseISO(day), "d MMM", { locale: es }).replace(".", "");
   return `${label(days[0] ?? anchor)} – ${label(days[6] ?? anchor)}`;
@@ -94,7 +100,7 @@ export function groupByDate<T extends { date: string }>(items: readonly T[]): Ma
 /** URL del calendario. Sin fecha lleva a hoy; la vista semana y «todos los productos» no se escriben. */
 export function calendarHref(params: { view: CalendarView; anchor?: string; productId: string | null }): string {
   const search = new URLSearchParams();
-  if (params.view === "mes") search.set("vista", "mes");
+  if (params.view !== "semana") search.set("vista", params.view);
   if (params.anchor) search.set("fecha", params.anchor);
   if (params.productId) search.set("producto", params.productId);
   const query = search.toString();

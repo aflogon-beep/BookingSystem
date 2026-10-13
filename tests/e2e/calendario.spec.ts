@@ -53,3 +53,20 @@ test("el mes muestra la ocupación y lleva a la semana del día pulsado", async 
   await expect(page).toHaveURL(new RegExp(`fecha=${WEDNESDAY}`));
   await expect(page.getByRole("heading", { level: 2, name: calendarTitle("semana", WEDNESDAY) })).toBeVisible();
 });
+
+test("la vista Día coloca las salidas por horas y salta de día con la tira de la semana", async ({ page }) => {
+  await page.goto(`/panel/calendario?vista=dia&fecha=${WEDNESDAY}`);
+  await expect(page.getByRole("link", { name: "Día", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { level: 2, name: calendarTitle("dia", WEDNESDAY) })).toBeVisible();
+  const list = page.getByRole("list", { name: "Salidas del día" });
+  const teide = list.getByRole("listitem").filter({ hasText: "16:30" }).filter({ hasText: "Teide al atardecer y estrellas" });
+  await expect(teide).toBeVisible();
+  await expect(teide.getByRole("link", { name: "Reservar 16:30 Teide al atardecer y estrellas" })).toHaveAttribute("href", /\/panel\/reservas\/nueva\?salida=/);
+  await expect(page.getByRole("definition").filter({ hasText: /^\d+ %$/ })).toBeVisible();
+
+  const thursday = shiftAnchor("dia", WEDNESDAY, 1);
+  const strip = page.getByRole("navigation", { name: "Días de la semana" });
+  await strip.getByRole("link", { name: new RegExp(`^jueves ${Number(thursday.slice(8))}`) }).click();
+  await expect(page).toHaveURL(new RegExp(`vista=dia&fecha=${thursday}`));
+  await expect(page.getByRole("heading", { level: 2, name: calendarTitle("dia", thursday) })).toBeVisible();
+});

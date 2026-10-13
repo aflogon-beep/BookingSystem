@@ -19,6 +19,7 @@ const ROUTES = [
   `/panel?fecha=${TOMORROW}`,
   "/panel/calendario",
   "/panel/calendario?vista=mes",
+  `/panel/calendario?vista=dia&fecha=${TOMORROW}`,
   "/panel/reservas",
   "/panel/reservas/nueva",
   "/panel/clientes",

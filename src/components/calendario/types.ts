@@ -4,6 +4,8 @@ export type CalendarSession = {
   id: string;
   date: string;
   time: string;
+  /** Hora de llegada, «HH:mm» (vista «Día»). */
+  endTime: string;
   language: string;
   capacity: number;
   /** Plazas ocupadas: reservas confirmadas y pendientes con el bloqueo vigente. */
