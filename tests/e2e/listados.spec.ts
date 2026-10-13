@@ -63,6 +63,14 @@ test("una reserva nueva sale en el listado, en el CSV y en la ficha del cliente"
   const row = page.getByRole("row", { name });
   await expect(row).toBeVisible();
   await expect(row.getByText("Pendiente")).toBeVisible();
+  // Pulsar la fila abre la vista previa sin salir del listado.
+  await row.getByRole("link", { name }).click();
+  const preview = page.getByRole("dialog");
+  await expect(preview.getByRole("heading", { name })).toBeVisible();
+  await expect(preview.getByRole("link", { name: "Abrir ficha" })).toHaveAttribute("href", /^\/panel\/reservas\/VT[0-9A-Z]{6}$/);
+  await expect(page).toHaveURL(/q=Listado/);
+  await page.keyboard.press("Escape");
+  await expect(preview).toBeHidden();
   // Las cifras de arriba cuentan hasta su valor: 1 reserva, 1 pasajero y nada cobrado aún.
   const summary = page.getByRole("region", { name: "Resumen de las reservas" });
   await expect(summary).toContainText(/Reservas\s*1\s*Pasajeros\s*1\s*Importe/);

@@ -5,6 +5,7 @@ import { Download, Globe, Handshake, Phone, Plus, SearchX, Store, type LucideIco
 
 import { BookingStatusPill, PaymentPill } from "@/components/reservas/booking-pills";
 import { BookingFilters } from "@/components/reservas/booking-filters";
+import { BookingPreviewLink, BookingPreviewProvider } from "@/components/reservas/booking-preview";
 import { BookingPulse } from "@/components/reservas/booking-pulse";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
   exactCodeMatch,
   parseBookingListParams,
 } from "@/lib/domain/booking-list";
+import { previewStamp } from "@/lib/domain/booking-preview";
 import { dayGroupLabel, groupByDay, showsPulse, type DayGroup } from "@/lib/domain/booking-pulse";
 import { formatCents } from "@/lib/domain/money";
 import { businessToday } from "@/lib/domain/schedule";
@@ -97,7 +99,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
         <BookingFilters params={params} products={products} />
 
         {rows.length ? (
-          <>
+          <BookingPreviewProvider items={rows.map((row) => ({ code: row.code, stamp: previewStamp(row) }))}>
             <div className="overflow-x-auto">
               <table className="w-full text-[0.86rem] max-tablet:block">
                 <thead className="max-tablet:sr-only">
@@ -158,7 +160,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
                 Se muestran {rows.length} de {count}. Afina los filtros o exporta el CSV para verlas todas.
               </p>
             ) : null}
-          </>
+          </BookingPreviewProvider>
         ) : (
           <EmptyState
             icon={SearchX}
@@ -206,6 +208,8 @@ function BookingRow({ row }: { row: BookingListRow }) {
       aria-label={row.customerName}
       className={cn(
         "relative border-b border-line-2 last:border-b-0 hover:bg-surface-2",
+        // La fila abierta en la vista previa queda marcada.
+        "has-[a[aria-current=true]]:bg-primary-soft/60 has-[a[aria-current=true]]:shadow-[inset_3px_0_0_var(--primary)]",
         // En móvil cada fila es una tarjeta: cliente y salida a la izquierda, estado y pago a la derecha.
         "max-tablet:grid max-tablet:grid-cols-[minmax(0,1fr)_auto] max-tablet:items-center max-tablet:py-1.5",
       )}
@@ -219,13 +223,13 @@ function BookingRow({ row }: { row: BookingListRow }) {
             {initials(row.customerName)}
           </span>
           <div className="min-w-0">
-            <Link
-              href={`/panel/reservas/${row.code}`}
-              // Toda la fila abre la ficha.
+            <BookingPreviewLink
+              code={row.code}
+              // Toda la fila abre la vista previa (con Ctrl/Cmd, la ficha en otra pestaña).
               className="block max-w-[190px] truncate max-tablet:max-w-full font-semibold underline-offset-2 after:absolute after:inset-0 after:content-[''] hover:underline"
             >
               {row.customerName}
-            </Link>
+            </BookingPreviewLink>
             <span className="font-mono text-[0.74rem] text-faint">{row.code}</span>
             {/* En móvil el producto va debajo del nombre. */}
             <span className="block max-w-[190px] truncate max-tablet:max-w-full text-[0.76rem] text-muted-foreground tablet:hidden">{row.productName}</span>
