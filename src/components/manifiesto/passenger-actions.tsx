@@ -144,7 +144,7 @@ export function CheckAllButton({ sessionId, disabled }: { sessionId: string; dis
   );
 }
 
-const METHODS = [
+export const PAYMENT_METHODS = [
   { value: "cash", label: "Efectivo", icon: Banknote },
   { value: "card_terminal", label: "TPV tarjeta", icon: CreditCard },
 ] as const;
@@ -185,7 +185,7 @@ export function CollectButton({
         </DialogHeader>
         <DialogBody>
           <div role="group" aria-label="Cómo paga" className="grid grid-cols-2 gap-2">
-            {METHODS.map(({ value, label, icon: Icon }) => (
+            {PAYMENT_METHODS.map(({ value, label, icon: Icon }) => (
               <button
                 key={value}
                 type="button"

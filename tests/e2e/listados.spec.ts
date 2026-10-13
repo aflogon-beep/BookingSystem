@@ -71,6 +71,13 @@ test("una reserva nueva sale en el listado, en el CSV y en la ficha del cliente"
   await expect(page).toHaveURL(/q=Listado/);
   await page.keyboard.press("Escape");
   await expect(preview).toBeHidden();
+  // Marcarla saca la barra de acciones en bloque; Esc la quita.
+  await row.getByRole("checkbox", { name: `Marcar ${name}` }).click();
+  const bulk = page.getByRole("region", { name: "Acciones con las reservas marcadas" });
+  await expect(bulk).toContainText("1 reserva");
+  await expect(bulk.getByRole("button", { name: "Cobrar 1 reserva" })).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await expect(bulk).toBeHidden();
   // Las cifras de arriba cuentan hasta su valor: 1 reserva, 1 pasajero y nada cobrado aún.
   const summary = page.getByRole("region", { name: "Resumen de las reservas" });
   await expect(summary).toContainText(/Reservas\s*1\s*Pasajeros\s*1\s*Importe/);
