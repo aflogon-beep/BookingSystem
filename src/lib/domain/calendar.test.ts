@@ -41,6 +41,10 @@ describe("parseCalendarParams", () => {
     });
     expect(parseCalendarParams({ fecha: ["2026-11-01", "2026-12-01"] }, TODAY).anchor).toBe("2026-11-01");
   });
+
+  it("lee la vista «Día»", () => {
+    expect(parseCalendarParams({ vista: "dia", fecha: "2026-10-20" }, TODAY)).toMatchObject({ view: "dia", anchor: "2026-10-20" });
+  });
 });
 
 describe("visibleDays", () => {
@@ -55,6 +59,10 @@ describe("visibleDays", () => {
       "2026-10-18",
     ]);
     expect(visibleDays("semana", "2026-10-18")[0]).toBe("2026-10-12");
+  });
+
+  it("el día carga su semana (para la tira de días)", () => {
+    expect(visibleDays("dia", "2026-10-14")).toEqual(visibleDays("semana", "2026-10-14"));
   });
 
   it("el mes ocupa semanas enteras", () => {
@@ -72,6 +80,8 @@ describe("shiftAnchor", () => {
     expect(shiftAnchor("semana", "2026-10-14", -1)).toBe("2026-10-07");
     expect(shiftAnchor("mes", "2026-01-31", 1)).toBe("2026-02-01");
     expect(shiftAnchor("mes", "2026-01-15", -1)).toBe("2025-12-01");
+    expect(shiftAnchor("dia", "2026-10-31", 1)).toBe("2026-11-01");
+    expect(shiftAnchor("dia", "2026-10-14", -1)).toBe("2026-10-13");
   });
 });
 
@@ -104,6 +114,7 @@ describe("títulos", () => {
   it("semana y mes en español", () => {
     expect(calendarTitle("semana", "2026-10-14")).toBe("12 oct – 18 oct");
     expect(calendarTitle("mes", "2026-10-14")).toBe("octubre de 2026");
+    expect(calendarTitle("dia", "2026-10-14")).toBe("miércoles 14 de octubre");
     expect(weekdayLabel("2026-10-12")).toBe("lun 12");
   });
 });
@@ -137,6 +148,7 @@ describe("calendarHref", () => {
     expect(calendarHref({ view: "mes", anchor: "2026-11-01", productId: PRODUCT })).toBe(
       `/panel/calendario?vista=mes&fecha=2026-11-01&producto=${PRODUCT}`,
     );
+    expect(calendarHref({ view: "dia", anchor: "2026-10-14", productId: null })).toBe("/panel/calendario?vista=dia&fecha=2026-10-14");
   });
 });
 

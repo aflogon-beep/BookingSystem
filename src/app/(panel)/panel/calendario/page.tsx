@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+import { DayView } from "@/components/calendario/day-view";
 import { MonthView } from "@/components/calendario/month-view";
 import { ProductFilter } from "@/components/calendario/product-filter";
 import type { CalendarSession } from "@/components/calendario/types";
@@ -45,7 +46,8 @@ export default async function Page({ searchParams }: PageProps<"/panel/calendari
   const productId = products.some((product) => product.id === requestedProductId) ? requestedProductId : null;
   const [rows, booked, unstaffed, blocked] =
     productId === requestedProductId ? loaded : await loadCalendarData(supabase, from, to, productId);
-  const sessions = toCalendarSessions(rows, booked, unstaffed, blocked, new Date());
+  const now = new Date();
+  const sessions = toCalendarSessions(rows, booked, unstaffed, blocked, now);
 
   return (
     <section className="flex flex-col gap-4 tablet:gap-5">
@@ -85,6 +87,18 @@ export default async function Page({ searchParams }: PageProps<"/panel/calendari
 
       {view === "mes" ? (
         <MonthView days={days} month={anchor.slice(0, 7)} sessions={sessions} today={today} productId={productId} />
+      ) : view === "dia" ? (
+        <>
+          <DayView
+            day={anchor}
+            days={days}
+            sessions={sessions}
+            today={today}
+            nowTime={toBusinessDateTime(now.toISOString()).time}
+            productId={productId}
+          />
+          <SeatLegend />
+        </>
       ) : (
         <>
           <WeekView days={days} sessions={sessions} today={today} />
@@ -125,7 +139,7 @@ async function loadSessionRows(
   for (let offset = 0; ; offset += PAGE_SIZE) {
     let query = supabase
       .from("sessions")
-      .select("id, starts_at, language, capacity, status, products!inner(name, color, min_pax), session_resources(resources(name, type))")
+      .select("id, starts_at, ends_at, language, capacity, status, products!inner(name, color, min_pax), session_resources(resources(name, type))")
       .gte("starts_at", from)
       .lt("starts_at", to)
       .order("starts_at")
@@ -194,6 +208,7 @@ async function loadUnstaffed(
 type SessionRow = {
   id: string;
   starts_at: string;
+  ends_at: string;
   language: string;
   capacity: number;
   status: string;
@@ -214,6 +229,7 @@ function toCalendarSessions(
       id: row.id,
       date,
       time,
+      endTime: toBusinessDateTime(row.ends_at).time,
       language: row.language,
       capacity: row.capacity,
       booked: booked.get(row.id) ?? 0,
@@ -231,11 +247,12 @@ function toCalendarSessions(
   });
 }
 
-/** Control segmentado Mes / Semana («seg2» del prototipo). */
+/** Control segmentado Día / Semana / Mes («seg2» del prototipo). */
 function ViewSwitch({ view, anchor, productId }: { view: CalendarView; anchor: string; productId: string | null }) {
   const options: { value: CalendarView; label: string }[] = [
-    { value: "mes", label: "Mes" },
+    { value: "dia", label: "Día" },
     { value: "semana", label: "Semana" },
+    { value: "mes", label: "Mes" },
   ];
   return (
     <nav aria-label="Vista" className="inline-flex flex-none gap-0.5 rounded-[9px] bg-[#e8e8ed] p-[3px]">
