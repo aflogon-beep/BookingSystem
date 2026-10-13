@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { reportSummarySchema } from "@/lib/domain/reports";
+import { reportHeatmapSchema, reportSummarySchema } from "@/lib/domain/reports";
 
 import { adminDb, anonDb, createTestUser, deleteTestUsers, type TestUser } from "./helpers";
 
@@ -127,5 +127,25 @@ describe("report_summary", () => {
     expect(anonError).not.toBeNull();
     const { error } = await outsider.db.rpc("report_summary", { p_from: DAY, p_to: DAY });
     expect(error?.code).toBe("42501");
+  });
+});
+
+describe("report_heatmap", () => {
+  // Usa las reservas del primer test de report_summary (mismo archivo, en orden).
+  it("da la ocupación por día de la semana y hora de Canarias, sin canceladas ni bloqueos web", async () => {
+    const { data, error } = await boss.db.rpc("report_heatmap", { p_from: DAY, p_to: DAY });
+    expect(error).toBeNull();
+    // El 9 de julio de 2031 es miércoles (3).
+    expect(reportHeatmapSchema.parse(data)).toEqual([
+      { weekday: 3, time: "00:30", sessions: 1, capacity: 10, booked_seats: 2 },
+      { weekday: 3, time: "10:00", sessions: 1, capacity: 10, booked_seats: 3 },
+      { weekday: 3, time: "23:30", sessions: 1, capacity: 10, booked_seats: 1 },
+    ]);
+  });
+
+  it("solo lo ve un admin y con un rango válido", async () => {
+    expect((await member.db.rpc("report_heatmap", { p_from: DAY, p_to: DAY })).error?.code).toBe("42501");
+    expect((await anonDb().rpc("report_heatmap", { p_from: DAY, p_to: DAY })).error).not.toBeNull();
+    expect((await boss.db.rpc("report_heatmap", { p_from: NEXT_DAY, p_to: DAY })).error?.code).toBe("22023");
   });
 });
