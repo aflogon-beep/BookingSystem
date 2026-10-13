@@ -1,0 +1,41 @@
+name: Datos de prueba
+
+# Carga o borra unas 200 reservas ficticias en Supabase cloud (producción) para ver el sistema con
+# carga. Solo a mano: Actions > Datos de prueba > Run workflow, y elegir «cargar» o «borrar».
+# Las reservas de prueba se reconocen por el email @ejemplo.test de sus clientes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: cargar o borrar las reservas de prueba
+        type: choice
+        options: [cargar, borrar]
+        default: cargar
+
+concurrency:
+  group: migraciones-produccion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  datos:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Conectar con el proyecto
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: ${{ inputs.accion }}
+        run: supabase db query --linked --file "scripts/datos-prueba/${{ inputs.accion }}.sql"
