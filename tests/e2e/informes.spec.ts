@@ -8,6 +8,9 @@ test("Informes muestra los indicadores y cambia entre los últimos y los próxim
     await expect(page.getByRole("term").filter({ hasText: label })).toBeVisible();
   }
   await expect(page.getByRole("list", { name: "Ingresos por día" }).getByRole("listitem")).toHaveCount(30);
+  // Podio de productos y mapa de calor por día de la semana y hora.
+  await expect(page.getByRole("heading", { name: "Lo más vendido" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cuándo se llenan las salidas" })).toBeVisible();
 
   const periods = page.getByRole("navigation", { name: "Periodo del informe" });
   await periods.getByRole("link", { name: "Próximos 30 días" }).click();

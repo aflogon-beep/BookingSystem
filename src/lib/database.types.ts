@@ -571,6 +571,9 @@ isOneToOne: false
 "rate_limit_hit":
 { Args: { "p_key": string,"p_limit": number,"p_window_seconds": number }; Returns: boolean
                            },
+"report_heatmap":
+{ Args: { "p_from": string,"p_to": string }; Returns: Json
+                           },
 "report_summary":
 { Args: { "p_from": string,"p_to": string }; Returns: Json
                            },

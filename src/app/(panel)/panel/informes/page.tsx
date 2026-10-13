@@ -3,10 +3,21 @@ import Link from "next/link";
 
 import { Box } from "@/components/ajustes/box";
 import { ChannelShare, DailyRevenueChart, LanguageBars, ProductBars } from "@/components/informes/charts";
+import { HeatmapGrid, KpiStrip, Podium } from "@/components/informes/highlights";
 import { requireAccess } from "@/lib/auth";
 import { createClient } from "@/lib/db/server";
-import { formatCents } from "@/lib/domain/money";
-import { REPORT_PERIODS, buildReport, parseReportPeriod, reportRange, reportSummarySchema, roundToEuros } from "@/lib/domain/reports";
+import {
+  REPORT_PERIODS,
+  buildHeatmap,
+  buildReport,
+  kpiDeltas,
+  parseReportPeriod,
+  previousRange,
+  productPodium,
+  reportHeatmapSchema,
+  reportRange,
+  reportSummarySchema,
+} from "@/lib/domain/reports";
 import { businessToday } from "@/lib/domain/schedule";
 import { cn } from "@/lib/utils";
 
@@ -24,13 +35,27 @@ export default async function Page({ searchParams }: PageProps<"/panel/informes"
   const today = businessToday(new Date());
   const range = reportRange(period, today);
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("report_summary", { p_from: range.from, p_to: range.to });
-  const summary = reportSummarySchema.safeParse(data);
-  if (error || !summary.success) throw new Error("No se pudo cargar el informe.");
-  const report = buildReport(summary.data, range.days, today);
-  const { kpis } = report;
   const past = period === "pasados";
+  // Los últimos 30 días se comparan con los 30 anteriores; lo reservado a futuro, con nada.
+  const previous = past ? previousRange(range) : null;
+
+  const supabase = await createClient();
+  const [current, before, heat] = await Promise.all([
+    supabase.rpc("report_summary", { p_from: range.from, p_to: range.to }),
+    previous ? supabase.rpc("report_summary", { p_from: previous.from, p_to: previous.to }) : null,
+    supabase.rpc("report_heatmap", { p_from: range.from, p_to: range.to }),
+  ]);
+  const summary = reportSummarySchema.safeParse(current.data);
+  const previousSummary = before ? reportSummarySchema.safeParse(before.data) : null;
+  const heatRows = reportHeatmapSchema.safeParse(heat.data);
+  if (current.error || !summary.success || before?.error || previousSummary?.success === false || heat.error || !heatRows.success) {
+    throw new Error("No se pudo cargar el informe.");
+  }
+  const report = buildReport(summary.data, range.days, today);
+  const previousReport = previous && previousSummary?.success ? buildReport(previousSummary.data, [], today) : null;
+  const deltas = previousReport ? kpiDeltas(report.kpis, previousReport.kpis) : null;
+  const { podium, rising } = productPodium(report.products, previousReport?.products ?? null);
+  const heatmap = buildHeatmap(heatRows.data);
 
   return (
     <section className="flex flex-col gap-4 tablet:gap-5">
@@ -55,29 +80,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/informes"
         </nav>
       </div>
 
-      {/* Como el prototipo: 2 columnas por debajo de 820 px, para que quepan importes largos. */}
-      <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-black/5 bg-surface shadow-card min-[820px]:grid-cols-4">
-        {[
-          ["Ingresos", formatCents(roundToEuros(kpis.revenueCents)), kpis.bookings === 1 ? "1 reserva" : `${kpis.bookings} reservas`],
-          ["Pasajeros", String(kpis.pax), `${kpis.paxPerBooking} por reserva`],
-          ["Ticket medio", formatCents(roundToEuros(kpis.avgTicketCents)), "por reserva"],
-          ["Ocupación", `${kpis.occupancyPercent}%`, `${kpis.bookedSeats} de ${kpis.capacity} plazas`],
-        ].map(([label, value, detail], index) => (
-          <div
-            key={label}
-            className={cn(
-              "min-w-0 px-3.5 py-3 tablet:px-[18px] tablet:py-3.5",
-              index % 2 === 1 && "border-l border-line-2",
-              index >= 2 && "border-t border-line-2 min-[820px]:border-t-0",
-              index === 2 && "min-[820px]:border-l",
-            )}
-          >
-            <dt className="text-[0.72rem] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{label}</dt>
-            <dd className="mt-[3px] text-[1.25rem] font-semibold tracking-[-0.03em] tabular-nums tablet:text-[1.6rem]">{value}</dd>
-            <dd className="text-[0.76rem] text-muted-foreground">{detail}</dd>
-          </div>
-        ))}
-      </dl>
+      <KpiStrip kpis={report.kpis} deltas={deltas} />
 
       <Box
         title="Ingresos por día de salida"
@@ -94,6 +97,19 @@ export default async function Page({ searchParams }: PageProps<"/panel/informes"
           <DailyRevenueChart report={report} />
         </div>
       </Box>
+
+      <div className="grid gap-4 desk:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] tablet:gap-5">
+        <Box title="Lo más vendido" action={past ? <span className="text-[0.8rem] text-muted-foreground">frente a los 30 días anteriores</span> : null}>
+          <div className="p-4">
+            <Podium podium={podium} rising={rising} />
+          </div>
+        </Box>
+        <Box title="Cuándo se llenan las salidas" action={<span className="text-[0.8rem] text-muted-foreground">Ocupación por día y hora</span>}>
+          <div className="p-4">
+            <HeatmapGrid heatmap={heatmap} />
+          </div>
+        </Box>
+      </div>
 
       <div className="grid gap-4 desk:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] tablet:gap-5">
         <Box title="Por producto" action={<span className="text-[0.8rem] text-muted-foreground">Ingresos · ocupación</span>}>

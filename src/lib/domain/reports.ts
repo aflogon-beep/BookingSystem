@@ -144,3 +144,129 @@ export function buildReport(summary: ReportSummary, days: readonly string[], tod
 export function roundToEuros(cents: number): number {
   return Math.round(cents / 100) * 100;
 }
+
+/** Los 30 días justo antes de un rango (para comparar los «últimos 30 días» con los anteriores). */
+export function previousRange(range: { from: string }): { from: string; to: string } {
+  const start = parseISO(range.from);
+  return { from: format(addDays(start, -REPORT_DAYS), "yyyy-MM-dd"), to: format(addDays(start, -1), "yyyy-MM-dd") };
+}
+
+export type Delta = { text: string; direction: "up" | "down" | "flat" };
+
+/** Variación en %: «+12 %», «−8 %», «=». Sin dato anterior: «nuevo» (o nada si los dos son 0). */
+export function percentDelta(current: number, previous: number): Delta | null {
+  if (previous <= 0) return current > 0 ? { text: "nuevo", direction: "up" } : null;
+  const change = Math.round(((current - previous) / previous) * 100);
+  if (change === 0) return { text: "=", direction: "flat" };
+  return { text: `${change > 0 ? "+" : "−"}${Math.abs(change)} %`, direction: change > 0 ? "up" : "down" };
+}
+
+/** Variación en puntos (para la ocupación): «+4 pts», «−2 pts», «=». */
+export function pointsDelta(current: number, previous: number): Delta {
+  const change = Math.round(current - previous);
+  if (change === 0) return { text: "=", direction: "flat" };
+  return { text: `${change > 0 ? "+" : "−"}${Math.abs(change)} pts`, direction: change > 0 ? "up" : "down" };
+}
+
+/** Variación de cada indicador frente al periodo anterior. */
+export function kpiDeltas(current: Report["kpis"], previous: Report["kpis"]) {
+  return {
+    revenue: percentDelta(current.revenueCents, previous.revenueCents),
+    pax: percentDelta(current.pax, previous.pax),
+    avgTicket: percentDelta(current.avgTicketCents, previous.avgTicketCents),
+    occupancy: previous.capacity > 0 && current.capacity > 0 ? pointsDelta(current.occupancyPercent, previous.occupancyPercent) : null,
+  };
+}
+
+export type PodiumEntry = { id: string; name: string; color: string; revenueCents: number; delta: Delta | null };
+
+/**
+ * Podio de productos: los tres que más ingresan (con ingresos) y su variación frente al periodo
+ * anterior, si lo hay. «rising» es el que más crece (en %) entre los que ya vendían antes.
+ */
+export function productPodium(
+  current: readonly Pick<Report["products"][number], "id" | "name" | "color" | "revenueCents">[],
+  previous: readonly Pick<Report["products"][number], "id" | "revenueCents">[] | null,
+): { podium: PodiumEntry[]; rising: (PodiumEntry & { growthPercent: number }) | null } {
+  const before = new Map(previous?.map((product) => [product.id, product.revenueCents]));
+  const ranked = current
+    .filter((product) => product.revenueCents > 0)
+    .map((product) => ({
+      id: product.id,
+      name: product.name,
+      color: product.color,
+      revenueCents: product.revenueCents,
+      delta: previous ? percentDelta(product.revenueCents, before.get(product.id) ?? 0) : null,
+    }))
+    .sort((a, b) => b.revenueCents - a.revenueCents || a.name.localeCompare(b.name, "es"));
+  let rising: (PodiumEntry & { growthPercent: number }) | null = null;
+  if (previous) {
+    for (const product of ranked) {
+      const old = before.get(product.id) ?? 0;
+      if (old <= 0) continue;
+      const growthPercent = Math.round(((product.revenueCents - old) / old) * 100);
+      if (growthPercent > 0 && (!rising || growthPercent > rising.growthPercent)) rising = { ...product, growthPercent };
+    }
+  }
+  return { podium: ranked.slice(0, 3), rising };
+}
+
+/** Lo que devuelve report_heatmap: una fila por día de la semana (1 = lunes) y hora de salida. */
+export const reportHeatmapSchema = z.array(
+  z.object({ weekday: z.number().int().min(1).max(7), time: z.string(), sessions: count, capacity: count, booked_seats: count }),
+);
+
+export type ReportHeatmapRow = z.infer<typeof reportHeatmapSchema>[number];
+
+export const WEEKDAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] as const;
+
+export type HeatCell = { weekday: number; time: string; sessions: number; occupancyPercent: number | null; level: 0 | 1 | 2 | 3 | 4 };
+
+export type Heatmap = {
+  times: string[];
+  rows: { weekday: number; label: string; cells: HeatCell[] }[];
+  /** Hueco con más ocupación y con menos (si hay al menos dos con salidas). */
+  best: HeatCell | null;
+  worst: HeatCell | null;
+};
+
+/** Intensidad del color: 1 hasta 25 %, 2 hasta 50 %, 3 hasta 75 % y 4 por encima; 0 sin salidas. */
+export function heatLevel(percent: number | null): HeatCell["level"] {
+  if (percent === null) return 0;
+  if (percent < 25) return 1;
+  if (percent < 50) return 2;
+  if (percent < 75) return 3;
+  return 4;
+}
+
+/** Cuadrícula de lunes a domingo × horas de salida, con la ocupación de cada hueco. */
+export function buildHeatmap(rows: readonly ReportHeatmapRow[]): Heatmap {
+  const times = [...new Set(rows.map((row) => row.time))].sort();
+  const byKey = new Map(rows.map((row) => [`${row.weekday} ${row.time}`, row]));
+  const grid = WEEKDAY_LABELS.map((label, index) => {
+    const weekday = index + 1;
+    return {
+      weekday,
+      label,
+      cells: times.map((time): HeatCell => {
+        const row = byKey.get(`${weekday} ${time}`);
+        const occupancyPercent = row && row.capacity > 0 ? Math.round((row.booked_seats / row.capacity) * 100) : null;
+        return { weekday, time, sessions: row?.sessions ?? 0, occupancyPercent, level: heatLevel(occupancyPercent) };
+      }),
+    };
+  });
+  const filled = grid.flatMap((row) => row.cells).filter((cell) => cell.occupancyPercent !== null);
+  const sorted = [...filled].sort((a, b) => (b.occupancyPercent ?? 0) - (a.occupancyPercent ?? 0));
+  return {
+    times,
+    rows: grid,
+    best: sorted.length >= 2 ? (sorted[0] ?? null) : null,
+    worst: sorted.length >= 2 ? (sorted[sorted.length - 1] ?? null) : null,
+  };
+}
+
+/** «los sábados a las 16:30». */
+export function slotText(cell: Pick<HeatCell, "weekday" | "time">): string {
+  const day = (WEEKDAY_LABELS[cell.weekday - 1] ?? "").toLowerCase();
+  return `los ${day.endsWith("s") ? day : `${day}s`} a las ${cell.time}`;
+}
