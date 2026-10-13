@@ -320,6 +320,7 @@
   .confetti-piece {
     display: none;
   }
+}
 
 /* Informes (src/components/informes/highlights.tsx): el podio sube y el mapa de calor se enciende
    celda a celda. */
