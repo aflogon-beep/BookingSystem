@@ -9,8 +9,10 @@ import { Box } from "@/components/ajustes/box";
 import { PhoneLinks } from "@/components/contact-buttons";
 import { EmptyState } from "@/components/empty-state";
 import { EquipmentBox } from "@/components/manifiesto/equipment-box";
+import { GuideHero } from "@/components/manifiesto/guide-hero";
+import { GuideCards, ManifestTabs, PaymentCell, PickupRoute } from "@/components/manifiesto/guide-views";
 import { ManifestMenu } from "@/components/manifiesto/manifest-menu";
-import { ArrivalControl, CheckAllButton, CollectButton } from "@/components/manifiesto/passenger-actions";
+import { ArrivalControl, CheckAllButton } from "@/components/manifiesto/passenger-actions";
 import { SessionControls } from "@/components/manifiesto/session-controls";
 import { ProductArt } from "@/components/productos/product-art";
 import { STATE_PILL_CLASS, STATE_TEXT_CLASS, stateHint } from "@/components/salidas/session-state-style";
@@ -20,6 +22,7 @@ import { requireAccess } from "@/lib/auth";
 import { missingText } from "@/lib/domain/assignment";
 import { longDayLabel } from "@/lib/domain/calendar";
 import { canCollect, isLive, manifestSummary, manifestText, paxOf, sortManifest, ticketsLabel } from "@/lib/domain/manifest";
+import { parseManifestView } from "@/lib/domain/guide-sheet";
 import { formatCents } from "@/lib/domain/money";
 import { businessToday } from "@/lib/domain/schedule";
 import { blockedReason, blockedText, sessionState, type SessionStateKind } from "@/lib/domain/session-state";
@@ -31,9 +34,10 @@ import { loadManifest, type ManifestEquipment, type ManifestRow, type ManifestSe
 
 export const metadata: Metadata = { title: "Manifiesto" };
 
-export default async function Page({ params }: PageProps<"/panel/salidas/[id]">) {
+export default async function Page({ params, searchParams }: PageProps<"/panel/salidas/[id]">) {
   await requireAccess("hoy");
   const { id } = await params;
+  const view = parseManifestView((await searchParams).vista);
   if (!z.uuid().safeParse(id).success) notFound();
   const now = new Date();
   const manifest = await loadManifest(id, now);
@@ -191,34 +195,59 @@ export default async function Page({ params }: PageProps<"/panel/salidas/[id]">)
             </span>
           }>
           {rows.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-[0.86rem]">
-                <thead>
-                  <tr className="border-b border-line-2 text-left text-[0.72rem] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
-                    <th scope="col" className="w-[92px] px-3 py-2.5 tablet:px-4">
-                      Llegó
-                    </th>
-                    <th scope="col" className="px-2 py-2.5">
-                      Cliente
-                    </th>
-                    <th scope="col" className="px-2 py-2.5">
-                      Entradas
-                    </th>
-                    <th scope="col" className="px-2 py-2.5 max-desk:hidden print:table-cell!">
-                      {session.product.pickup ? "Recogida" : "Contacto"}
-                    </th>
-                    <th scope="col" className="px-3 py-2.5 tablet:px-4">
-                      Pago
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <PassengerRow key={row.id} row={row} session={session} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <ManifestTabs sessionId={session.id} view={view} />
+              {view === "guia" ? (
+                <div className="print:hidden">
+                  <GuideHero
+                    startsAt={session.startsAt}
+                    endsAt={session.endsAt}
+                    initialNow={now.toISOString()}
+                    cancelled={session.status === "cancelled"}
+                    pax={summary.pax}
+                    checkedIn={summary.checkedIn}
+                    noShows={summary.noShows}
+                    groups={live.length}
+                    dueCents={summary.dueCents}
+                    dueGroups={live.filter(canCollect).length}
+                  />
+                  <GuideCards rows={rows} session={session} />
+                </div>
+              ) : view === "recogidas" ? (
+                <div className="print:hidden">
+                  <PickupRoute rows={rows} session={session} />
+                </div>
+              ) : null}
+              {/* La lista de siempre: en su pestaña y, desde cualquier vista, al imprimir. */}
+              <div className={cn("overflow-x-auto", view !== "lista" && "hidden print:block")}>
+                <table className="w-full text-[0.86rem]">
+                  <thead>
+                    <tr className="border-b border-line-2 text-left text-[0.72rem] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+                      <th scope="col" className="w-[92px] px-3 py-2.5 tablet:px-4">
+                        Llegó
+                      </th>
+                      <th scope="col" className="px-2 py-2.5">
+                        Cliente
+                      </th>
+                      <th scope="col" className="px-2 py-2.5">
+                        Entradas
+                      </th>
+                      <th scope="col" className="px-2 py-2.5 max-desk:hidden print:table-cell!">
+                        {session.product.pickup ? "Recogida" : "Contacto"}
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 tablet:px-4">
+                        Pago
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <PassengerRow key={row.id} row={row} session={session} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <EmptyState
               icon={Users}
@@ -349,25 +378,6 @@ const STATUS_TEXT: Record<SessionStateKind, string> = {
   panel_only: "Solo panel",
   available: "A la venta",
 };
-
-function PaymentCell({ row }: { row: ManifestRow }) {
-  if (!isLive(row)) return <Pill className="bg-danger-soft text-danger">Cancelada</Pill>;
-  if (canCollect(row)) {
-    return (
-      <CollectButton
-        bookingId={row.id}
-        code={row.code}
-        totalCents={row.totalCents}
-        customerName={row.customerName}
-        tickets={ticketsLabel(row.lines)}
-      />
-    );
-  }
-  if (row.paymentStatus === "paid") return <Pill tone="ok">Pagada</Pill>;
-  if (row.paymentStatus === "invoice") return <Pill>Factura{row.agent ? ` · ${row.agent}` : ""}</Pill>;
-  if (row.paymentStatus === "refunded") return <Pill>Reembolsada</Pill>;
-  return <Pill tone="warn">Pendiente</Pill>;
-}
 
 function PassengerRow({ row, session }: { row: ManifestRow; session: ManifestSession }) {
   const live = isLive(row);

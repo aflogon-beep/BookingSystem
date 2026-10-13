@@ -38,6 +38,7 @@ export function ArrivalControl({
   checkedIn,
   arrivedPax,
   noShow,
+  size = "md",
 }: {
   bookingId: string;
   name: string;
@@ -45,6 +46,8 @@ export function ArrivalControl({
   checkedIn: boolean;
   arrivedPax: number | null;
   noShow: boolean;
+  /** «lg» en la hoja del guía: botón grande para marcar con el pulgar. */
+  size?: "md" | "lg";
 }) {
   const [pending, startTransition] = useTransition();
   const booking = { checkedIn, arrivedPax, noShow, pax };
@@ -67,7 +70,8 @@ export function ArrivalControl({
         disabled={pending}
         onClick={() => (state === "pending" ? save(pax, `${first} · presentado`) : save(null, "Check-in deshecho"))}
         className={cn(
-          "grid size-11 place-items-center rounded-l-lg border-2 border-r-0 text-[0.72rem] font-bold tabular-nums outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 tablet:size-8",
+          "grid place-items-center border-2 border-r-0 font-bold tabular-nums outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50",
+          size === "lg" ? "size-14 rounded-l-xl text-[0.85rem] [&_svg]:size-6!" : "size-11 rounded-l-lg text-[0.72rem] tablet:size-8",
           state === "arrived" && "border-ok bg-ok text-white",
           state === "partial" && "border-[#ff9f0a] bg-[#ff9f0a] text-white",
           state === "no_show" && "border-danger bg-danger text-white",
@@ -86,7 +90,10 @@ export function ArrivalControl({
         <DropdownMenu.Trigger
           aria-label={`Más opciones de llegada de ${name}`}
           disabled={pending}
-          className="grid h-11 w-7 place-items-center rounded-r-lg border-2 border-line bg-surface text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 tablet:h-8 tablet:w-6"
+          className={cn(
+            "grid place-items-center border-2 border-line bg-surface text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
+            size === "lg" ? "h-14 w-8 rounded-r-xl" : "h-11 w-7 rounded-r-lg tablet:h-8 tablet:w-6",
+          )}
         >
           <ChevronDown aria-hidden="true" className="size-3.5" />
         </DropdownMenu.Trigger>
