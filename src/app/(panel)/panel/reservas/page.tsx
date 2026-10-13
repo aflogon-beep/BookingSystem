@@ -7,6 +7,7 @@ import { BookingStatusPill, PaymentPill } from "@/components/reservas/booking-pi
 import { BookingFilters } from "@/components/reservas/booking-filters";
 import { BookingPreviewLink, BookingPreviewProvider } from "@/components/reservas/booking-preview";
 import { BookingPulse } from "@/components/reservas/booking-pulse";
+import { BookingSelectionProvider, SelectAvatar, SelectDay } from "@/components/reservas/booking-selection";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { requireAccess } from "@/lib/auth";
@@ -100,6 +101,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
 
         {rows.length ? (
           <BookingPreviewProvider items={rows.map((row) => ({ code: row.code, stamp: previewStamp(row) }))}>
+            <BookingSelectionProvider rows={rows}>
             <div className="overflow-x-auto">
               <table className="w-full text-[0.86rem] max-tablet:block">
                 <thead className="max-tablet:sr-only">
@@ -160,6 +162,7 @@ export default async function Page({ searchParams }: PageProps<"/panel/reservas"
                 Se muestran {rows.length} de {count}. Afina los filtros o exporta el CSV para verlas todas.
               </p>
             ) : null}
+            </BookingSelectionProvider>
           </BookingPreviewProvider>
         ) : (
           <EmptyState
@@ -186,6 +189,7 @@ function DayHeader({ group, today, partial }: { group: DayGroup<BookingListRow>;
     <tr className="border-b border-line-2 bg-surface-2/70 max-tablet:block">
       <th scope="colgroup" colSpan={7} className="px-3 py-2 text-left font-normal max-tablet:block tablet:px-4">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <SelectDay codes={group.rows.map((row) => row.code)} label={label.title} />
           {group.date === today ? <span aria-hidden="true" className="size-2 rounded-full bg-primary shadow-[0_0_0_3px_var(--blue-soft)]" /> : null}
           <span className={cn("text-[0.84rem] font-semibold first-letter:uppercase", group.date === today && "text-primary-dark")}>{label.title}</span>
           {label.detail ? <span className="text-[0.8rem] text-muted-foreground">{label.detail}</span> : null}
@@ -209,6 +213,7 @@ function BookingRow({ row }: { row: BookingListRow }) {
       className={cn(
         "relative border-b border-line-2 last:border-b-0 hover:bg-surface-2",
         // La fila abierta en la vista previa queda marcada.
+        "has-[[role=checkbox][aria-checked=true]]:bg-primary-soft/40",
         "has-[a[aria-current=true]]:bg-primary-soft/60 has-[a[aria-current=true]]:shadow-[inset_3px_0_0_var(--primary)]",
         // En móvil cada fila es una tarjeta: cliente y salida a la izquierda, estado y pago a la derecha.
         "max-tablet:grid max-tablet:grid-cols-[minmax(0,1fr)_auto] max-tablet:items-center max-tablet:py-1.5",
@@ -216,12 +221,7 @@ function BookingRow({ row }: { row: BookingListRow }) {
     >
       <td className="min-w-0 px-3 py-2.5 max-tablet:pb-0 tablet:px-4">
         <div className="flex items-center gap-2.5">
-          <span
-            aria-hidden="true"
-            className="grid size-8 flex-none place-items-center rounded-full bg-primary-soft text-[0.72rem] font-semibold text-primary-dark max-tablet:hidden"
-          >
-            {initials(row.customerName)}
-          </span>
+          <SelectAvatar code={row.code} name={row.customerName} initials={initials(row.customerName)} />
           <div className="min-w-0">
             <BookingPreviewLink
               code={row.code}
