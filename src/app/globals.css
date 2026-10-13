@@ -260,3 +260,64 @@
     animation: none;
   }
 }
+
+/* Hoja del guía (src/components/manifiesto/guide-hero.tsx): degradado azul que pasa a verde con
+   «¡Todos a bordo!», el anillo que late al completarse y el confeti. */
+.guide-hero {
+  background-image: radial-gradient(120% 110% at 0% 0%, var(--blue-soft) 0%, transparent 60%);
+  transition: background-image 600ms ease;
+}
+.guide-hero-done {
+  background-image: radial-gradient(120% 110% at 0% 0%, var(--ok-soft) 0%, transparent 65%);
+}
+.guide-ring-done {
+  animation: guide-ring-beat 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes guide-ring-beat {
+  0% {
+    transform: scale(0.92);
+  }
+  55% {
+    transform: scale(1.07);
+  }
+  100% {
+    transform: none;
+  }
+}
+.confetti-piece {
+  position: absolute;
+  top: -12px;
+  width: 7px;
+  height: 11px;
+  border-radius: 2px;
+  opacity: 0;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.6, 0.4, 1);
+  animation-fill-mode: forwards;
+}
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift), 170px, 0) rotate(var(--spin));
+  }
+}
+/* Paradas de la ruta de recogidas: entran una tras otra. */
+.route-stop {
+  animation: day-group-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide-ring-done,
+  .route-stop {
+    animation: none;
+  }
+  .confetti-piece {
+    display: none;
+  }
+}

@@ -29,7 +29,7 @@ test("ficha de reserva: notas, cambio de fecha y cancelación con reembolso", as
   await expect(dialog).toBeHidden();
 
   // Del manifiesto a la ficha.
-  await page.getByRole("row", { name }).getByRole("link", { name }).click();
+  await page.getByRole("article", { name }).getByRole("link", { name }).click();
   await expect(page).toHaveURL(/\/panel\/reservas\/VT[0-9A-Z]{6}$/);
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   await expect(page.getByText("Pagado", { exact: true })).toBeVisible();

@@ -32,7 +32,8 @@ test("del día al manifiesto: reserva, check-in, cobro, aforo y estado de la sal
   await expect(dialog).toBeHidden();
   await expect(page).toHaveURL(manifestUrl);
 
-  const row = page.getByRole("row", { name });
+  // La hoja del guía: una tarjeta por grupo.
+  const row = page.getByRole("article", { name });
   await expect(row).toBeVisible();
 
   // Con la primera reserva se asigna el equipo solo; se puede quitar a mano y volver a pedirlo.
@@ -66,6 +67,13 @@ test("del día al manifiesto: reserva, check-in, cobro, aforo y estado de la sal
   await collect.getByRole("button", { name: "Efectivo" }).click();
   await expect(collect).toBeHidden();
   await expect(row.getByText("Pagada")).toBeVisible();
+
+  // La misma reserva en la ruta de recogidas y en la lista de siempre.
+  const views = page.getByRole("navigation", { name: "Vista del manifiesto" });
+  await views.getByRole("link", { name: "Recogidas" }).click();
+  await expect(page.getByRole("list", { name: "Paradas" })).toContainText(name);
+  await views.getByRole("link", { name: "Lista" }).click();
+  await expect(page.getByRole("row", { name })).toContainText("Pagada");
 
   // Aforo solo de esta salida.
   const occupancy = page.locator("dl > div").filter({ has: page.getByRole("term").filter({ hasText: "Ocupación" }) });

@@ -14,6 +14,7 @@ import { loadBlockedNeed, loadCutoffHours } from "../../team-status";
 export type ManifestSession = {
   id: string;
   startsAt: string;
+  endsAt: string;
   date: string;
   time: string;
   endTime: string;
@@ -88,6 +89,7 @@ export async function loadManifest(sessionId: string, now: Date): Promise<{ sess
     session: {
       id: row.id,
       startsAt: row.starts_at,
+      endsAt: row.ends_at,
       date,
       time,
       endTime: toBusinessDateTime(row.ends_at).time,
