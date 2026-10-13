@@ -199,7 +199,7 @@ function DayBlockCard({ session, block }: { session: CalendarSession; block: Day
             href={`/panel/reservas/nueva?salida=${session.id}`}
             aria-label={`Reservar ${session.time} ${session.product.name}`}
             title="Reservar"
-            className="absolute top-1.5 right-1.5 z-10 grid size-7 @max-[7rem]:hidden flex-none place-items-center rounded-full bg-surface text-primary shadow-[0_1px_2px_rgb(16_24_40/0.12)] hover:bg-primary hover:text-white focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="absolute top-1.5 right-1.5 z-10 grid size-7 @max-[7rem]:top-auto @max-[7rem]:bottom-1.5 flex-none place-items-center rounded-full bg-surface text-primary shadow-[0_1px_2px_rgb(16_24_40/0.12)] hover:bg-primary hover:text-white focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <Plus aria-hidden="true" className="size-4" />
           </Link>
